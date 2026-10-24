@@ -1,0 +1,12 @@
+[workspace]
+members = ["x1core"]
+resolver = "2"
+
+[profile.release]
+opt-level = 3
+lto = true
+strip = true
+# 单 codegen unit：最大化跨模块内联（配合 lto），热路径函数更可能被内联展开
+codegen-units = 1
+# 不设 panic="abort"：FFI 导出依赖 unwind 语义在护栏中恢复，
+# abort 会把 panic 直接变成宿主输入法进程崩溃
