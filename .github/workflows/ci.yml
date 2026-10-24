@@ -38,6 +38,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: 下载种子 DB
         run: curl -L --fail -o x1core/assets/x1pinyin.db "$SEED_URL"
+        env:
+          SEED_URL: ${{ vars.SEED_URL }}
       - name: 全量测试
         run: cargo test -p x1core --lib
 

@@ -66,7 +66,9 @@ mod platform {
     use std::path::Path;
 
     extern "C" {
-        fn open(path: *const i8, flags: i32, mode: i32) -> i32;
+        // glibc/BSD 的 open 是变参函数，固定三参声明会触发
+        // invalid_runtime_symbol_definitions（std 自身也引用该符号）。
+        fn open(path: *const i8, flags: i32, ...) -> i32;
         fn close(fd: i32) -> i32;
         fn mmap(
             addr: *mut c_void,
