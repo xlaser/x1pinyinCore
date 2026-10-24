@@ -55,6 +55,6 @@ jobs:
       - name: 编译并链接 minimal.c
         run: >
           cc -I x1core/include examples/minimal.c -o target/minimal
-          -L x1core/target/release -lx1core -lpthread -ldl -lm
+          -L target/release -lx1core -lpthread -ldl -lm
       - name: 运行示例
         run: target/minimal
