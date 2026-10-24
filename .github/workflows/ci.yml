@@ -52,9 +52,11 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: 构建 staticlib
         run: cargo build -p x1core --release
+      # 直接链接 staticlib 归档：-lx1core 会优先命中 cdylib 的
+      # libx1core.so，可执行文件运行时报缺共享库
       - name: 编译并链接 minimal.c
         run: >
           cc -I x1core/include examples/minimal.c -o target/minimal
-          -L target/release -lx1core -lpthread -ldl -lm
+          target/release/libx1core.a -lpthread -ldl -lm
       - name: 运行示例
         run: target/minimal
