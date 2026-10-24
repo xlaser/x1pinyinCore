@@ -329,7 +329,62 @@ pub(super) unsafe fn c_str_to_str<'a>(ptr: *const c_char) -> Option<&'a str> {
     core::str::from_utf8(slice).ok()
 }
 
-/// 解析用户词导入 JSON
+/// 剥掉键/值两侧的 JSON 结构字符与空白。
+///
+/// 两段式，顺序有讲究：
+/// 1. 先反复剥空白/花括号/逗号——`{"text"` 去掉 `{` 后暴露出引号，`"jia ci"}`
+///    去掉 `}` 后同样暴露引号，结构字符和空白必须同组反复剥到稳定（历史上
+///    「先引号后花括号」的顺序让 key 变成 `"text`，整条静默丢失：单条导入
+///    全部落空、N 条数组只剩最后一条能进库）。
+/// 2. 引号只剥最外一对——值内可能含转义引号（`他说\"你好\"`），反复剥会把
+///    转义序列一半的引号也吃掉，把 `他说"你好"` 写成 `他说"你好\`。
+fn clean_token(s: &str) -> &str {
+    let s = s.trim_matches(|c: char| c.is_whitespace() || matches!(c, '{' | '}' | ','));
+    let b = s.as_bytes();
+    if b.len() >= 2 && b[0] == b'"' && b[b.len() - 1] == b'"' {
+        &s[1..s.len() - 1]
+    } else {
+        s
+    }
+}
+
+/// 值字符串反转义（`\"` → `"`、`\\` → `\`）。导入词条文本可能含引号，JSON 里
+/// 必须转义；不做反转义会把字面反斜杠存进用户词库。其余转义序列原样保留
+/// （\n 等由词库文本自身承载，不在此层解释）。
+fn unescape_value(s: &str) -> String {
+    if !s.contains('\\') {
+        return s.to_string();
+    }
+    let mut out = String::with_capacity(s.len());
+    let mut it = s.chars();
+    while let Some(c) = it.next() {
+        if c != '\\' {
+            out.push(c);
+            continue;
+        }
+        match it.next() {
+            Some('"') => out.push('"'),
+            Some('\\') => out.push('\\'),
+            Some(other) => {
+                out.push('\\');
+                out.push(other);
+            }
+            None => out.push('\\'),
+        }
+    }
+    out
+}
+
+/// 解析用户词导入 JSON。
+///
+/// 格式契约（与 `x1_engine_import_user_words` 头文档一致）：
+/// `[{"text":"你好","pinyin":"ni hao","freq":5}, ...]`，拼音为空格分隔的
+/// 音节序列（入库守卫要求「汉字数 == 音节数」，见 `user_word_pinyin_matches`）。
+///
+/// 已知边界（有意保留，不在此层解决）：按 `},{` 切分对象，若某个 text 值
+/// 自身含未转义的 `},{` 会错切——中文用户词不会出现该序列；调用方如要支持
+/// 任意 JSON 应自行解析后走 `Engine::import_user_words`。格式错误时返回
+/// `Err(())` 或跳过该条，绝不 panic（FFI 边界）。
 pub(super) fn parse_user_word_json(json: &str) -> Result<Vec<(String, String, u32)>, ()> {
     let trimmed = json.trim();
     if !trimmed.starts_with('[') || !trimmed.ends_with(']') {
@@ -348,27 +403,11 @@ pub(super) fn parse_user_word_json(json: &str) -> Result<Vec<(String, String, u3
         let mut freq: u32 = 1;
         for pair in obj.split(',') {
             let mut kv = pair.splitn(2, ':');
-            let key = kv
-                .next()
-                .map(|s| {
-                    s.trim()
-                        .trim_matches('"')
-                        .trim_matches('{')
-                        .trim_matches('}')
-                })
-                .unwrap_or("");
-            let value = kv
-                .next()
-                .map(|s| {
-                    s.trim()
-                        .trim_matches('"')
-                        .trim_matches('{')
-                        .trim_matches('}')
-                })
-                .unwrap_or("");
+            let key = clean_token(kv.next().unwrap_or(""));
+            let value = unescape_value(clean_token(kv.next().unwrap_or("")));
             match key {
-                "text" => text = Some(value.to_string()),
-                "pinyin" => pinyin = Some(value.to_string()),
+                "text" => text = Some(value),
+                "pinyin" => pinyin = Some(value),
                 "freq" => freq = value.parse().unwrap_or(1),
                 _ => {}
             }
@@ -457,6 +496,66 @@ pub(super) use crate::engine::features_to_json;
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// 用户词导入 JSON 解析。
+    ///
+    /// 守护 2026-10-24 实测发现的缺陷：定界符剥离顺序错误导致
+    /// ① 单条导入（头文档里的最小形态）整条落空；
+    /// ② N 条数组只有最后一条进库（`split("},{")` 后仅末段以 `"` 开头）；
+    /// ③ 对象最后一个字符串值残留引号（拼音被写坏）。
+    #[test]
+    fn parse_user_word_json_forms() {
+        // 头文档的标准形态：单条必须解析出来（曾经的完全失败案例）
+        assert_eq!(
+            parse_user_word_json(r#"[{"text":"你好","pinyin":"ni hao","freq":5}]"#),
+            Ok(vec![("你好".to_string(), "ni hao".to_string(), 5)])
+        );
+        // 多条：全部进入，不是只剩最后一条
+        assert_eq!(
+            parse_user_word_json(
+                r#"[{"text":"甲词","pinyin":"jia ci","freq":1},{"text":"乙词","pinyin":"yi ci","freq":2},{"text":"丙词","pinyin":"bing ci","freq":3}]"#
+            ),
+            Ok(vec![
+                ("甲词".to_string(), "jia ci".to_string(), 1),
+                ("乙词".to_string(), "yi ci".to_string(), 2),
+                ("丙词".to_string(), "bing ci".to_string(), 3),
+            ])
+        );
+        // 键序无关：text 在前的首对曾被 `{` 前缀污染
+        assert_eq!(
+            parse_user_word_json(r#"[{"pinyin":"jia ci","text":"甲词","freq":1}]"#),
+            Ok(vec![("甲词".to_string(), "jia ci".to_string(), 1)])
+        );
+        // freq 在前的形态：末对是字符串值时曾被 `}` 后缀污染出残留引号
+        assert_eq!(
+            parse_user_word_json(r#"[{"freq":1,"text":"甲词","pinyin":"jia ci"}]"#),
+            Ok(vec![("甲词".to_string(), "jia ci".to_string(), 1)])
+        );
+        // 空白变体 + 缺 freq（默认 1）+ 字符串形态 freq
+        assert_eq!(
+            parse_user_word_json(r#"[{ "text" : "甲词" , "pinyin" : "jia ci" }]"#),
+            Ok(vec![("甲词".to_string(), "jia ci".to_string(), 1)])
+        );
+        assert_eq!(
+            parse_user_word_json(r#"[{"text":"甲词","pinyin":"jia ci","freq":"7"}]"#),
+            Ok(vec![("甲词".to_string(), "jia ci".to_string(), 7)])
+        );
+        // 值内转义引号：反转义后入库，不残留字面反斜杠
+        assert_eq!(
+            parse_user_word_json(r#"[{"text":"他说\"你好\"","pinyin":"ta shuo","freq":1}]"#),
+            Ok(vec![("他说\"你好\"".to_string(), "ta shuo".to_string(), 1)])
+        );
+        // 畸形输入：不 panic，要么 Err 要么跳过该条
+        assert!(parse_user_word_json("not json").is_err());
+        assert!(parse_user_word_json("[{").is_err());
+        assert_eq!(parse_user_word_json("[]"), Ok(Vec::new()));
+        assert_eq!(parse_user_word_json("[{}]"), Ok(Vec::new()));
+        // 缺 pinyin 的条目跳过，不影响同数组其他条目
+        assert_eq!(
+            parse_user_word_json(r#"[{"text":"甲词"},{"text":"乙词","pinyin":"yi ci"}]"#),
+            Ok(vec![("乙词".to_string(), "yi ci".to_string(), 1)])
+        );
+    }
 
     /// X1_PANIC_LOG 覆盖优先 + 平台默认路径形状（单测试避免 env 竞态）。
     #[test]

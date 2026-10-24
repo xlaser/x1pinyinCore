@@ -280,18 +280,11 @@ mod tests {
         out
     }
 
+    /// 文件 sha256（纯 Rust 实现，跨平台一致；读取失败返回 "unknown"）。
+    /// 原实现 shell out 系统 `shasum`，Windows 无可执行文件导致静默失败、
+    /// 溯源字段恒为 "unknown"，见 `crate::sha256` 模块文档。
     fn sha256_of(path: &str) -> String {
-        std::process::Command::new("shasum")
-            .args(["-a", "256", path])
-            .output()
-            .ok()
-            .and_then(|o| {
-                String::from_utf8_lossy(&o.stdout)
-                    .split_whitespace()
-                    .next()
-                    .map(|h| h.to_string())
-            })
-            .unwrap_or_else(|| "unknown".to_string())
+        crate::sha256::sha256_of_file(path).unwrap_or_else(|| "unknown".to_string())
     }
 
     fn git_commit() -> String {
