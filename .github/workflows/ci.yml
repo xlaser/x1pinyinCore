@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    name: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Check（全目标）
+        run: cargo check --workspace --all-targets
+      - name: Clippy（-D warnings）
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: 纯逻辑测试（无需种子 DB）
+        run: >
+          cargo test -p x1core --lib --
+          pinyin:: quickcmds symbols:: fuzzy::tests:: stats::tests
+      - name: 最小种子自举（建库 + 引擎加载自验证）
+        run: cargo run -q -p x1core --bin seed_init -- target/mini_seed.db
+
+  # 有完整种子时的全量测试：在仓库变量 SEED_URL 指向种子 DB 下载地址后自动生效
+  full-tests:
+    if: ${{ vars.SEED_URL != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: 下载种子 DB
+        run: curl -L --fail -o x1core/assets/x1pinyin.db "$SEED_URL"
+      - name: 全量测试
+        run: cargo test -p x1core --lib
+
+  ffi-example:
+    name: C 头文件 + minimal.c 编译链接
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: 构建 staticlib
+        run: cargo build -p x1core --release
+      - name: 编译并链接 minimal.c
+        run: >
+          cc -I x1core/include examples/minimal.c -o target/minimal
+          -L x1core/target/release -lx1core -lpthread -ldl -lm
+      - name: 运行示例
+        run: target/minimal
