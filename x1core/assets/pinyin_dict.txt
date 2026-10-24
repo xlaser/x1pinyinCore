@@ -1,0 +1,3065 @@
+# 内置单字词库，格式：pinyin(TAB)text(TAB)freq[(TAB)is_primary]，开箱兜底用
+# 词条与频率档位由 DeepSeek 生成后整理，不含第三方语料
+a	啊	500
+ai	爱	800
+ai	唉	400
+an	安	600
+ang	昂	200
+ao	奥	300
+ba	把	700
+ba	八	400
+ba	爸	500
+bai	白	500
+bai	百	500
+ban	班	600
+ban	办	600
+bang	帮	500
+bao	报	700
+bao	包	500
+bei	被	800
+bei	背	400
+ben	本	600
+beng	蹦	200
+bi	比	700
+bi	必	500
+bian	变	600
+bian	边	500
+biao	表	500
+bie	别	700
+bing	并	600
+bing	病	500
+bo	波	400
+bo	博	400
+bu	不	1000
+cai	才	600
+cai	菜	500
+cai	彩	400
+cai	采	400
+can	餐	500
+can	参	400
+cang	藏	400
+cao	草	400
+ce	策	400
+cen	岑	200
+ceng	曾	300
+cha	查	500
+chai	差	400
+chan	产	500
+chang	长	700
+chang	常	600
+chao	超	500
+che	车	600
+chen	陈	500
+chen	沉	400
+cheng	成	700
+cheng	城	600
+chi	吃	700
+chi	持	500
+chong	重	500
+chou	抽	400
+chou	愁	300
+chu	出	800
+chu	处	600
+chuan	穿	500
+chuang	创	400
+chun	春	400
+cong	从	500
+cong	聪	300
+cu	促	300
+cuan	窜	200
+cui	催	300
+cun	村	400
+cuo	错	500
+da	大	900
+dai	带	600
+dai	代	500
+dai	待	400
+dan	但	700
+dang	当	700
+dao	到	800
+dao	道	600
+de	的	1000
+deng	等	700
+di	第	700
+dian	点	700
+diao	调	500
+die	爹	300
+ding	定	600
+dong	动	700
+dong	东	500
+dou	都	700
+du	度	500
+du	读	500
+duan	段	400
+dui	对	800
+duo	多	800
+e	俄	300
+ei	诶	200
+en	恩	300
+eng	嗯	300
+er	儿	500
+er	而	600
+fa	发	700
+fa	法	600
+fan	反	500
+fan	饭	500
+fan	范	400
+fang	方	600
+fang	房	500
+fei	飞	500
+fei	非	600
+fen	分	700
+feng	风	600
+feng	封	400
+fo	佛	200
+fou	否	400
+fu	服	500
+fu	父	400
+fu	夫	400
+fu	福	500
+ga	尬	200
+gai	改	500
+gan	感	600
+gan	干	500
+gang	刚	400
+gao	高	600
+ge	个	800
+ge	哥	400
+ge	歌	400
+gei	给	600
+gen	根	400
+geng	更	500
+gong	工	600
+gong	公	500
+gong	功	400
+gou	够	500
+gu	古	400
+gu	故	400
+gu	顾	400
+gua	挂	400
+guai	怪	400
+guan	关	600
+guan	观	500
+guang	光	500
+gui	贵	400
+gui	归	300
+gun	滚	300
+guo	国	800
+guo	果	500
+ha	哈	400
+hai	还	700
+hai	海	500
+han	汉	400
+han	寒	300
+han	汗	300
+hang	行	500
+hao	好	800
+hao	号	500
+he	和	900
+he	合	500
+hei	黑	400
+hen	很	800
+heng	横	300
+hong	红	400
+hou	后	700
+hu	护	400
+hu	胡	400
+hua	话	700
+hua	花	500
+huai	坏	400
+huan	还	500
+huan	换	400
+huang	黄	400
+hui	会	800
+hui	回	600
+hui	汇	300
+hun	婚	400
+huo	或	700
+huo	火	500
+ji	几	700
+ji	机	600
+ji	记	600
+ji	急	500
+jia	家	800
+jia	加	600
+jian	见	700
+jian	建	500
+jiang	将	600
+jiang	江	400
+jiao	叫	600
+jiao	教	500
+jie	解	600
+jie	接	500
+jie	街	400
+jie	界	400
+jin	进	700
+jin	今	500
+jing	经	700
+jing	京	400
+jiong	窘	200
+jiu	就	800
+jiu	九	400
+ju	据	500
+juan	卷	400
+jue	觉	500
+jue	决	500
+jun	军	500
+ka	卡	400
+kai	开	700
+kan	看	800
+kang	抗	400
+kao	考	500
+ke	可	800
+ke	科	400
+kei	克	200
+ken	肯	300
+keng	坑	300
+kong	空	500
+kou	口	600
+ku	苦	400
+kua	夸	300
+kuai	快	600
+kuai	会	300
+kuan	宽	300
+kuang	况	400
+kui	亏	300
+kun	困	400
+kuo	扩	300
+la	拉	400
+lai	来	800
+lan	蓝	400
+lan	烂	300
+lao	老	600
+le	了	1000
+lei	类	400
+lei	累	400
+li	里	700
+li	力	500
+li	立	400
+lia	俩	400
+lian	连	500
+liang	两	600
+liang	亮	400
+liao	了	500
+liao	料	400
+lin	林	400
+ling	令	400
+ling	领	400
+liu	六	400
+liu	留	400
+long	龙	300
+lou	楼	400
+lu	路	500
+lu	陆	300
+luan	乱	400
+lun	论	400
+luo	落	400
+lv	绿	400
+lve	略	300
+m	嗯	300
+ma	吗	800
+ma	妈	500
+ma	马	400
+mai	买	500
+mai	卖	500
+man	满	400
+mang	忙	400
+mao	毛	300
+mao	猫	400
+me	么	500
+mei	没	800
+mei	美	500
+mei	妹	400
+men	们	700
+meng	梦	400
+mi	米	400
+mi	密	400
+mian	面	700
+miao	妙	400
+mie	灭	300
+min	民	500
+ming	明	600
+ming	名	500
+miu	谬	200
+mo	没	400
+mo	模	400
+mo	魔	300
+mou	某	400
+mu	目	400
+mu	母	400
+na	那	800
+na	拿	400
+nai	奶	300
+nan	难	600
+nan	男	500
+nang	囊	200
+nao	脑	400
+ne	呢	500
+nei	内	500
+nen	嫩	200
+neng	能	800
+ni	你	900
+nian	年	700
+niang	娘	300
+nin	您	500
+ning	宁	300
+niu	牛	400
+nong	农	300
+nu	女	500
+nuan	暖	400
+nuo	诺	300
+nv	女	500
+nve	虐	200
+o	哦	400
+ou	欧	300
+ou	偶	400
+pa	怕	500
+pai	排	400
+pan	盘	300
+pang	旁	400
+pao	跑	500
+pei	配	400
+pen	喷	300
+peng	朋	400
+pi	批	400
+pi	皮	400
+pian	片	500
+piao	票	400
+pin	品	500
+ping	平	400
+po	破	400
+pou	剖	200
+pu	普	300
+pu	铺	300
+qi	起	700
+qi	七	400
+qi	奇	500
+qia	恰	400
+qian	前	700
+qiang	强	600
+qiao	桥	300
+qiao	巧	400
+qie	且	400
+qin	亲	500
+qing	情	700
+qing	请	600
+qiong	穷	300
+qiu	求	500
+qu	去	800
+quan	全	600
+quan	权	500
+que	确	500
+qun	群	400
+ran	然	600
+rang	让	700
+rao	绕	400
+re	热	500
+ren	人	900
+ren	任	400
+ri	日	500
+rong	容	400
+rong	融	400
+rou	肉	400
+ru	入	500
+ru	如	600
+ruan	软	400
+rui	瑞	300
+run	润	300
+ruo	若	400
+sa	撒	300
+sai	赛	400
+san	三	600
+san	散	400
+sang	丧	300
+sao	扫	300
+se	色	400
+sen	森	300
+seng	僧	200
+sha	杀	400
+sha	沙	400
+shai	晒	300
+shan	山	500
+shang	上	800
+shao	少	600
+she	社	400
+she	设	500
+shei	谁	500
+shen	什	700
+shen	身	500
+shen	深	500
+sheng	生	800
+sheng	声	500
+shi	是	1000
+shi	时	700
+shi	事	600
+shi	十	500
+shi	使	500
+shi	世	400
+shi	试	500
+shou	手	700
+shou	收	500
+shu	书	500
+shu	数	500
+shu	树	400
+shua	刷	300
+shuai	帅	400
+shuan	拴	200
+shuang	双	500
+shui	水	700
+shun	顺	500
+shuo	说	800
+si	四	500
+si	死	400
+si	思	500
+song	送	400
+sou	搜	400
+su	诉	400
+su	速	400
+suan	算	500
+sui	岁	400
+sui	随	400
+sun	孙	300
+suo	所	600
+suo	锁	400
+ta	他	900
+ta	它	800
+ta	她	800
+tai	太	700
+tai	台	400
+tan	谈	500
+tan	探	400
+tang	唐	300
+tang	汤	400
+tao	讨	400
+tao	逃	400
+te	特	500
+te	忑	200
+teng	疼	400
+ti	提	600
+ti	体	500
+tian	天	800
+tiao	条	500
+tie	铁	400
+ting	听	600
+ting	停	400
+tong	同	700
+tong	通	600
+tong	痛	400
+tou	头	700
+tu	突	400
+tu	图	400
+tuan	团	400
+tui	推	400
+tun	吞	300
+tuo	脱	300
+tuo	托	300
+wa	娃	300
+wai	外	600
+wan	万	600
+wan	完	500
+wan	玩	500
+wang	王	400
+wang	网	500
+wang	往	400
+wei	为	800
+wei	位	500
+wei	味	400
+wen	问	700
+wen	文	500
+wo	我	1000
+wu	无	700
+wu	五	500
+wu	物	400
+xi	下	800
+xi	系	500
+xi	西	500
+xia	下	500
+xia	吓	400
+xian	现	700
+xian	先	600
+xian	线	500
+xiang	想	800
+xiang	向	500
+xiang	像	400
+xiao	小	800
+xiao	笑	500
+xie	写	600
+xie	些	500
+xie	谢	400
+xin	心	700
+xin	新	600
+xing	行	700
+xing	性	500
+xing	星	400
+xiong	兄	300
+xiong	熊	400
+xiu	休	400
+xiu	秀	400
+xu	需	500
+xu	许	500
+xuan	选	500
+xuan	宣	300
+xue	学	700
+xue	雪	400
+xun	寻	300
+xun	训	400
+ya	压	400
+ya	呀	400
+yan	眼	500
+yan	言	400
+yan	严	400
+yang	样	600
+yang	阳	400
+yao	要	800
+yao	药	400
+ye	也	800
+ye	业	500
+ye	夜	400
+yi	一	1000
+yi	以	800
+yi	已	600
+yi	意	500
+yi	义	400
+yi	易	400
+yin	因	600
+yin	音	400
+ying	应	600
+ying	英	400
+yong	用	700
+yong	永	300
+you	有	900
+you	又	600
+you	由	400
+yu	与	600
+yu	于	500
+yu	语	400
+yu	雨	400
+yuan	原	500
+yuan	远	400
+yue	月	500
+yue	越	500
+yun	运	400
+yun	云	400
+za	杂	300
+zai	在	900
+zai	再	600
+zan	赞	400
+zang	脏	300
+zao	早	500
+zao	造	400
+ze	则	400
+zei	贼	200
+zen	怎	600
+zeng	增	400
+zha	炸	300
+zhai	摘	300
+zhan	战	500
+zhang	长	400
+zhang	张	500
+zhao	找	600
+zhao	照	400
+zhe	这	900
+zhe	着	700
+zhen	真	700
+zheng	正	600
+zheng	整	400
+zhi	只	700
+zhi	之	600
+zhi	知	500
+zhi	直	400
+zhi	治	400
+zhong	中	800
+zhong	种	500
+zhou	周	400
+zhou	州	400
+zhu	主	600
+zhu	住	500
+zhu	注	400
+zhua	抓	300
+zhuai	拽	200
+zhuan	专	400
+zhuang	装	400
+zhuang	状	400
+zhui	追	300
+zhun	准	500
+zhuo	着	400
+zhuo	桌	400
+zi	子	800
+zi	字	500
+zi	自	600
+zong	总	500
+zou	走	500
+zuan	钻	300
+zui	最	700
+zuo	做	700
+zuo	坐	400
+zuo	左	400
+ai qing	爱情	1200
+ai hao	爱好	900
+ai xin	爱心	700
+an quan	安全	1300
+an jing	安静	900
+an pai	安排	1100
+an zhuang	安装	1000
+ba ba	爸爸	1100
+ba wo	把握	900
+ba guan	把关	600
+ba shou	把手	700
+bai tian	白天	900
+bai se	白色	800
+bai fen	百分	700
+ban fa	办法	1400
+ban gong	办公	1100
+ban ji	班级	800
+ban mian	版面	600
+ban yun	搬运	600
+bang mang	帮忙	1100
+bang zhu	帮助	1300
+bao bei	宝贝	900
+bao chi	保持	1300
+bao cun	保存	1100
+bao dao	报道	1000
+bao guo	包裹	700
+bao hu	保护	1300
+bao kuo	包括	1300
+bao man	饱满	600
+bao ming	报名	900
+bao mu	保姆	700
+bao qian	抱歉	900
+bao wei	保卫	700
+bao xian	保险	1000
+bao zhang	保障	1200
+bei jing	北京	1500
+bei jing	背景	1100
+bei mian	背面	700
+bei song	背诵	700
+ben lai	本来	1400
+ben ling	本领	800
+ben ren	本人	900
+ben zhi	本质	900
+bi jing	毕竟	1100
+bi ran	必然	900
+bi ru	比如	1400
+bi sai	比赛	1300
+bi xu	必须	1600
+bi yao	必要	1100
+bian cheng	变成	1100
+bian de	变得	900
+bian fa	变法	500
+bian hua	变化	1300
+bian huan	变换	600
+bian jie	边界	800
+bian li	便利	900
+bian qian	变迁	600
+bian yuan	边缘	800
+biao da	表达	1200
+biao mian	表面	1100
+biao ming	表明	900
+biao qing	表情	900
+biao shi	表示	1600
+biao ti	标题	1000
+bie de	别的	1000
+bie ren	别人	1400
+bing bu	并不	1300
+bing qie	并且	1400
+bing ren	病人	900
+bo li	玻璃	800
+bo shi	博士	900
+bo wu	博物	700
+bu cuo	不错	1100
+bu dan	不但	1200
+bu de	不得	1000
+bu dui	不对	1100
+bu duan	不断	1300
+bu fen	部分	1400
+bu gai	不该	700
+bu gao	不高	600
+bu gan	不敢	900
+bu guan	不管	1300
+bu guo	不过	1200
+bu hao	不好	1100
+bu hui	不会	1400
+bu jian	不见	900
+bu jin	不仅	1300
+bu jiu	不久	900
+bu ke	不可	1100
+bu kui	不愧	600
+bu liao	不了	1100
+bu lun	不论	1000
+bu mian	不免	600
+bu neng	不能	1500
+bu qi	不起	700
+bu qing	不清	600
+bu ran	不然	1000
+bu ru	不如	900
+bu shao	不少	1100
+bu shi	不是	1800
+bu shou	不受	700
+bu shu	部署	800
+bu tong	不同	1400
+bu yao	不要	1100
+bu yi	不易	700
+bu ying	不应	800
+bu zai	不在	900
+bu zhi	不止	800
+bu zhong	不中	500
+bu zhu	不住	700
+bu zi	不字	400
+cai chan	财产	900
+cai dan	菜单	800
+cai fang	采访	900
+cai hong	彩虹	700
+cai liao	材料	1100
+cai neng	才能	1000
+cai qu	采取	1300
+cai se	彩色	700
+cai yong	采用	1200
+cai zheng	财政	900
+can guan	参观	900
+can jia	参加	1300
+can kao	参考	1100
+can lan	灿烂	700
+can mou	参谋	600
+can yu	参与	1200
+cao chang	操场	700
+cao zuo	操作	1300
+ceng jing	曾经	1100
+cha bie	差别	900
+cha bu duo	差不多	1200
+cha dian	差点	900
+cha kan	查看	1000
+cha xun	查询	1000
+chan pin	产品	1500
+chan sheng	产生	1300
+chang chang	常常	1100
+chang chu	长处	700
+chang du	长度	700
+chang ge	唱歌	900
+chang jiu	长久	800
+chang qi	长期	1300
+chang shi	尝试	1100
+chang suo	场所	900
+chang tu	长途	700
+chao guo	超过	1300
+chao shi	超市	1000
+chao xie	抄写	600
+che liang	车辆	900
+che xiang	车厢	700
+che zhan	车站	1000
+chen gong	成功	1600
+chen mo	沉默	900
+chen ren	承认	1100
+cheng bao	承包	800
+cheng du	程度	1300
+cheng ji	成绩	1000
+cheng shi	城市	1500
+cheng wei	成为	1700
+cheng xu	程序	1300
+cheng yuan	成员	1000
+cheng zhang	成长	1000
+chi cheng	驰骋	600
+chi fan	吃饭	1300
+chi jing	吃惊	800
+chi kui	吃亏	700
+chi xu	持续	1200
+chong fen	充分	1200
+chong fu	重复	900
+chong man	充满	900
+chong xin	重新	1400
+chong zhuang	重装	700
+chou jiang	抽奖	700
+chu ban	出版	1100
+chu chai	出差	800
+chu fa	出发	1100
+chu kou	出口	1000
+chu lai	出来	1400
+chu le	除了	1500
+chu li	处理	1400
+chu men	出门	900
+chu ming	出名	800
+chu na	出纳	600
+chu qi	初期	800
+chu qu	出去	1200
+chu sheng	出生	900
+chu shi	出事	800
+chu shou	出手	700
+chu xian	出现	1500
+chu xin	初心	800
+chu zu	出租	900
+chuan bo	传播	1000
+chuan da	传达	800
+chuan shuo	传说	800
+chuan tong	传统	1300
+chuang kou	窗口	1100
+chuang zao	创造	1200
+chui niu	吹牛	600
+chun jie	春节	1100
+chun tian	春天	900
+chun zhen	纯真	600
+ci dian	词典	800
+ci ke	此刻	900
+ci shi	此时	1000
+ci wai	此外	1000
+ci yu	词语	800
+ci zhi	辞职	800
+cong lai	从来	1200
+cong ming	聪明	1000
+cong qian	从前	900
+cong xin	重新	800
+cu xin	粗心	600
+cun zai	存在	1300
+cuo guo	错过	900
+cuo wu	错误	1100
+da an	答案	1000
+da ban	大半	700
+da bu fen	大部分	1400
+da cheng	达成	900
+da dao	达到	1300
+da di	大地	800
+da dui	大队	600
+da fang	大方	800
+da gai	大概	1300
+da gong	打工	900
+da guan	大关	600
+da hai	大海	700
+da hao	大好	600
+da hui	大会	1000
+da jia	大家	1800
+da jiang	大江	500
+da jie	大街	800
+da jing	大惊	600
+da kai	打开	1300
+da kao	大考	500
+da lai	带来	1000
+da liang	大量	1200
+da lu	大陆	900
+da men	大门	800
+da mian	大米	700
+da nao	大脑	800
+da qi	打气	600
+da qing	大庆	500
+da ren	大人	1000
+da sheng	大声	800
+da shi	大事	1000
+da shou	大手	600
+da shu	大树	600
+da ti	大体	700
+da ting	大厅	800
+da xiao	大小	900
+da xue	大学	1500
+da yu	大雨	700
+da zhan	大战	800
+da zhe	打着	600
+da zhi	大致	900
+dai biao	代表	1600
+dai lai	带来	1300
+dai ti	代替	900
+dai yu	待遇	800
+dan bai	坦白	700
+dan shi	但是	1700
+dan xin	担心	1100
+dan yuan	但愿	600
+dang ran	当然	1000
+dang shi	当时	1400
+dang wu	党务	500
+dang zhong	当中	900
+dao chu	到处	1000
+dao da	到达	1100
+dao de	得到	1600
+dao di	到底	1000
+dao li	道理	1100
+dao lu	道路	1100
+dao qian	道歉	900
+dao zhi	导致	1100
+de dao	得到	1700
+de yi	得意	700
+deng dai	等待	1100
+deng deng	等等	900
+deng yu	等于	1000
+di bu	地步	800
+di dian	地点	1100
+di fang	地方	1800
+di ji	低级	600
+di qu	地区	1300
+di que	的确	1100
+di ren	敌人	900
+di tie	地铁	1000
+di tu	地图	900
+di wei	地位	1300
+di xia	地下	900
+di yi	第一	1600
+di zhen	地震	800
+di zhi	地址	1000
+dian hua	电话	1500
+dian nao	电脑	1500
+dian shi	电视	1300
+dian tou	点头	800
+dian ying	电影	1500
+dian zi	电子	1200
+diao cha	调查	1300
+diao dong	调动	800
+ding qi	定期	800
+dong de	懂得	900
+dong dong	东东	500
+dong hua	动画	900
+dong ji	动机	800
+dong li	动力	900
+dong nao	动脑	600
+dong shi	懂事	700
+dong tian	冬天	900
+dong wu	动物	1000
+dong xi	东西	1700
+dong zuo	动作	900
+dou shi	都是	1400
+du li	独立	1100
+du shu	读书	1000
+du te	独特	800
+du zi	肚子	800
+duan lian	锻炼	900
+dui bi	对比	600
+dui bu qi	对不起	1000
+dui fang	对方	900
+dui hua	对话	700
+dui mian	对面	900
+dui xiang	对象	800
+dui yu	对于	1200
+duo chu	多处	700
+duo da	多大	800
+duo jiu	多久	900
+duo me	多么	1000
+duo shao	多少	1300
+duo xie	多谢	700
+duo yu	多余	700
+e lie	恶劣	700
+e wai	额外	800
+er qie	而且	1400
+er tong	儿童	1000
+er zi	儿子	900
+fa chu	发出	900
+fa da	发达	800
+fa hui	发挥	1100
+fa huo	发货	800
+fa jiao	发酵	600
+fa lv	法律	1400
+fa ming	发明	1000
+fa sheng	发生	1100
+fa xian	发现	1200
+fa xing	发行	900
+fa yan	发言	900
+fa yang	发扬	700
+fa zhan	发展	1500
+fan er	反而	1100
+fan fu	反复	900
+fan ge	翻个	500
+fan kai	翻开	700
+fan qie	番茄	700
+fan shi	凡是	900
+fan si	反思	900
+fan wei	范围	1200
+fan ying	反映	1100
+fan zheng	反正	1000
+fan zui	犯罪	800
+fang bian	方便	1400
+fang fa	方法	1600
+fang jian	房间	1300
+fang mian	方面	1500
+fang shi	方式	1600
+fang shou	放手	700
+fang wen	访问	1000
+fang xiang	方向	1300
+fang xin	放心	900
+fang yan	方言	700
+fang zhi	防止	900
+fei chang	非常	1700
+fei ji	飞机	1300
+fei kuai	飞快	700
+fei li	费力	600
+fei pang	肥胖	600
+fei teng	沸腾	600
+fei wu	废物	600
+fei xing	飞行	900
+fen bie	分别	1100
+fen bu	分布	900
+fen cheng	分成	700
+fen dou	奋斗	900
+fen kai	分开	900
+fen pei	分配	1000
+feng fu	丰富	1100
+feng ge	风格	1000
+feng jing	风景	900
+feng li	锋利	600
+feng xian	风险	1200
+feng zheng	风筝	600
+fu dao	辅导	800
+fu jin	附近	1100
+fu mu	父母	1100
+fu nu	妇女	800
+fu qi	夫妻	900
+fu qin	父亲	1100
+fu wu	服务	1500
+fu xi	复习	900
+fu za	复杂	1100
+fu zhe	扶着	500
+fu zhuang	服装	900
+gai bian	改变	1500
+gai ge	改革	1100
+gai jin	改进	1000
+gai kuang	概况	700
+gai shan	改善	1100
+gai su	告诉	1600
+gai zao	改造	800
+gan dao	感到	1200
+gan dong	感动	1000
+gan en	感恩	800
+gan jing	干净	1100
+gan jue	感觉	1500
+gan kuai	赶快	800
+gan ma	干吗	900
+gan ma	干嘛	900
+gan qing	感情	1100
+gan ran	感染	900
+gan xie	感谢	1300
+gang cai	刚才	1100
+gang gang	刚刚	1200
+gao bie	告别	800
+gao di	高低	600
+gao dang	高档	700
+gao feng	高峰	800
+gao ji	高级	1100
+gao kou	高考	900
+gao shou	高手	900
+gao su	告诉	1700
+gao xing	高兴	1300
+gao xue	高兴	700
+ge ge	哥哥	900
+ge jie	各界	600
+ge men	哥们	800
+ge shi	各式	700
+ge wai	格外	700
+ge zi	个子	800
+gen ben	根本	1400
+gen ju	根据	1500
+gen qian	跟前	700
+gen zong	跟踪	800
+geng duo	更多	1500
+geng gai	更改	700
+geng hao	更好	1300
+geng jia	更加	1200
+geng xin	更新	1100
+gong an	公安	900
+gong bu	公布	900
+gong cheng	工程	1300
+gong chang	工厂	1100
+gong fu	功夫	900
+gong gong	公共	1100
+gong hao	公号	600
+gong jin	公斤	800
+gong ju	工具	1100
+gong kai	公开	1200
+gong li	公里	900
+gong neng	功能	1000
+gong ping	公平	1000
+gong qing	共情	600
+gong ren	工人	1000
+gong si	公司	1600
+gong xi	恭喜	900
+gong xin	工资	1000
+gong yi	工艺	800
+gong ying	供应	900
+gong yong	公用	700
+gong zuo	工作	2000
+gou cheng	构成	900
+gou mai	购买	1000
+gou si	构思	700
+gou tong	沟通	1200
+gu ji	估计	900
+gu li	鼓励	900
+gu shi	故事	1300
+gu wen	顾问	900
+gu zhang	鼓掌	700
+gu zhang	故障	900
+guan cha	观察	1100
+guan dian	观点	1100
+guan fang	官方	1000
+guan jian	关键	1300
+guan kan	观看	900
+guan li	管理	1600
+guan men	关门	700
+guan xi	关系	1600
+guan yu	关于	1500
+guan zhong	观众	1000
+guang bo	广播	800
+guang chang	广场	900
+guang da	广大	900
+guang gao	广告	1300
+guang hua	光滑	600
+guang ming	光明	900
+guang pan	光盘	700
+gui ding	规定	1200
+gui hua	规划	1000
+gui lv	规律	1100
+guo cheng	过程	1400
+guo du	过度	900
+guo jia	国家	1700
+guo lai	过来	1300
+guo lv	过滤	700
+guo min	国民	800
+guo nian	过年	900
+guo qu	过去	1500
+guo ran	果然	900
+guo shi	国事	700
+guo shi	故事	800
+ha ha	哈哈	1100
+hai an	海岸	700
+hai ba	海拔	600
+hai bian	海边	800
+hai bu	还不	900
+hai dai	海带	500
+hai hao	还好	900
+hai jun	海军	800
+hai liang	海量	700
+hai mei	还没	1200
+hai shui	海水	800
+hai tao	海涛	500
+hai wai	海外	900
+hai xiu	害羞	700
+hai zi	孩子	1500
+han jia	寒假	800
+han lai	寒来	400
+han yu	汉语	1000
+han zi	汉字	900
+hao bu	毫不	800
+hao chi	好吃	900
+hao de	好的	1500
+hao dian	好点	700
+hao duo	好多	900
+hao gan	好感	700
+hao hao	好好	1000
+hao jiu	好久	900
+hao kan	好看	1000
+hao la	好啦	800
+hao le	好了	1300
+hao ma	好吗	1000
+hao qi	好奇	900
+hao ren	好人	800
+hao shi	好事	900
+hao ting	好听	900
+hao wu	毫无	800
+hao xiang	好像	1400
+hao xiao	好笑	800
+hao xin	好心	700
+hao yi si	好意思	900
+hao yong	好用	800
+he a	呵啊	400
+he cha	喝茶	800
+he dui	核对	800
+he fa	合法	900
+he hu	呵护	700
+he jiu	喝酒	900
+he li	合理	1200
+he ping	和平	1100
+he qi	和气	700
+he shi	合适	1200
+he shui	喝水	900
+he xie	和谐	1000
+he yi	何以	600
+he ying	合影	700
+hei an	黑暗	900
+hei hei	嘿嘿	800
+hei se	黑色	800
+hen bu	很不	800
+hen da	很大	900
+hen duo	很多	1500
+hen hao	很好	1500
+hen jiu	很久	900
+hen nan	很难	900
+hen shao	很少	1000
+hen xiao	很小	800
+hen zhong	很重	700
+hou gai	厚改	400
+hou hui	后悔	1000
+hou lai	后来	1500
+hou mian	后面	1100
+hou tian	后天	900
+hou xuan	候选	800
+hu ran	忽然	1000
+hu xiang	互相	1200
+hua ban	花瓣	700
+hua fei	话费	800
+hua hui	花卉	600
+hua mian	画面	1000
+hua ti	话题	900
+hua xue	化学	1000
+hua yuan	花园	800
+huai chu	坏处	600
+huai dan	坏蛋	700
+huai ren	坏人	700
+huai shi	坏事	800
+huan jing	环境	1500
+huan le	欢乐	900
+huan man	缓慢	800
+huan qiu	环球	700
+huan xing	唤醒	700
+huan ying	欢迎	1300
+huang se	黄色	800
+hui da	回答	1300
+hui dao	回到	1100
+hui hua	绘画	900
+hui jia	回家	1300
+hui lai	回来	1400
+hui qu	回去	1200
+hui tou	回头	900
+hui yi	回忆	1000
+hui zhang	会长	800
+hun li	婚礼	900
+hun shen	浑身	700
+huo bi	货币	900
+huo che	火车	1200
+huo de	获得	1300
+huo dong	活动	1500
+huo guo	火锅	800
+huo li	活力	800
+huo zhe	或者	1600
+ji bai	击败	800
+ji ben	基本	1500
+ji cheng	继承	900
+ji chu	基础	1300
+ji dian	几点	900
+ji dong	激动	900
+ji du	极度	700
+ji fen	几分	800
+ji ge	几个	1300
+ji he	集合	900
+ji hu	几乎	1400
+ji hua	计划	1500
+ji jie	季节	900
+ji jin	即将	1100
+ji lv	纪律	800
+ji min	即明	400
+ji mu	节目	1000
+ji nian	纪念	900
+ji qi	机器	1300
+ji qie	急切	700
+ji ran	既然	1300
+ji shi	即使	1400
+ji shi	及时	1200
+ji shu	技术	1600
+ji tian	几天	900
+ji xu	继续	1500
+ji ya	挤压	600
+ji you	既有	700
+ji yu	基于	1200
+ji zhe	记者	1200
+ji zhu	记住	1000
+jia bin	嘉宾	800
+jia chang	家常	800
+jia ge	价格	1400
+jia gong	加工	900
+jia hao	加好	600
+jia li	家里	1100
+jia meng	加盟	800
+jia qian	价钱	900
+jia ru	加入	1000
+jia shi	驾驶	900
+jia shi	假使	600
+jia shu	家属	800
+jia ting	家庭	1500
+jia you	加油	1100
+jia zai	加载	900
+jia zhang	家长	1100
+jian bian	简便	700
+jian bie	鉴别	700
+jian cha	检查	1500
+jian chi	坚持	1600
+jian dan	简单	1600
+jian de	见得	600
+jian diao	减掉	700
+jian du	监督	900
+jian fang	建房	600
+jian guo	见过	900
+jian jie	间接	800
+jian jie	简介	900
+jian kang	健康	1500
+jian li	建立	1300
+jian mian	见面	1000
+jian pan	键盘	1000
+jian qiang	坚强	900
+jian qu	减去	700
+jian shao	减少	1300
+jian she	建设	1300
+jian shi	坚持	800
+jian ti	简体	800
+jian zhi	简直	1100
+jian zhu	建筑	1100
+jiang jie	讲解	900
+jiang jun	将军	900
+jiang lai	将来	1200
+jiang li	奖励	800
+jiang shu	讲述	900
+jiang you	酱油	700
+jiao ao	骄傲	900
+jiao huan	交换	900
+jiao liu	交流	1300
+jiao shou	教授	1000
+jiao shui	浇水	600
+jiao xun	教训	900
+jiao yu	教育	1600
+jiao zuo	叫做	1000
+jie chu	接触	1000
+jie da	解答	800
+jie dong	解冻	600
+jie fang	解放	900
+jie guo	结果	1700
+jie hun	结婚	1200
+jie jie	姐姐	900
+jie jie	解决	1600
+jie jin	接近	1100
+jie ju	结局	900
+jie kai	解开	700
+jie kou	借口	900
+jie lun	结论	1000
+jie mei	姐妹	900
+jie mu	节目	900
+jie neng	节能	700
+jie ping	截屏	800
+jie qian	借钱	800
+jie shao	介绍	1500
+jie shou	接受	1500
+jie shu	结束	1500
+jie tuo	解脱	700
+jie wen	接吻	700
+jie zhe	接着	1300
+jie zhi	截至	900
+jie zhu	借助	800
+jin e	金额	800
+jin guan	尽管	1200
+jin hou	今后	1100
+jin ji	紧急	900
+jin liang	尽量	1100
+jin nian	今年	1400
+jin qian	金钱	900
+jin ran	竟然	1100
+jin ri	今日	800
+jin sheng	今生	700
+jin tian	今天	1800
+jin wan	今晚	1000
+jin xing	进行	1600
+jin zhang	紧张	1100
+jin zi	金子	700
+jing cha	警察	1200
+jing chang	经常	1600
+jing guo	经过	1400
+jing ji	经济	1600
+jing li	经历	1200
+jing li	经理	1300
+jing ran	竟然	1100
+jing se	景色	900
+jing shen	精神	1500
+jing xi	惊喜	900
+jing xuan	精选	800
+jing yan	经验	1500
+jing ye	敬业	700
+jing zheng	竞争	1200
+jing zi	镜子	800
+jiu ba	酒吧	800
+jiu jing	究竟	1000
+jiu jiu	舅舅	700
+jiu jiu	久久	700
+jiu mang	救忙	400
+jiu shi	就是	1800
+jiu shi	旧事	700
+jiu suan	就算	1000
+jiu ye	就业	900
+jiu yao	就要	1100
+jiu zhe	就着	700
+ju da	巨大	1200
+ju dong	举动	800
+ju hao	句号	700
+ju jue	拒绝	1100
+ju li	距离	1200
+ju min	居民	1000
+ju ran	居然	1100
+ju shi	局势	900
+ju xing	举行	1300
+juan kuan	捐款	700
+jue ding	决定	1600
+jue se	角色	1100
+jue wang	绝望	900
+jue xin	决心	900
+jue zhe	嚼着	500
+jun dui	军队	1000
+jun shi	军事	900
+jun yun	均匀	700
+kai cha	考察	800
+kai che	开车	900
+kai hui	开会	1000
+kai men	开门	900
+kai shi	开始	1800
+kai shui	开水	700
+kai xin	开心	1300
+kai xue	开学	900
+kai zhan	开展	1300
+kan bing	看病	800
+kan fa	看法	1000
+kan jian	看见	1500
+kan lai	看来	1400
+kan qi	看起	700
+kan shang	看上	800
+kan shu	看书	900
+kan wang	看望	700
+kan zuo	看做	700
+kao lv	考虑	1500
+kao shi	考试	1300
+ke ai	可爱	1100
+ke bu	可不	700
+ke cheng	课程	1100
+ke fu	客服	1000
+ke fu	克服	900
+ke guan	客观	1100
+ke neng	可能	1700
+ke pa	可怕	900
+ke qi	客气	900
+ke shi	可是	1600
+ke shi	课时	800
+ke shui	瞌睡	600
+ke tang	课堂	900
+ke tao	客套	600
+ke wang	渴望	900
+ke xue	科学	1600
+ke yi	可以	1800
+ke zhi	克制	700
+ken ding	肯定	1500
+kong jian	空间	1300
+kong ju	恐惧	900
+kong qi	空气	1100
+kong que	孔雀	600
+kou chou	口臭	600
+kou hao	口号	800
+kou jing	口径	700
+kou shui	口水	700
+kou yu	口语	900
+kuai che	快车	700
+kuai di	快递	1100
+kuai le	快乐	1300
+kuai man	快慢	600
+kuai su	快速	1200
+kuan chang	宽敞	700
+kuan dai	宽带	800
+kuan rong	宽容	800
+kuan shi	款式	800
+kuang jing	矿井	500
+kui le	亏了	700
+kun nan	困难	1300
+kun rao	困扰	800
+kuo da	扩大	1000
+kuo hao	括号	800
+la la	啦啦	600
+la mian	拉面	700
+lai dao	来到	1300
+lai hui	来回	900
+lai le	来了	1100
+lai qu	来去	700
+lai shuo	来说	1100
+lai wang	来往	800
+lai zi	来自	1300
+lan jie	拦截	700
+lan qiu	篮球	1000
+lan se	蓝色	800
+lan tian	蓝天	700
+lao ban	老板	1200
+lao gong	老公	1100
+lao hu	老虎	800
+lao jia	老家	800
+lao ma	老妈	700
+lao po	老婆	1100
+lao shi	老师	1600
+lao shu	老鼠	800
+lao wai	老外	800
+lao ye	老爷	700
+le guan	乐观	900
+le si	乐死	600
+lei bie	类别	800
+lei si	类似	1100
+leng jing	冷静	900
+leng qi	冷气	600
+li bai	礼拜	700
+li bie	离别	800
+li fa	理发	700
+li hai	厉害	1100
+li kai	离开	1500
+li liang	力量	1200
+li mian	里面	1300
+li qi	力气	800
+li rong	丽蓉	400
+li shi	历史	1500
+li wai	例外	800
+li xiang	理想	1200
+li you	理由	1300
+li yu	鲤鱼	600
+li zhi	理智	800
+li zi	例子	900
+lian ai	恋爱	1000
+lian mang	连忙	800
+lian meng	联盟	800
+lian xi	练习	1300
+lian xi	联系	1500
+liang bai	两百	700
+liang ge	两个	1400
+liang hao	良好	1000
+liang hui	两会	800
+liang jie	谅解	700
+liang jie	亮节	500
+liang tian	两天	900
+liang zhong	两种	900
+liao jie	了解	1500
+liao tian	聊天	1100
+lie biao	列表	900
+lie chu	列出	800
+lie kai	裂开	700
+lie ren	猎人	700
+lin ju	邻居	900
+lin shi	临时	1100
+ling dao	领导	1500
+ling hun	灵魂	900
+ling jian	零件	800
+ling qian	零钱	700
+ling ren	令人	1000
+ling shi	零食	800
+ling wai	另外	1300
+ling xian	领先	900
+liu biu	遛遛	400
+liu chan	流产	700
+liu chuan	流传	800
+liu fang	留放	400
+liu kai	离开	800
+liu lan	浏览	900
+liu li	流利	800
+liu liang	流量	1000
+liu ma	遛马	400
+liu ming	溜明	400
+liu shui	流水	800
+liu yan	留言	900
+liu yi	留意	800
+liu yu	流于	600
+long duan	垄断	700
+long juan	龙卷	600
+lou ceng	楼层	800
+lou ti	楼梯	800
+lou xia	楼下	900
+lu chu	露出	800
+lu kou	路口	900
+lu li	路况	600
+lu mang	鲁莽	600
+lu shi	律师	1000
+lu tian	露天	600
+lu xian	路线	900
+lu ying	露营	700
+luan pao	乱跑	600
+lun dian	论点	800
+lun tan	论坛	900
+lun wen	论文	1100
+luo ji	逻辑	1200
+luo shi	落实	1000
+lv cha	绿茶	700
+lv se	绿色	800
+lv tu	旅途	800
+lve guo	略过	600
+ma fan	麻烦	1300
+ma ma	妈妈	1200
+ma shang	马上	1500
+ma zui	麻醉	700
+mai cai	买菜	700
+mai dan	买单	800
+mai dong	脉动	600
+mai fang	买房	900
+mai jia	买家	900
+mai mai	买卖	900
+mai qiang	勉强	700
+mai zi	麦子	600
+man bu	漫步	700
+man man	慢慢	1200
+man zu	满足	1200
+mang lu	忙碌	800
+mao bing	毛病	900
+mao jin	毛巾	800
+mao mi	猫咪	800
+mao yi	贸易	1000
+mao zhu	毛竹	500
+me you	没有	900
+mei ci	每次	1000
+mei feng	每逢	700
+mei ge	每个	1300
+mei guo	美国	1500
+mei hao	美好	1100
+mei jie	媒介	800
+mei li	美丽	1300
+mei liang	每两	400
+mei nian	每年	1200
+mei nv	美女	900
+mei qian	没钱	800
+mei ren	每人	900
+mei tian	每天	900
+mei xue	美学	800
+mei you	没有	1900
+mei yu	梅雨	500
+mei yuan	美元	1000
+mei zhou	每周	900
+men kou	门口	900
+men piao	门票	800
+meng li	梦里	800
+meng xiang	梦想	1200
+mi feng	蜜蜂	700
+mi ma	密码	1100
+mi mi	秘密	1000
+mi tao	蜜桃	600
+mian bao	面包	900
+mian dui	面对	1300
+mian fei	免费	1200
+mian ji	面积	1100
+mian qian	面前	1100
+mian shi	面试	1000
+mian tiao	面条	900
+miao shu	描述	1100
+mie wang	灭亡	700
+min gan	敏感	900
+min jian	民间	800
+min zu	民族	1000
+ming bai	明白	1500
+ming dan	名单	900
+ming guo	民国	700
+ming nian	明年	1200
+ming qi	名气	800
+ming que	明确	1200
+ming ri	明日	700
+ming sheng	名声	800
+ming tian	明天	1600
+ming xian	明显	1300
+ming xing	明星	1100
+ming yun	命运	1000
+ming zi	名字	1100
+mo mo	默默	900
+mo sheng	陌生	1100
+mo shi	模式	1100
+mo shui	墨水	700
+mo xing	模型	1000
+mo zhe	摸着	700
+mou xie	某些	1000
+mu biao	目标	1400
+mu dan	牡丹	600
+mu di	目的	1300
+mu qian	目前	1500
+mu qin	母亲	1100
+mu tou	木头	800
+na dao	拿到	900
+na er	哪儿	1100
+na ge	那个	1100
+na guo	哪国	500
+na jiu	那就	1000
+na li	那里	1000
+na me	那么	1400
+na pa	哪怕	800
+na xie	那些	900
+na yang	那样	1000
+na yi	那一	700
+nai nai	奶奶	900
+nai xin	耐心	900
+nan a	难啊	500
+nan bu	南部	700
+nan dao	难道	1100
+nan de	难得	900
+nan fang	南方	1000
+nan guai	难怪	900
+nan hai	男孩	900
+nan hou	难后	400
+nan nv	男女	900
+nan ren	男人	1300
+nan sheng	男生	900
+nan shi	男士	800
+nan shou	难受	900
+nan xing	男性	900
+nang zhong	囊中	500
+nao dai	脑袋	900
+nao zhong	闹钟	800
+nei bu	内部	1100
+nei cun	内存	900
+nei di	内地	800
+nei rong	内容	1500
+nei xin	内心	900
+nei zai	内在	800
+neng bu	能不	700
+neng fou	能否	900
+neng gou	能够	1500
+neng li	能力	1400
+neng yuan	能源	1000
+ni a	你啊	500
+ni hao	你好	1600
+ni men	你们	1500
+ni shuo	你说	1400
+nian dai	年代	1000
+nian ji	年级	900
+nian ling	年龄	1000
+nian mo	年末	700
+nian qing	年轻	1300
+nian tou	年头	700
+nian yue	年月	700
+nie zao	捏造	700
+nin hao	您好	1100
+ning yuan	宁愿	800
+niu nai	牛奶	1000
+niu rou	牛肉	900
+nong cun	农村	900
+nong fu	农夫	700
+nong min	农民	900
+nong ye	农业	900
+nu li	努力	1500
+nu ren	女人	1300
+nu sheng	女生	900
+nu shi	女士	900
+nu xing	女性	900
+nuan huo	暖和	800
+ou er	偶尔	1000
+ou ran	偶然	900
+ou xiang	偶像	800
+pa shou	扒手	600
+pai chu	排除	900
+pai dui	排队	900
+pai ming	排名	900
+pai she	拍摄	1000
+pai zhao	拍照	900
+pan duan	判断	1300
+pan wang	盼望	800
+pang bian	旁边	1100
+pao bu	跑步	1000
+pei ban	陪伴	900
+pei bei	配备	800
+pei he	配合	1100
+pei jian	配件	800
+pei yang	培养	1200
+pei zhi	配置	1000
+pen quan	喷泉	700
+peng you	朋友	1600
+pi bei	疲惫	800
+pi fa	批发	800
+pi fu	皮肤	1000
+pi jiu	啤酒	900
+pi lao	疲劳	900
+pian yi	便宜	1100
+piao liang	漂亮	1400
+pin bo	拼搏	800
+pin ming	拼命	900
+pin pin	频频	700
+pin qiong	贫穷	800
+pin yin	拼音	1200
+pin zhi	品质	1000
+ping an	平安	1100
+ping chang	平常	1100
+ping deng	平等	1000
+ping fang	平方	900
+ping guo	苹果	1300
+ping heng	平衡	1100
+ping jia	评价	1100
+ping lun	评论	1200
+ping mu	屏幕	1200
+ping tai	平台	1300
+ping xi	平息	700
+po bu ji dai	迫不及待	1000
+po huai	破坏	1000
+po lie	破裂	800
+po qie	迫切	900
+po shi	迫使	900
+pu bu	瀑布	700
+pu gong ying	蒲公英	700
+pu shi	朴实	700
+pu tong	普通	1500
+qi cai	器材	800
+qi che	汽车	1300
+qi chuang	起床	1000
+qi dai	期待	1100
+qi dao	祈祷	800
+qi de	气得	700
+qi dian	起点	900
+qi fa	启发	800
+qi fen	气氛	1000
+qi guai	奇怪	1300
+qi hou	气候	900
+qi lai	起来	1700
+qi li	起立	700
+qi ma	起码	1000
+qi shi	其实	1600
+qi ta	其他	1500
+qi wang	期望	1100
+qi wen	气温	900
+qi xi	七夕	700
+qi ye	企业	1500
+qi yuan	起源	800
+qi zhi	气质	900
+qia hao	恰好	900
+qian bi	铅笔	800
+qian bian	前边	800
+qian fang	前方	900
+qian hou	前后	1000
+qian jin	前进	1000
+qian liang	前量	400
+qian mian	前面	1300
+qian nian	前年	700
+qian shui	潜水	800
+qian tian	前天	800
+qian wan	千万	1100
+qian xian	前线	700
+qian yuan	千元	700
+qian zhe	牵着	700
+qiang da	强大	1000
+qiang diao	强调	1300
+qiang guo	强国	800
+qiang lie	强烈	1200
+qiang po	强迫	800
+qiao men	敲门	700
+qiao qiao	悄悄	1000
+qie cai	切菜	600
+qie er ba shi	七儿八十	400
+qie ji	切记	700
+qie ke	且可	400
+qie pian	切片	700
+qin ai	亲爱	1100
+qin fen	勤奋	900
+qin li	亲历	700
+qin mi	亲密	900
+qin qi	亲戚	900
+qin shi	寝室	800
+qin shou	亲手	800
+qin yan	亲眼	800
+qing chu	清楚	1500
+qing chun	青春	1000
+qing kuang	情况	1600
+qing mang	请忙	400
+qing nian	青年	1100
+qing qi	请求	1200
+qing song	轻松	1300
+qing tian	晴天	800
+qing ting	倾听	900
+qing wu	请勿	800
+qing xu	情绪	1400
+qing yi	轻易	900
+qing zao	清早	800
+qing zhu	庆祝	900
+qiu jie	求解	700
+qiu tian	秋天	900
+qu bie	区别	1100
+qu dao	渠道	1000
+qu shi	趋势	1100
+qu xiao	取消	1300
+qu yu	区域	1200
+quan bu	全部	1500
+quan guo	全国	1300
+quan li	权利	1200
+quan li	全力	900
+quan mian	全面	1300
+quan qiu	全球	1200
+quan shen	全身	900
+quan shi	全是	900
+quan shui	泉水	700
+quan ti	全体	900
+quan xin	全新	1000
+que bao	确保	1400
+que de	缺德	600
+que dian	缺点	900
+que ding	确定	1600
+que fa	缺乏	1100
+que kou	缺口	700
+que que	确确	500
+que ren	确认	1300
+que shi	确实	1400
+que shao	缺少	1000
+qun ti	群体	1000
+qun zhong	群众	1000
+ran er	然而	1300
+ran hou	然后	1700
+ran liao	燃料	800
+rang kai	让开	700
+rang wei	让位	600
+rang zi	让子	400
+rao le	饶了	600
+rao ming	饶命	600
+re ai	热爱	1000
+re dian	热点	900
+re lie	热烈	1100
+re men	热门	1000
+re nao	热闹	900
+re qi	热气	600
+re qing	热情	1200
+ren cai	人才	1200
+ren ge	人格	900
+ren gong	人工	900
+ren he	任何	1000
+ren jia	人家	800
+ren men	人们	1500
+ren min	人民	1800
+ren qi	人气	900
+ren ren	人人	1000
+ren shi	认识	1700
+ren shu	认输	700
+ren wei	认为	1600
+ren xing	任性	800
+ren zhen	认真	1500
+ren zhi	认知	1000
+ren zong	人总	500
+ri bao	日报	800
+ri ben	日本	1300
+ri chang	日常	1200
+ri li	日历	800
+ri qi	日期	900
+ri ye	日夜	700
+ri zi	日子	1300
+rong hua	融化	800
+rong yi	容易	1500
+rou he	柔和	800
+rou ruan	柔软	800
+ru guo	如果	1800
+ru he	如何	1500
+ru jin	如今	1200
+ru kou	入口	900
+ruan jian	软件	1300
+rui shi	瑞士	800
+rui xue	瑞雪	600
+ruo bu	若不	700
+ruo gan	若干	900
+ruo shi	若是	900
+ruo xiao	弱小	700
+san bu	散步	900
+san ge	三个	1300
+san ge yue	三个月	900
+san tian	三天	900
+san yue	三月	800
+sang shi	丧失	800
+sao di	扫地	700
+sao miao	扫描	900
+se cai	色彩	1000
+se su	色素	600
+sha gua	傻瓜	800
+sha mo	沙漠	800
+sha shi	啥事	700
+shai tai	晒台	500
+shan chu	删除	1200
+shan dian	闪电	800
+shan dong	山东	900
+shan liang	善良	1000
+shan po	山坡	600
+shan yu	善于	900
+shang ban	上班	1300
+shang biao	商标	900
+shang cheng	商城	1000
+shang chuan	上传	1000
+shang dian	商店	1000
+shang hai	上海	1500
+shang liang	商量	1000
+shang mian	上面	1300
+shang men	上门	800
+shang pin	商品	1100
+shang qu	上去	900
+shang wang	上网	900
+shang wu	上午	1100
+shang xian	上线	900
+shang xin	伤心	1000
+shang xue	上学	1000
+shang ye	商业	1100
+shang yi	商议	800
+shang you	上游	800
+shang zhou	上周	800
+shao bing	烧饼	600
+shao kai	烧开	700
+shao liang	少量	900
+shao nian	少年	1000
+shao nv	少女	900
+shao wei	稍微	1000
+she bei	设备	1500
+she hui	社会	1800
+she ji	设计	1600
+she ji	射击	900
+she li	设立	900
+she ming	舍命	600
+she qu	社区	1200
+she shi	设施	1100
+she zhi	设置	1500
+shen bian	身边	1200
+shen chu	深处	900
+shen du	深度	900
+shen fen	身份	1200
+shen hou	身后	800
+shen jing	神经	1000
+shen me	什么	1800
+shen ou	深欧	400
+shen qian	身前	700
+shen qing	申请	1300
+shen ru	深入	1200
+shen shang	身上	1200
+shen shen	深深	900
+shen ti	身体	1500
+shen xian	神仙	800
+shen zhi	甚至	1500
+sheng bing	生病	1000
+sheng chan	生产	1500
+sheng chi	生词	600
+sheng huo	生活	1800
+sheng ji	升级	1100
+sheng li	胜利	1200
+sheng ming	生命	1500
+sheng mu	声母	700
+sheng qi	生气	1000
+sheng qian	省钱	800
+sheng ri	生日	1200
+sheng sheng	声声	700
+sheng tai	生态	900
+sheng xia	剩下	900
+sheng xiao	生肖	800
+sheng yi	生意	1200
+sheng yin	声音	1500
+sheng zhang	生长	900
+shi bai	失败	1300
+shi bie	识别	1200
+shi bu shi	是不是	1400
+shi chang	市场	1600
+shi de	是的	1300
+shi dian	十点	800
+shi fou	是否	900
+shi fu	师傅	1000
+shi hou	时候	1800
+shi hua	实话	900
+shi hui	实惠	800
+shi jian	时间	2000
+shi jie	世界	1800
+shi jin	使劲	800
+shi jiu	十九	700
+shi li	实力	1200
+shi liang	适量	800
+shi mei	师妹	700
+shi pin	食品	1200
+shi qi	时期	1300
+shi qing	事情	1700
+shi qu	失去	1100
+shi ran	释然	700
+shi shi	事实	1500
+shi shi	时时	900
+shi ti	尸体	700
+shi tou	石头	900
+shi tu	试图	1100
+shi wu	食物	1300
+shi xian	实现	1500
+shi xiang	事项	900
+shi xiao	实效	800
+shi xing	实行	1000
+shi xu	时序	700
+shi yan	实验	1200
+shi yan	试验	1000
+shi yao	重要	1000
+shi ye	事业	1300
+shi yi	适宜	900
+shi ying	适应	1200
+shi yong	使用	1400
+shi you	石油	1000
+shi zai	实在	1300
+shi zhe	试着	900
+shi zhi	实质	900
+shi zhong	始终	1300
+shi zhuang	时装	800
+shi zi	狮子	800
+shou bian	手边	600
+shou dao	收到	1400
+shou dian	省电	700
+shou duan	手段	1100
+shou fei	收费	900
+shou gong	手工	900
+shou hao	收好	700
+shou huo	收获	1100
+shou ji	手机	1600
+shou li	手里	900
+shou ming	寿命	900
+shou ru	收入	1300
+shou shang	受伤	1000
+shou shi	收拾	1000
+shou shu	手术	1000
+shou tou	手头	800
+shou xian	首先	1500
+shou xin	收信	600
+shou yi	收益	900
+shou yin	收音	700
+shou zhi	手指	900
+shu bao	书包	800
+shu fa	书法	800
+shu guang	曙光	700
+shu jia	暑假	900
+shu jia	书架	800
+shu liang	数量	1300
+shu luo	数落	700
+shu ru	输入	1500
+shu shi	舒适	1000
+shu shu	叔叔	900
+shu xi	熟悉	1300
+shu xue	数学	1300
+shu ying	输赢	800
+shu zhu	宿主	700
+shua xin	刷新	900
+shuai dao	摔倒	800
+shuai lao	衰老	700
+shuan shuan	拴拴	400
+shuang fang	双方	1100
+shuang shou	双手	900
+shuang xi	双喜	600
+shui guo	水果	1100
+shui jiao	睡觉	1400
+shui ping	水平	1300
+shui shen	水深	700
+shui yi	睡衣	700
+shun bian	顺便	900
+shun li	顺利	1300
+shun xu	顺序	1000
+shun zhe	顺着	700
+shuo bu ding	说不定	1000
+shuo fa	说法	1200
+shuo hao	说好	800
+shuo hua	说话	1700
+shuo ming	说明	1500
+shuo shi	说是	1000
+si chu	四处	800
+si fang	私房	600
+si hai	四海	700
+si hu	似乎	1300
+si ji	司机	1100
+si nian	思念	900
+si ren	私人	900
+si si	死死	600
+si wang	死亡	1000
+si wei	思维	1100
+si xia	私下	700
+si xiang	思想	1500
+si zhou	四周	800
+song kai	松开	700
+song lai	送来	800
+song li	送礼	700
+song shu	松树	600
+sou suo	搜索	1300
+su du	速度	1400
+su ran	肃然	600
+su shi	素食	600
+su zao	塑造	900
+suan fa	算法	1200
+suan le	算了	1100
+sui bian	随便	1400
+sui ran	虽然	1600
+sui shen	随身	800
+sui shi	随时	1200
+sui shou	随手	800
+sui yue	岁月	900
+sun hai	损害	800
+sun shi	损失	1100
+suo yi	所以	1700
+suo you	所有	1700
+suo zai	所在	900
+ta men	他们	1600
+ta men	她们	1500
+tai duo	太多	1300
+tai hao	太好	900
+tai kong	太空	900
+tai lei	太累	800
+tai ping	太平	800
+tai qi	抬起	800
+tai shao	太少	900
+tai tai	太太	1000
+tai yang	太阳	1300
+tai yuan	太远	800
+tan bai	坦白	800
+tan hua	谈话	1000
+tan jiu	探究	800
+tan lun	谈论	900
+tan qin	弹琴	700
+tan xian	探险	700
+tan xing	弹性	800
+tang guo	糖果	800
+tang shi	唐诗	700
+tao hao	讨好	700
+tao lun	讨论	1500
+tao yan	讨厌	1000
+te bie	特别	1700
+te dian	特点	1200
+te se	特色	1000
+te yi	特意	900
+teng ai	疼爱	700
+ti gong	提供	1200
+ti gao	提高	1000
+ti chu	提出	1100
+ti qian	提前	1300
+ti shi	提示	1200
+ti ti	提题	400
+ti wen	提问	900
+ti xing	提醒	1300
+tian cai	天才	1000
+tian e	天鹅	700
+tian kong	天空	1300
+tian qi	天气	1400
+tian ran	天然	900
+tian se	天色	700
+tian tang	天堂	900
+tian tian	天天	1200
+tiao jian	条件	1600
+tiao mu	条目	800
+tiao wu	跳舞	1000
+tie jin	贴近	800
+tie shen	贴身	600
+ting bu	听不懂	800
+ting dao	听到	1300
+ting de	听得	800
+ting jian	听见	1300
+ting ke	听课	800
+ting li	听力	900
+ting shou	停手	600
+ting shuo	听说	1200
+ting xia	停下	900
+ting zhi	停止	1300
+tong bu	同步	1000
+tong chang	通常	1300
+tong guo	通过	1700
+tong hua	童话	900
+tong ji	统计	1100
+tong ku	痛苦	1200
+tong shi	同事	1400
+tong shi	同时	1600
+tong shuai	统帅	600
+tong xin	通信	1000
+tong xue	同学	1500
+tong yi	同意	1500
+tong zhi	通知	1400
+tou fa	头发	1100
+tou nao	头脑	900
+tou piao	投票	900
+tou xiang	头像	900
+tou ying	投影	800
+tu ran	突然	1500
+tu ran	图然	400
+tu shu	图书	900
+tu shu guan	图书馆	1000
+tuan dui	团队	1300
+tuan yuan	团圆	800
+tui ce	推测	800
+tui chi	推迟	900
+tui dong	推动	1300
+tui jian	推荐	1400
+tui kai	推开	800
+tui li	推理	900
+tui xiao	推销	900
+tui xing	推行	800
+tui xiu	退休	1000
+tun tu	吞吐	600
+tuo le	脱了	700
+tuo xie	妥协	900
+tuo yi	脱衣	600
+wa wa	娃娃	900
+wai biao	外表	900
+wai guo	外国	1300
+wai hao	外号	600
+wai jiao	外交	900
+wai mian	外面	1300
+wai po	外婆	900
+wai shang	外商	700
+wai tao	外套	900
+wai yu	外语	1000
+wan an	晚安	900
+wan can	晚餐	900
+wan cheng	完成	1600
+wan dao	玩到	700
+wan dian	晚点	800
+wan er	玩儿	900
+wan fan	晚饭	1000
+wan hui	晚会	900
+wan ju	玩具	1000
+wan mei	完美	1200
+wan quan	完全	1500
+wan shang	晚上	1700
+wan xiao	玩笑	900
+wan yi	万一	1000
+wan yuan	万元	800
+wang ji	忘记	1400
+wang qian	往前	900
+wang shang	网上	1200
+wang yuan	望远	700
+wang zhan	网站	1300
+wei bo	微博	1100
+wei da	伟大	1100
+wei dao	味道	1000
+wei fang	潍坊	600
+wei hai	危害	900
+wei he	为何	900
+wei hu	维护	1100
+wei ji	危机	1200
+wei jing	未经	800
+wei lai	未来	1600
+wei mian	未免	800
+wei qi	围棋	700
+wei qing	味精	700
+wei ren	伟人	700
+wei shang	微商	800
+wei shen me	为什么	1800
+wei sheng	卫生	1200
+wei shi	卫视	800
+wei shou	为首	800
+wei ta	为他	700
+wei ta	为她	700
+wei xian	危险	1300
+wei xiao	微笑	1100
+wei xie	威胁	900
+wei yi	唯一	1300
+wei zhi	位置	1400
+wei zhuang	伪装	800
+wen ben	文本	1100
+wen hua	文化	1700
+wen jian	文件	1500
+wen juan	问卷	900
+wen ming	文明	1400
+wen ti	问题	1800
+wen zhang	文章	1200
+wen zhong	稳重	800
+wo de	我的	1700
+wo lai	我来	1300
+wo men	我们	1800
+wo qu	我去	1000
+wo xiang	我想	1500
+wo yao	我要	1500
+wu bi	无比	900
+wu cai	五彩	700
+wu fa	无法	1600
+wu guan	无关	900
+wu hui	误会	900
+wu jie	误解	800
+wu lun	无论	1400
+wu qi	武器	1000
+wu ran	污染	1100
+wu suo	无所	900
+wu tai	舞台	1000
+wu xian	无限	900
+wu xiao	无效	800
+wu yao	勿要	400
+wu ye	午夜	800
+wu yi	无意	900
+wu yu	无语	800
+wu zhi	物质	1100
+xi a	下啊	400
+xi guan	习惯	1200
+xi huan	喜欢	1800
+xi huo	熄火	600
+xi jie	细节	1100
+xi ju	戏剧	900
+xi niang	新娘	800
+xi shou	吸收	1000
+xi wang	希望	1500
+xi xia	膝下	600
+xi xin	细心	900
+xi yang	夕阳	800
+xi yi fu	洗衣服	900
+xia bian	下边	800
+xia ci	下次	1100
+xia fang	下方	800
+xia ge	下个	1000
+xia lai	下来	1400
+xia mian	下面	1500
+xia qu	下去	1200
+xia tian	夏天	1100
+xia wu	下午	1300
+xia xue	下雪	800
+xia yi	下移	700
+xia zhou	下周	900
+xian cheng	县城	800
+xian da	显达	500
+xian de	显得	1300
+xian feng	先锋	800
+xian hua	鲜花	900
+xian jin	现金	1100
+xian lai	先来	800
+xian lu	线路	900
+xian mu	羡慕	900
+xian qi	掀起	800
+xian ran	显然	1300
+xian sheng	先生	1500
+xian shi	现实	1500
+xian shi	显示	1600
+xian xiang	现象	1300
+xian zai	现在	1800
+xiang ai	相爱	900
+xiang bi	相比	1100
+xiang chu	相处	1000
+xiang dang	相当	1400
+xiang de	想得	800
+xiang fa	想法	1400
+xiang fan	相反	1100
+xiang gang	香港	1300
+xiang guan	相关	1300
+xiang jiao	香蕉	900
+xiang jiao	相交	700
+xiang jin	相近	800
+xiang jv	相居	400
+xiang mu	项目	1600
+xiang nian	想念	1000
+xiang qian	向前	900
+xiang qing	乡情	700
+xiang tong	相同	1200
+xiang xia	乡下	800
+xiang xin	相信	1600
+xiang yan	香烟	800
+xiang ying	相应	1100
+xiang yu	相遇	900
+xiang zhi	相知	700
+xiao che	小车	800
+xiao de	晓得	900
+xiao er	小二	700
+xiao fei	消费	1300
+xiao fang	消防	900
+xiao guo	效果	1400
+xiao hua	笑话	1000
+xiao hua	消化	1000
+xiao jie	小姐	1300
+xiao jie	小结	800
+xiao ma	小马	600
+xiao ming	小明	900
+xiao qian	小钱	700
+xiao qiang	小强	800
+xiao qu	小区	1100
+xiao shi	小时	1500
+xiao shi	小事	900
+xiao shou	销售	1500
+xiao shuo	小说	1300
+xiao xi	消息	1500
+xiao xin	小心	1300
+xiao xue	小学	1100
+xiao yi	小姨	700
+xiao yuan	校园	1000
+xiao zhe	笑着	1000
+xiao zhi	小指	600
+xie hao	写好	800
+xie mian	斜面	600
+xie shen me	写什么	900
+xie shou	携手	800
+xie xia	写下	900
+xie xie	谢谢	1600
+xie zi	鞋子	900
+xin de	新的	1200
+xin jiang	新疆	900
+xin ku	辛苦	1000
+xin lai	新来	700
+xin li	心里	1200
+xin li	心理	1400
+xin nian	新年	1000
+xin qing	心情	1500
+xin ren	信任	1100
+xin shang	欣赏	1000
+xin shou	新手	900
+xin ti	新题	400
+xin wen	新闻	1500
+xin xi	信息	1600
+xin xian	新鲜	1100
+xin xin	信心	1300
+xin xing	新型	900
+xin yong	信用	1100
+xin yuan	心愿	800
+xin zang	心脏	1000
+xing cheng	形成	1300
+xing dong	行动	1300
+xing fu	幸福	1500
+xing ge	性格	1200
+xing ming	姓名	1000
+xing qi	星期	1300
+xing qu	兴趣	1300
+xing rong	形容	1000
+xing shi	形式	1400
+xing shi	形势	1200
+xing wei	行为	1400
+xing yun	幸运	1000
+xing zhi	性质	1100
+xing zhuang	形状	900
+xiong di	兄弟	1100
+xiu gai	修改	1300
+xiu xi	休息	1500
+xiu xian	休闲	900
+xu duo	许多	1500
+xu qiu	需求	1400
+xu yao	需要	1800
+xu zhi	须知	800
+xuan ba	选吧	500
+xuan shou	选手	1000
+xuan ze	选择	1600
+xuan zhuan	旋转	900
+xue hao	学好	800
+xue hui	学会	1200
+xue ke	学科	900
+xue sheng	学生	1800
+xue xi	学习	1800
+xue xiao	学校	1700
+xue ye	学业	800
+xun lian	训练	1300
+xun su	迅速	1300
+ya dan	鸭蛋	600
+ya gao	牙膏	700
+ya li	压力	1300
+ya ma	亚马	500
+ya suo	压缩	900
+yan jing	眼睛	1500
+yan kan	眼看	900
+yan li	严厉	900
+yan qian	眼前	1100
+yan re	炎热	800
+yan se	颜色	1200
+yan shi	掩饰	800
+yan su	严肃	1000
+yan zhi	研制	900
+yan zhong	严重	1500
+yang guang	阳光	1300
+yang lao	养老	800
+yang shi	样式	900
+yang tai	阳台	900
+yang wang	仰望	700
+yang zi	样子	1400
+yao bu	要不	1100
+yao bu ran	要不然	1100
+yao qiu	要求	1600
+yao shi	要是	1400
+yao shi	钥匙	1100
+yao yan	谣言	800
+yao yuan	遥远	900
+ye bu	也不	1100
+ye jiu	也就	1100
+ye ke	也可	800
+ye liang	晾凉	500
+ye ma	野马	500
+ye men	也门	600
+ye qian	夜间	800
+ye shi	也是	1500
+ye xu	也许	1400
+ye ye	爷爷	900
+ye you	也有	1000
+ye zhe	也者	400
+yi ban	一般	1400
+yi ban	一半	1100
+yi bian	一边	1200
+yi bian	一遍	1100
+yi bu	一步	900
+yi chang	异常	1300
+yi chang	一场	900
+yi cheng	议程	800
+yi chu	益处	800
+yi chuan	遗传	900
+yi dian	一点	1600
+yi ding	一定	1600
+yi dong	移动	1100
+yi duan	一段	1000
+yi dui	一对	900
+yi fa	一发	700
+yi fan	一番	1000
+yi fang	一方	900
+yi gai	一概	700
+yi gong	一共	1000
+yi gou	已购	600
+yi guan	一贯	800
+yi han	遗憾	1000
+yi hao	一号	700
+yi hou	以后	1500
+yi hui	一会	1000
+yi huo	疑惑	900
+yi jia	一家	1000
+yi jian	意见	1500
+yi jian	一件	1200
+yi jian	一间	900
+yi jiao	一觉	800
+yi jie	一届	800
+yi jing	已经	1700
+yi jiu	依旧	900
+yi ju	一句	1000
+yi kai	移开	700
+yi kao	依靠	1100
+yi kuai	一块	1000
+yi liang	一辆	1000
+yi lu	一路	900
+yi ma	姨妈	800
+yi mian	一面	1000
+yi ming	一名	900
+yi mu	一幕	800
+yi nian	一年	1500
+yi pang	一旁	900
+yi qi	一起	1500
+yi qian	以前	1400
+yi qie	一切	1500
+yi qun	一群	900
+yi ran	依然	1200
+yi ren	艺人	900
+yi sheng	医生	1500
+yi sheng	一声	900
+yi shi	一是	900
+yi shuang	一双	900
+yi si	意思	1300
+yi tai	一台	900
+yi tang	一趟	900
+yi tian	一天	1500
+yi tiao	一条	1200
+yi tong	一同	900
+yi wan	一碗	800
+yi wang	以往	900
+yi wei	以为	1100
+yi wei	一位	1000
+yi wen	疑问	1000
+yi wu	义务	800
+yi xi	依稀	700
+yi xia	一下	1600
+yi xiang	一向	1000
+yi xie	一些	1600
+yi xin	一心	900
+yi yang	一样	1600
+yi ye	一夜	800
+yi yi	意义	1400
+yi yuan	医院	1200
+yi yuan	一元	800
+yi zai	一再	800
+yi zao	一早	800
+yi zhang	一张	1000
+yi zhao	一招	700
+yi zhen	一阵	1000
+yi zhi	一直	1700
+yi zhi	一致	1000
+yi zhi	一支	900
+yi zhi	一只	1200
+yi zhou	一周	900
+yi zi	椅子	1000
+yi zuo	一座	900
+yin ci	因此	1600
+yin er	因而	1000
+yin hang	银行	1500
+yin ji	印记	700
+yin liang	音量	1000
+yin mian	迎面	800
+yin mu	银幕	700
+yin pin	音频	900
+yin shi	影视	1000
+yin wei	因为	1800
+yin yue	音乐	1600
+yin zhang	印章	700
+ying bi	硬币	800
+ying de	赢得	1100
+ying dang	应当	1300
+ying gai	应该	1800
+ying guang	荧光	700
+ying jie	迎接	900
+ying li	盈利	900
+ying pan	硬盘	900
+ying she	映射	800
+ying shi	影视	900
+ying wen	英文	1300
+ying xiang	影响	1800
+ying xiong	英雄	1000
+yong bao	拥抱	1000
+yong chu	涌出	700
+yong gan	勇敢	1100
+yong hu	用户	1500
+yong jiu	永久	900
+yong yuan	永远	1500
+yong zhe	勇者	600
+you ai	友爱	700
+you bang	油棒	400
+you bian	右边	1000
+you bian	一边	900
+you cai	油菜	700
+you chuan	游船	700
+you cuo	有错	800
+you dian	优点	1100
+you dian	有点	1400
+you er yuan	幼儿园	1000
+you guan	有关	1200
+you hao	友好	1100
+you hua	优化	1100
+you jian	邮件	1300
+you jiu	悠久	800
+you li	有利	1000
+you liang	优良	900
+you liao	油料	600
+you mei	优美	900
+you ming	有名	1000
+you ni	有你	700
+you qian	有钱	900
+you qing	友情	900
+you qu	有趣	1100
+you ren	有人	1500
+you san	有伞	400
+you shang	忧伤	800
+you shen me	有什么	1500
+you shi	有时	1500
+you shi	有事	1100
+you shou	右手	900
+you shui	有谁	800
+you xi	游戏	1500
+you xian	有限	1100
+you xian	悠闲	900
+you xiao	有效	1300
+you xie	有些	1600
+you xiu	优秀	1200
+you ya	优雅	900
+you yi	友谊	1000
+you yong	有用	1000
+you yu	由于	1600
+you yue	优越	900
+you zai	犹在	700
+you zhe	有着	1000
+you zhi	幼稚	900
+yu dao	遇到	1500
+yu fa	语法	900
+yu hui	与会	800
+yu jian	遇见	1000
+yu mian	会面	900
+yu shi	于是	1500
+yu yan	语言	1500
+yu yi	意义	900
+yu zhi	预制	700
+yuan cheng	远程	1100
+yuan chu	原处	700
+yuan dan	元旦	800
+yuan gao	原告	800
+yuan gong	员工	1400
+yuan lai	原来	1500
+yuan liang	原谅	1100
+yuan man	圆满	900
+yuan qu	园区	800
+yuan qv	原曲	400
+yuan shuai	元帅	700
+yuan wang	愿望	1000
+yuan xian	原先	900
+yuan yi	愿意	1400
+yuan yin	原因	1600
+yuan zhang	院长	900
+yuan zhuang	原装	800
+yue dui	乐队	900
+yue guang	月光	900
+yue hui	约会	1000
+yue lai yue	越来越	1400
+yue liang	月亮	1300
+yue piao	月票	600
+yue qu	乐曲	800
+yue se	月色	700
+yun dong	运动	1500
+yun qi	运气	1000
+yun shu	运输	1000
+yun xing	运行	1300
+yun xu	允许	1200
+zai bu	再不	700
+zai bu	再补	600
+zai ci	再次	1300
+zai hu	在乎	1000
+zai jian	再见	1400
+zai jia	在家	900
+zai lai	再来	1000
+zai san	再三	800
+zai shuo	再说	1100
+zai xian	在线	1300
+zai yi	在意	900
+zai ye	再也	1100
+zai yu	在于	1100
+zan cheng	赞成	900
+zan shi	暂时	1200
+zan tong	赞同	900
+zan yang	赞扬	800
+zang hua	脏话	700
+zao an	早安	800
+zao can	早餐	900
+zao cheng	造成	1300
+zao dian	早点	900
+zao gao	糟糕	1100
+zao shang	早上	1500
+zao shou	遭受	800
+zao xie	早些	700
+zao yi	早已	900
+zao yu	遭遇	900
+ze bei	责备	800
+ze ren	责任	1400
+zeng jia	增加	1400
+zeng qiang	增强	900
+zha dan	炸弹	900
+zhai yao	摘要	900
+zhan kai	展开	1000
+zhan lan	展览	900
+zhan ling	占领	900
+zhan shi	战士	1000
+zhan you	战友	700
+zhan zai	站在	1000
+zhang ai	障碍	900
+zhang da	长大	1000
+zhang fu	丈夫	1100
+zhang kai	张开	800
+zhang lao	长老	700
+zhang lang	蟑螂	700
+zhang luo	张罗	700
+zhang wo	掌握	1300
+zhang zui	张嘴	700
+zhao bu dao	找不到	1200
+zhao gu	照顾	1300
+zhao huan	召唤	700
+zhao ji	着急	1000
+zhao kai	召开	1000
+zhao pian	照片	1300
+zhao pian	照片儿	800
+zhao xiang	照相	800
+zhe ban	这般	700
+zhe bian	这边	1100
+zhe cai	这才	1000
+zhe dian	这点	800
+zhe er	这儿	1100
+zhe ge	这个	1900
+zhe ji	这几	700
+zhe jian	这件	900
+zhe jiu	这就	1100
+zhe li	这里	1500
+zhe me	这么	1600
+zhe me yang	这样	1500
+zhe nian	这年	800
+zhe qun	这群	800
+zhe ren	这人	900
+zhe shi	这是	1800
+zhe shu	这书	700
+zhe yang	这样	1800
+zhe yi	这一	1000
+zhe zhong	这种	1600
+zhe zi	这字	500
+zhen cheng	真诚	1000
+zhen de	真的	1600
+zhen dui	针对	1300
+zhen gao	真高	600
+zhen hao	真好	900
+zhen jia	真假	800
+zhen li	真理	900
+zhen mei	真美	700
+zhen ming	真名	700
+zhen qiang	真强	700
+zhen ren	真人	900
+zhen shi	真是	1500
+zhen shi	真实	1400
+zhen xiang	真相	1100
+zhen zheng	真正	1600
+zhen zhi	真挚	700
+zheng ce	政策	1300
+zheng chang	正常	1600
+zheng chu	整出	600
+zheng dang	正当	900
+zheng fa	蒸发	800
+zheng fu	政府	1500
+zheng hao	正好	1200
+zheng jian	证件	900
+zheng jiu	拯救	900
+zheng li	整理	1200
+zheng ming	证明	1500
+zheng qian	挣钱	900
+zheng qian	之前	1400
+zheng que	正确	1400
+zheng shi	正式	1500
+zheng tian	整天	900
+zheng wen	征文	700
+zheng zai	正在	1500
+zheng zhao	征兆	700
+zheng zhuang	症状	1000
+zhi bu guo	只不过	1200
+zhi chi	支持	1600
+zhi chu	指出	1200
+zhi dao	知道	1800
+zhi de	值得	1400
+zhi fu	支付	1400
+zhi fu	制服	900
+zhi hou	之后	1500
+zhi hui	指挥	1000
+zhi hui	智慧	1200
+zhi jian	之间	1600
+zhi jie	直接	1700
+zhi jie	直观	900
+zhi jin	至今	1100
+zhi jing	直径	800
+zhi jue	直觉	900
+zhi liang	质量	1500
+zhi liu	滞留	700
+zhi liao	治疗	1100
+zhi nan	指南	900
+zhi neng	只能	1500
+zhi neng	智能	1400
+zhi qian	之前	1700
+zhi shang	之上	900
+zhi shi	知识	1600
+zhi shi	只是	1700
+zhi shou	值守	700
+zhi shu	指数	1200
+zhi shuo	只说	800
+zhi wai	之外	1000
+zhi xian	直线	900
+zhi xiang	只想	1000
+zhi xiao	知晓	800
+zhi xing	执行	1300
+zhi xu	只需	1000
+zhi yang	只羊	400
+zhi yao	只要	1700
+zhi yao	重要	900
+zhi ye	职业	1400
+zhi yi	之一	1400
+zhi yi	质疑	1000
+zhi yin	只因	900
+zhi yong	只用	900
+zhi you	只有	1800
+zhi yu	至于	1400
+zhi yue	制约	900
+zhi zao	制造	1300
+zhi zhao	执照	800
+zhi zhe	指着	900
+zhi zhu	蜘蛛	800
+zhong cai	中餐	800
+zhong dian	重点	1500
+zhong guo	中国	2000
+zhong jian	中间	1400
+zhong jiu	终究	900
+zhong lei	种类	1000
+zhong nian	中年	900
+zhong qing	重庆	1000
+zhong shen	终身	900
+zhong shi	重视	1300
+zhong shu	中枢	800
+zhong wen	中文	1600
+zhong wu	中午	1100
+zhong xin	中心	1500
+zhong xue	中学	1200
+zhong yao	重要	1800
+zhong yu	终于	1600
+zhou mo	周末	1200
+zhou nian	周年	900
+zhou wei	周围	1100
+zhou zhe	皱着	600
+zhu bei	准备	1600
+zhu cai	主菜	600
+zhu che	驻车	700
+zhu chi	主持	1100
+zhu chu	住处	800
+zhu dong	主动	1200
+zhu ge	主格	500
+zhu guan	主观	900
+zhu he	祝贺	900
+zhu jian	主见	800
+zhu jiao	主教	900
+zhu li	助理	1100
+zhu ren	主任	1200
+zhu ti	主题	1500
+zhu yi	注意	1700
+zhu yuan	住院	800
+zhu zai	住在	900
+zhu zhang	主张	900
+zhu zhu	猪猪	600
+zhua jin	抓紧	900
+zhua lao	抓牢	600
+zhuan bian	转变	1100
+zhuan huan	转换	900
+zhuan ji	转机	800
+zhuan jia	专家	1300
+zhuan men	专门	1400
+zhuan qian	赚钱	1100
+zhuan shen	转身	900
+zhuan ti	专题	1000
+zhuan ye	专业	1500
+zhuan zhe	转折	800
+zhuang kuang	状况	1200
+zhuang shi	装饰	900
+zhuang tai	状态	1600
+zhuang zai	装载	800
+zhui jia	追加	800
+zhui qiu	追求	1300
+zhui shang	追上	800
+zhun bei	准备	1700
+zhun que	准确	1400
+zhun shi	准时	1000
+zhun xu	准许	800
+zhuo mian	桌面	1100
+zhuo shou	着手	900
+zhuo zhong	着重	900
+zi ben	资本	1300
+zi chan	资产	1300
+zi ci	自此	700
+zi cong	自从	1100
+zi dong	自动	1100
+zi fu	字符	1000
+zi ge	资格	1100
+zi gong	子宫	800
+zi hao	自豪	900
+zi ji	自己	1800
+zi jin	资金	1300
+zi ran	自然	1500
+zi ru	自如	800
+zi shao	自少	600
+zi shen	自身	1100
+zi shi	姿势	900
+zi si	自私	900
+zi tai	姿态	900
+zi wei	滋味	900
+zi xin	自信	1300
+zi xing che	自行车	1000
+zi xun	咨询	1100
+zi you	自由	1500
+zi yuan	资源	1500
+zi zai	自在	900
+zi zhi	自治	800
+zi zhu	自主	1000
+zong gong	总共	900
+zong he	综合	1100
+zong jie	总结	1300
+zong li	总理	900
+zong shi	总是	1600
+zong shu	总数	900
+zong suan	总算	900
+zou chu	走出	1000
+zou dao	走到	900
+zou guo	走过	900
+zou jin	走进	1000
+zou kai	走开	900
+zou lang	走廊	800
+zou lu	走路	1000
+zou qu	走去	800
+zou xiang	走向	1000
+zuan jin	钻进	800
+zuan shi	钻石	900
+zui ai	最爱	1000
+zui da	最大	1300
+zui de	最得	500
+zui duo	最多	1300
+zui gao	最高	1300
+zui hao	最好	1600
+zui hou	最后	1700
+zui jia	最佳	1000
+zui jin	最近	1700
+zui kuai	最快	1000
+zui shao	最少	1200
+zui xiao	最小	1200
+zui xin	最新	1400
+zui you	最优	900
+zuo an	作案	700
+zuo bian	左边	1100
+zuo chu	做出	1100
+zuo ci	坐次	600
+zuo dian	做点	700
+zuo fa	做法	1300
+zuo ge	做个	800
+zuo guai	作怪	600
+zuo hao	做好	1100
+zuo meng	做梦	900
+zuo pin	作品	1300
+zuo ri	昨日	900
+zuo shang	坐上	800
+zuo shi	做事	1200
+zuo tian	昨天	1600
+zuo wan	做完	900
+zuo wen	作文	1000
+zuo wu	作物	800
+zuo xia	坐下	1100
+zuo ye	作业	1300
+zuo yong	作用	1500
+zuo you	左右	1300
+zuo zai	坐在	1000
+zuo zhe	作者	1200
+zuo zhe	坐着	1000
+bu zhi dao	不知道	1500
+zhi dao le	知道了	1400
+zhe ge yue	这个月	900
+shang ge yue	上个月	800
+xia ge yue	下个月	900
+yi nian yi du	一年一度	800
+yi mu yi yang	一模一样	900
+bu yao jin	不要紧	1000

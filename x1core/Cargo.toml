@@ -1,0 +1,36 @@
+[package]
+name = "x1core"
+version = "1.3.2"
+edition = "2021"
+authors = ["xlaser"]
+description = "Core pinyin input method engine for x1pinyin"
+license = "GPL-3.0-only"
+repository = "https://github.com/xlaser/x1pinyinCore"
+keywords = ["pinyin", "input-method", "ime", "chinese", "engine"]
+
+[lib]
+name = "x1core"
+# cdylib/staticlib: 供宿主端 FFI 链接
+# rlib: 供 bin target (freq_rebuild) 与 workspace 成员依赖
+crate-type = ["cdylib", "staticlib", "rlib"]
+
+[dependencies]
+# SQLite 驱动（bundled = 内置编译 SQLite C 源码，无需系统 libsqlite3）
+rusqlite = { version = "0.31", features = ["bundled"] }
+
+# 不用 panic="abort"：FFI 导出函数统一走 catch_unwind 护栏（ffi::guard，
+#    覆盖全部非平凡导出），abort 会让 FFI panic 直接杀死输入法进程
+#    （panic 防护依赖 unwind）。
+# [profile.release] 由 workspace 根 Cargo.toml 定义（本文件不再重复）。
+
+[[bin]]
+name = "freq_rebuild"
+path = "src/tools/freq_rebuild.rs"
+
+[[bin]]
+name = "seed_init"
+path = "src/tools/seed_init.rs"
+
+[[bin]]
+name = "ranker_trainer"
+path = "src/tools/ranker_trainer.rs"

@@ -1,0 +1,11 @@
+# 文本统一 LF 检入；二进制禁止行尾转换
+* text=auto eol=lf
+
+*.db binary
+*.bin binary
+*.dylib binary
+*.so binary
+*.dll binary
+*.a binary
+*.png binary
+*.icns binary
