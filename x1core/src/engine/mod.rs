@@ -3006,7 +3006,7 @@ impl Engine {
                         }
                     }
                 }
-                sentences.sort_by(|a, b| b.sentence_score.cmp(&a.sentence_score));
+                sentences.sort_by_key(|s| std::cmp::Reverse(s.sentence_score));
                 // 落选句子的去留服从「长句绿词条数」设定（默认 1 条；
                 // 可按数量设定 green_candidate_count）：
                 // 条数 1 = 赢家通吃（仲裁只负责选对的那条，不留备选干扰选择）；
