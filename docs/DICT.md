@@ -4,14 +4,18 @@
 
 ## 资产形态：种子 DB 即词库本体
 
-完整词库以 SQLite 单文件（`x1pinyin.db`，约 12 万词条 / 约 50MB）分发——
+完整词库以 SQLite 单文件（`x1pinyin.db`，约 20.7 万词条 / 约 31.5MB）分发——
 词库经长期维护演化为自有资产，**DB 文件本体即唯一权威**，不存在"从上游
 词表重建"的管线（历史导入链已移除）。
 
+- 许可：与源码同为 **GPL-3.0**——任何人可下载、编辑、再分发，衍生作品
+  （含修改后的词库）须以 GPL-3.0 开源发布；商业使用遵守同一条款；
 - 获取：从 GitHub [Releases](https://github.com/xlaser/x1pinyinCore/releases)
   下载 `x1pinyin.db`，放到 `x1core/assets/x1pinyin.db`；
 - 审计：SQLite 明文库，任何标准工具可查可 diff（见下文"审计速查"）；
-- 形态：WAL 归档后的单文件（无 `-wal`/`-shm` 边车依赖）。
+- 形态：VACUUM 归档后的单文件（无 `-wal`/`-shm` 边车依赖）；
+- 纯净性：发布版用户表为近似空态（`user_words` 仅少量测试残留、
+  `user_input_mappings` 为 0），不含任何真实用户输入历史。
 
 ## 数据来源口径
 

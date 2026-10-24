@@ -58,9 +58,10 @@ x1_engine_free(e);
 
 仓库内置一个小型单字词库（`x1core/assets/pinyin_dict.txt`，约 3000 条，编译进二进制），开箱即可构建与运行；纯逻辑测试不需要额外数据。
 
-完整种子词库（约 12 万词条，约 50MB SQLite）**不随源码分发**：
+完整种子词库（约 20.7 万词条，约 31.5MB SQLite 单文件）**不随源码分发**：
 
 - 从本仓库 [Releases](../../releases) 下载 `x1pinyin.db`，放到 `x1core/assets/x1pinyin.db`；
+- 词库资产与源码同为 **GPL-3.0** 许可：可自由下载、修改、再分发，衍生须以 GPL-3.0 开源；
 - 未放置种子时，依赖真实词频的测试（约 200 个）会失败，失败信息中含种子获取指引；放置后全量测试通过（另有少数标记 `#[ignore]` 的长时评测测试需显式运行）；
 - 环境变量 `X1_USER_DB_DIR=<目录>` 可让诊断类测试改用本机输入法数据目录（`dict.db`/`user.db` 双库或旧版单库 `x1pinyin.db`），未设置或打开失败时回退种子副本；
 - 词库维护工具见 `x1core/src/tools/`（`freq_rebuild`、`seed_init` 等）与 `scripts/`（种子搭配导入）；词库资产形态、结构权威与维护红线见 [docs/DICT.md](docs/DICT.md)；

@@ -65,6 +65,11 @@ mod platform;
 pub mod quickcmds;
 /// 学习型排序器权重（ranker_trainer 工具生成；全 0 = 未训练）。
 pub mod ranker_weights;
+/// 纯 Rust SHA-256（零依赖）：评测报告的文件溯源哈希。
+/// 测试/评测专用——原实现 shell out `shasum`，在 Windows 上静默失败
+/// （无可执行文件），报告里的 db/corpus sha256 恒为 "unknown"。
+#[cfg(test)]
+mod sha256;
 /// 双拼方案（builtin_by_id/from_json 供引擎服务配置总线）。
 pub mod shuangpin;
 /// 输入统计核心（跨平台共享实现）：五张事实表 + 聚合查询 +

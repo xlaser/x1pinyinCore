@@ -244,17 +244,13 @@ pub(crate) mod tests {
         engine
     }
 
-    /// 文件 sha256（调系统 shasum；失败返回 "unknown"，不影响评测本身）。
+    /// 文件 sha256（纯 Rust 实现，跨平台一致；读取失败返回 "unknown"，不影响评测本身）。
+    ///
+    /// 原实现 shell out 系统 `shasum`：Windows 没有该可执行文件（Git Bash 里的
+    /// 是 perl 脚本，`Command` 无法 spawn），静默失败后本字段恒为 "unknown"，
+    /// 「跨轮对比前先确认词库/语料版本一致」的溯源在 Windows 开发机上从未生效。
     fn sha256_of(path: &str) -> String {
-        std::process::Command::new("shasum")
-            .args(["-a", "256", path])
-            .output()
-            .ok()
-            .and_then(|o| {
-                let s = String::from_utf8_lossy(&o.stdout).to_string();
-                s.split_whitespace().next().map(|h| h.to_string())
-            })
-            .unwrap_or_else(|| "unknown".to_string())
+        crate::sha256::sha256_of_file(path).unwrap_or_else(|| "unknown".to_string())
     }
 
     /// 当前 git 短 commit（失败返回 "unknown"）。
@@ -403,14 +399,18 @@ pub(crate) mod tests {
         eprintln!("耗时: {:?}", started.elapsed());
 
         // ---- JSON 落盘 ----
+        // 头部字段同样过 json_escape：db_path 在 Windows 上是 `F:\Projects\...`，
+        // 裸写进去反斜杠不是合法 JSON 转义（`\P`），整个报告在 Windows 上
+        // 无法被任何标准 JSON 解析器读取——评测的机器可读契约在 Windows 上
+        // 是坏的（Linux/macOS 路径用 `/` 所以一直没暴露）。
         let mut json = String::with_capacity(64 * 1024);
         let _ = writeln!(
             json,
             "{{\n  \"version\": 1,\n  \"git_commit\": \"{}\",\n  \"db_path\": \"{}\",\n  \"seed_db_sha256\": \"{}\",\n  \"corpus_sha256\": \"{}\",\n  \"elapsed_ms\": {},",
-            git_commit(),
-            eval_db_path(),
-            sha256_of(&eval_db_path()),
-            sha256_of(CORPUS_PATH),
+            json_escape(&git_commit()),
+            json_escape(&eval_db_path()),
+            json_escape(&sha256_of(&eval_db_path())),
+            json_escape(&sha256_of(CORPUS_PATH)),
             started.elapsed().as_millis()
         );
         let _ = writeln!(
