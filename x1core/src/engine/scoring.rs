@@ -1289,6 +1289,50 @@ impl crate::engine::Engine {
             .all(|(c, i)| c == i)
     }
 
+    /// 候选拼音对输入单位的**前缀覆盖数**（长词补全置顶的判据）。
+    ///
+    /// 从第一个单位起逐位对齐，返回连续匹配的单位数；0 = 连首个单位都不匹配。
+    /// 匹配口径：
+    /// - 单字母单位（简拼首字母 / 半截声母）→ 候选音节以该字母开头
+    ///   （z g r m jie f ↔ zhong guo ren min jie fang 全位对齐）；
+    /// - 完整音节单位（len≥2 且在 VALID_SYLLABLES）→ 候选音节**精确相等**
+    ///   （fang hu 不吃 fang huan，与 `is_pinyin_full_match` 同判据）；
+    /// - 其余（zh/ch/sh 声母、半截音节如 zhon）→ 候选音节以该单位开头。
+    ///
+    /// 「覆盖数 == 输入单位数」= 候选吃掉整条输入：除等长精确命中外，
+    /// **音节数更多、但输入是它严格前缀**的长词（zhongguorenminjiefang →
+    /// 中国人民解放军）同样成立。此前这类词掉进前缀层，会被「中国」这类
+    /// 只覆盖 2/6 单位的高频短词按词频压住——已敲部分一个不落的候选，
+    /// 结构证据应当强于只覆盖前几位的词。
+    pub(crate) fn pinyin_input_coverage(candidate: &Candidate, input_units: &[&str]) -> usize {
+        let mut matched = 0usize;
+        for (cand_syl, unit) in candidate.pinyin.split_whitespace().zip(input_units.iter()) {
+            let ok = if unit.chars().count() == 1 {
+                cand_syl.starts_with(unit)
+            } else if crate::pinyin::is_valid_syllable_pub(unit) {
+                cand_syl == *unit
+            } else {
+                cand_syl.starts_with(*unit)
+            };
+            if !ok {
+                break;
+            }
+            matched += 1;
+        }
+        matched
+    }
+
+    /// 候选是否**覆盖整条输入**（含长词补全：输入是候选拼音的严格前缀）。
+    ///
+    /// 与 `is_pinyin_full_match` 的分工：后者是等长精确命中（确定性），
+    /// 本判据额外承认「候选多出尾部音节」——多出来的是对后续输入的预测，
+    /// 但**已敲部分一个不落**，结构证据强于只覆盖前几位的短词。
+    /// 排序层级：等长精确词 > 全输入覆盖词 > 部分覆盖词（见 candidate_sort_key）。
+    pub(crate) fn covers_all_input(candidate: &Candidate, input_units: &[&str]) -> bool {
+        !input_units.is_empty()
+            && Self::pinyin_input_coverage(candidate, input_units) == input_units.len()
+    }
+
     /// 两两比较器（主排序已改用 candidate_sort_key 键预计算，
     /// 见 engine/mod.rs 主排序处注释）。本函数保留为参考实现：
     /// 分层判定的可读语义都在这里，且 test_candidate_sort_key_matches_cmp
@@ -1437,6 +1481,25 @@ impl crate::engine::Engine {
             }
             if b_full && a_prefix {
                 return Ordering::Greater;
+            }
+            // ── 全输入覆盖词（含长词补全）优先于部分覆盖词 ──
+            //
+            // 场景：zhongguorenminjiefang（6 单位，缺末音节）时候选按词频把
+            // 「中国」（覆盖 2/6）排首位、词库长词「中国人民解放军」（覆盖
+            // 6/6，输入是其严格前缀）沉底；zgrmjief 同型。语义：已敲单位
+            // 一个不落的候选 = 完整读法假设，结构层强于只覆盖前几位的词
+            // ——「覆盖全部输入单位」的判据此前只认等长精确，漏了长词补全
+            // 这一形态。与 full-match 的分工：等长精确仍在最前
+            // （确定性 > 预测），长词补全多出的尾部音节只是对后续输入的
+            // 预测。只对多字词生效；单字层级由上方 tier 隔离，不到这里。
+            let a_covers_all = a_prefix && Self::covers_all_input(a, best_syllables);
+            let b_covers_all = b_prefix && Self::covers_all_input(b, best_syllables);
+            if a_covers_all != b_covers_all {
+                return if a_covers_all {
+                    Ordering::Less
+                } else {
+                    Ordering::Greater
+                };
             }
             // 多音节输入的单字候选之间：精确匹配第一音节的字优先于前缀匹配的字。
             // 例如 lilizi 中，li 的精确单字（里/力/理/锂...）应排在 liang/lian/liu
@@ -1629,8 +1692,10 @@ impl crate::engine::Engine {
         let is_single = len == 1;
 
         // tier 编码 candidate_cmp 开头的分层（值小者排前）：
-        // 多音节：0=简拼整词 1=完整匹配词 2=前缀词 3=精确单字 4=前缀单字
-        //        （词恒在字前；简拼整词=每字母一字，为最前层）
+        // 多音节：0=简拼整词 1=完整匹配词 2=全输入覆盖词（含长词补全）
+        //        3=部分覆盖词 4=精确单字 5=前缀单字
+        //        （词恒在字前；简拼整词=每字母一字，为最前层；
+        //          全输入覆盖层见 covers_all_input 注释）
         // 单音节：0=精确单字 1=前缀单字 2=词（字恒在词前）
         //
         // 简拼/混合输入同样分层（与 candidate_cmp
@@ -1646,17 +1711,19 @@ impl crate::engine::Engine {
             } else if !is_single {
                 if Self::is_pinyin_full_match(c, best_syllables) {
                     1
-                } else {
+                } else if Self::covers_all_input(c, best_syllables) {
                     2
+                } else {
+                    3
                 }
             } else {
                 let exact = best_syllables
                     .first()
                     .is_some_and(|syl| c.pinyin.split_whitespace().next() == Some(*syl));
                 if exact {
-                    3
-                } else {
                     4
+                } else {
+                    5
                 }
             }
         } else if is_single {

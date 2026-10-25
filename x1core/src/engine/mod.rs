@@ -3561,7 +3561,15 @@ impl Engine {
                     rb.cmp(&ra)
                 })
             });
-            for (gt, gf, gp) in sorted.into_iter().rev() {
+            // 降序迭代 + 插入位锚定：旧版 `.rev()` 升序头插，配合「同名候选
+            // 在场即跳过」会产生强度序倒挂——强条目被 DP 产出的同名候选
+            // 顶替跳过，弱条目独自头插霸占首位，用户的高频偏好完全丢失。
+            // 改为：降序迭代（强在前），缺席条目插在 insert_at（起始 0，
+            // 每插一条 +1）；**在场条目不移动**（在场候选排位由统一排序/
+            // 上下文 bigram 裁决，教学映射不霸位），但把 insert_at 锚到它
+            // 身后——更弱的缺席条目不得越过在场的强者头插。
+            let mut insert_at = 0usize;
+            for (gt, gf, gp) in sorted.into_iter() {
                 if self.removed_texts.contains(gt.as_str()) {
                     continue;
                 }
@@ -3581,18 +3589,19 @@ impl Engine {
                     (Some(m), Some(b)) => m < b,
                     _ => false,
                 };
-                if all_candidates
+                if let Some(pos) = all_candidates
                     .iter()
-                    .any(|c| c.text.as_ref() == gt.as_str())
+                    .position(|c| c.text.as_ref() == gt.as_str())
                 {
+                    // 在场：不移动，只为更弱条目锚定插入位。
+                    insert_at = insert_at.max(pos + 1);
                     continue;
                 }
-                // 插到列表最前：候选顺序 = 插入顺序
-                //（process_inner 末尾只 truncate 不重排），push 会把召回压到
-                // 第 35 位 = 第一页永远看不见（实测案例 pos=34/35）。与
-                // decode 绿词「第一绿词排首位」同排位语义；升序迭代 + 头插
-                // 保证最强召回（sorted[0]）落最终第 1 位。
-                let at = if memo_worse { all_candidates.len() } else { 0 };
+                // 缺席条目：插到 insert_at（强度序位；0 = 列表最前——
+                // process_inner 末尾只 truncate 不重排，push 会把召回压到
+                // 第一页外）；插完 +1 让后续更弱条目落其后。质量门降级
+                // 条目保持尾部保可达的旧语义。
+                let at = if memo_worse { all_candidates.len() } else { insert_at };
                 all_candidates.insert(
                     at,
                     Candidate {
@@ -3610,6 +3619,9 @@ impl Engine {
                         sentence_score: 0,
                     },
                 );
+                if !memo_worse {
+                    insert_at += 1;
+                }
             }
         } else {
             // 兜底查持久全集：
@@ -3642,20 +3654,17 @@ impl Engine {
                     rb.cmp(&ra)
                 })
             });
-            for (gt, gf) in recovered.into_iter().rev() {
+            // 降序迭代 + 插入位锚定（与 green_memo 命中分支同语义的
+            // 强度序倒挂修复）。
+            let mut insert_at = 0usize;
+            for (gt, gf) in recovered.into_iter() {
                 if self.removed_texts.contains(&gt) {
                     continue;
                 }
-                if all_candidates
-                    .iter()
-                    .any(|c| c.text.as_ref() == gt.as_str())
-                {
-                    continue;
-                }
-                // 记忆条目相对质量门（shougangeili，与 green_memo
-                // lift 同规则）：条目词组链比
-                // 当前最优句更差（多字词段更少）→ 只是「一个高频词拼出的怪句」，
-                // 降到末尾保可达，不抢首位（用户误选一次不该永久霸屏）。
+                // 记忆条目相对质量门（与 green_memo lift 同规则）：条目
+                // 词组链比当前最优句更差（多字词段更少）→ 只是「一个高频词
+                // 拼出的怪句」，降到末尾保可达，不抢首位（误选一次不该
+                // 永久霸屏）。
                 let recovered_py = self
                     .derive_reading_from_text(input, &gt)
                     .unwrap_or_else(|| best_syllables.join(" "));
@@ -3667,10 +3676,19 @@ impl Engine {
                     (Some(m), Some(b)) => m < b,
                     _ => false,
                 };
+                if let Some(pos) = all_candidates
+                    .iter()
+                    .position(|c| c.text.as_ref() == gt.as_str())
+                {
+                    // 在场：不移动（统一排序/上下文裁决其排位），只为更弱
+                    // 缺席条目锚定插入位。
+                    insert_at = insert_at.max(pos + 1);
+                    continue;
+                }
                 let at = if recovered_worse {
                     all_candidates.len()
                 } else {
-                    0
+                    insert_at
                 };
                 all_candidates.insert(
                     at,
@@ -3687,6 +3705,9 @@ impl Engine {
                         sentence_score: 0,
                     },
                 );
+                if !recovered_worse {
+                    insert_at += 1;
+                }
             }
         }
 

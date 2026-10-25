@@ -220,8 +220,8 @@ impl crate::engine::Engine {
         });
         // bigram 加分：与上文搭配的字优先。
         //
-        // 三层排序：bigram（用户/种子词级
-        // 邻接证据）> 组合词关联（collocation）> 字频。
+        // 四层排序：bigram（用户/种子词级
+        // 邻接证据）> 精确音节 > 组合词关联（collocation）> 字频。
         //
         // 组合词层：悬尾补字若只有 bigram→字频两层，冷启动 bigram 全 0 时
         // 纯字频定序——干+m 补出 9760 的「没」而非 8940 的「吗」，而全拼
@@ -231,9 +231,20 @@ impl crate::engine::Engine {
         //（prev+字 在词库成词且末音节一致）的字排进纯字频之前。过门槛者
         // 之间仍按字频定序——吗(8940) 压 嘛(1000)，与全拼首选同文本，续打
         // 到全拼时零跳变。
+        //
+        // 精确音节层：partial 本身是完整音节（尾 a/e/o 等）时，拼音
+        // **恰好等于** partial 的字（a→啊）必须排在仅前缀匹配的字
+        //（a→爱 ai/安 an/昂 ang）之前——否则裸字频定序（爱 6120 > 啊
+        // 5000）让前缀猜测压过精确读法，补字拼出「还不错爱」占据
+        //「还不错啊」的位置。对齐统一排序规则「单音节输入时，精确匹配
+        // 当前音节的字优先于仅前缀匹配的字」（该规则早已覆盖单音节
+        // 输入，悬尾补字此前漏配）；partial 非完整音节（zh/h 等辅音
+        // 半截）时无字的拼音等于它，此层恒空、行为不变。
         /// 组合词证据门槛：与下方 DP 边界对 BOUNDARY_COLLOCATION_FREQ_FLOOR 同值
         ///（<500 的生僻组合词不算佐证）。
         const COMPLETION_COLOCATION_FLOOR: u32 = 500;
+        let exact_syl =
+            |c: &Candidate| -> bool { c.pinyin.split_whitespace().next() == Some(partial) };
         if let Some(prev) = prev_char {
             let colloc_ok = |c: &Candidate| -> bool {
                 c.pinyin
@@ -247,9 +258,20 @@ impl crate::engine::Engine {
                 let bb = self.freq.word_bigram_count(prev, &b.text);
                 let ca = colloc_ok(a) as u8;
                 let cb = colloc_ok(b) as u8;
-                // bigram 高的优先；同 bigram 组合词关联优先；再同则 base_freq 兜底
+                // bigram 高的优先；同 bigram 精确音节优先；再同组合词
+                // 关联优先；再同则 base_freq 兜底
                 bb.cmp(&ba)
+                    .then_with(|| (exact_syl(b) as u8).cmp(&(exact_syl(a) as u8)))
                     .then_with(|| cb.cmp(&ca))
+                    .then_with(|| b.base_freq.cmp(&a.base_freq))
+            });
+        } else {
+            // 无上文（防御分支，≥3 音节路径恒有 prev）：同样补精确层，
+            // 防裸字频让前缀匹配压制精确匹配；顺序与有上文分支一致
+            //（缺证据两层）。
+            cands.sort_by(|a, b| {
+                (exact_syl(b) as u8)
+                    .cmp(&(exact_syl(a) as u8))
                     .then_with(|| b.base_freq.cmp(&a.base_freq))
             });
         }

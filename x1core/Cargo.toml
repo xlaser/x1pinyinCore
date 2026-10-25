@@ -1,6 +1,6 @@
 [package]
 name = "x1core"
-version = "1.3.2"
+version = "1.3.3"
 edition = "2021"
 authors = ["xlaser"]
 description = "Core pinyin input method engine for x1pinyin"

@@ -1194,3 +1194,124 @@ fn test_word_reading_outranks_fragment_green() {
     );
     seed_copy_cleanup(&db);
 }
+
+/// 语气词尾精确读法回归（haibucuoa）：尾 a 是有效单字母音节且无延长词
+/// 证据 → 语气词语义，精确读法「还不错啊」（尾音节 a 精确匹配）必须压过
+/// 补字猜测「还不错爱」（a 仅是 ai 的前缀，爱字频 6120 > 啊 5000 曾靠
+/// 裸字频胜出）。词频镜像真实种子形态：还不错 8770 / 爱 6120 / 啊 5000 /
+/// 错爱 253（< 组合词门槛 500，守护「错爱」不因 collocation 层劫持补字）。
+/// 修复位：best_char_for_initial 精确音节层——补字直接选精确的 啊，与
+/// 全消费句同文本去重合一（爱不再出现）。曾试「全消费句硬排补字句前」的
+/// 族级兜底，实测翻转 nixiangganm（你想干吗→你想干姆）且与「用户
+/// bigram > 精确」层级自相矛盾，已弃。
+#[test]
+fn test_particle_tail_exact_reading_beats_prefix_guess() {
+    use crate::storage::{Storage, X1DictWord};
+    let tmp = crate::test_tmp::dir().join(format!(
+        "x1pinyin_haibucuoa_{}_{}.db",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    {
+        let mut s = Storage::open(&tmp).unwrap();
+        s.import_x1dict_batch(&[
+            X1DictWord { simplified: "还".into(), pinyin: "hai".into(), freq: 8770, ..Default::default() },
+            X1DictWord { simplified: "不".into(), pinyin: "bu".into(), freq: 8000, ..Default::default() },
+            X1DictWord { simplified: "错".into(), pinyin: "cuo".into(), freq: 3000, ..Default::default() },
+            X1DictWord { simplified: "还不错".into(), pinyin: "hai bu cuo".into(), freq: 8770, ..Default::default() },
+            X1DictWord { simplified: "不错".into(), pinyin: "bu cuo".into(), freq: 7000, ..Default::default() },
+            X1DictWord { simplified: "爱".into(), pinyin: "ai".into(), freq: 6120, ..Default::default() },
+            X1DictWord { simplified: "啊".into(), pinyin: "a".into(), freq: 5000, ..Default::default() },
+            // 错爱真实词频 253：< 组合词门槛 500，collocation 层必须不认它
+            X1DictWord { simplified: "错爱".into(), pinyin: "cuo ai".into(), freq: 253, ..Default::default() },
+        ])
+        .unwrap();
+    }
+    let mut engine = Engine::new_with_db(tmp.to_str().unwrap()).unwrap();
+    // 开第二绿词：让「还不错爱」若仍被产出时可见，断言其位次（族级兜底验证）
+    engine.set_second_green_enabled(true);
+    let cands = engine.process("haibucuoa");
+    let texts: Vec<&str> = cands.iter().map(|c| c.text.as_ref()).collect();
+    let pos_a = texts.iter().position(|&t| t == "还不错啊");
+    let pos_ai = texts.iter().position(|&t| t == "还不错爱");
+    assert!(
+        pos_a.is_some(),
+        "精确读法「还不错啊」必须在候选中，实际: {:?}",
+        texts.iter().take(6).collect::<Vec<_>>()
+    );
+    match (pos_a, pos_ai) {
+        (Some(a), Some(ai)) => assert!(
+            a < ai,
+            "精确读法「还不错啊」(#{}) 必须排在补字猜测「还不错爱」(#{ai}) 之前",
+            a
+        ),
+        // 补字层修复后主路补 啊 与全消费句去重、猜测句消失——同样合格
+        (Some(_), None) => {}
+        _ => unreachable!(),
+    }
+    assert!(
+        texts.first() == Some(&"还不错啊"),
+        "首候选应为「还不错啊」，实际前3: {:?}",
+        texts.iter().take(3).collect::<Vec<_>>()
+    );
+    let _ = std::fs::remove_file(&tmp);
+}
+
+/// 记忆召回强度序回归（haibucuoa）：用户在同一 input 上教过两个读法
+/// （还不错爱×2 误触 / 还不错啊×4 真实选择）时，召回排序必须让 count 强的
+/// 还不错啊 占 #0——旧「升序头插 + 同名在场即跳过」让 啊×4 的召回被 DP
+/// 产出的同名候选顶替、爱×2 独自头插霸屏。修复：降序迭代 + 插入位锚定
+///（在场条目不移动——fangqi 上下文裁决语义保留——但为更弱缺席条目锚定
+/// 插入位）。两个召回分支（green_memo 命中 / input_mappings 兜底）同语义；
+/// 守护 test_adjacent_strong_bigram_dominates_stale_history（fangqi 在场
+/// 不霸位）与本测（强度序）双侧。
+#[test]
+fn test_mapping_recall_strength_order() {
+    use crate::storage::{Storage, X1DictWord};
+    let tmp = crate::test_tmp::dir().join(format!(
+        "x1pinyin_recall_{}_{}.db",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    {
+        let mut s = Storage::open(&tmp).unwrap();
+        s.import_x1dict_batch(&[
+            X1DictWord { simplified: "还".into(), pinyin: "hai".into(), freq: 8770, ..Default::default() },
+            X1DictWord { simplified: "不".into(), pinyin: "bu".into(), freq: 8000, ..Default::default() },
+            X1DictWord { simplified: "错".into(), pinyin: "cuo".into(), freq: 3000, ..Default::default() },
+            X1DictWord { simplified: "还不错".into(), pinyin: "hai bu cuo".into(), freq: 8770, ..Default::default() },
+            X1DictWord { simplified: "不错".into(), pinyin: "bu cuo".into(), freq: 7000, ..Default::default() },
+            X1DictWord { simplified: "爱".into(), pinyin: "ai".into(), freq: 6120, ..Default::default() },
+            X1DictWord { simplified: "啊".into(), pinyin: "a".into(), freq: 5000, ..Default::default() },
+        ])
+        .unwrap();
+    }
+    let mut engine = Engine::new_with_db(tmp.to_str().unwrap()).unwrap();
+    // 教学历史镜像用户现场：爱 2 次（误触）+ 啊 4 次（真实选择）
+    for _ in 0..2 {
+        engine.commit("haibucuoa", "还不错爱", Some("hai bu cuo ai"), false);
+    }
+    for _ in 0..4 {
+        engine.commit("haibucuoa", "还不错啊", Some("hai bu cuo a"), false);
+    }
+    let cands = engine.process("haibucuoa");
+    let texts: Vec<&str> = cands.iter().map(|c| c.text.as_ref()).collect();
+    let pos_a = texts.iter().position(|&t| t == "还不错啊");
+    let pos_ai = texts.iter().position(|&t| t == "还不错爱");
+    assert_eq!(
+        texts.first().copied(),
+        Some("还不错啊"),
+        "count 强的读法必须 #0，实际前3: {:?}",
+        texts.iter().take(3).collect::<Vec<_>>()
+    );
+    if let (Some(a), Some(ai)) = (pos_a, pos_ai) {
+        assert!(a < ai, "还不错啊(#{a}) 必须排在 还不错爱(#{ai}) 之前");
+    }
+    let _ = std::fs::remove_file(&tmp);
+}

@@ -446,3 +446,134 @@ fn test_fragment_green_yields_to_prefix_extension() {
     );
     assert!(cands[gp].is_sentence, "「乱七八」应仍是绿词");
 }
+
+/// 全输入覆盖判据的匹配口径：
+/// - 单字母单位 = 简拼首字母/半截声母 → 候选音节以该字母开头；
+/// - 完整音节单位 → 候选音节**精确相等**（fang hu ≠ fang huan，fanghu 判据不变）；
+/// - 输入是候选拼音的严格前缀（长词补全）同样算全覆盖。
+#[test]
+fn test_covers_all_input_semantics() {
+    fn cand(text: &str, pinyin: &str) -> Candidate {
+        Candidate {
+            text: text.into(),
+            base_freq: 0,
+            pinyin: pinyin.into(),
+            is_primary: true,
+            is_correction: false,
+            is_sentence: false,
+            is_guess: false,
+            is_shortcut: false,
+            is_english: false,
+            sentence_score: 0,
+        }
+    }
+    let army = cand("中国人民解放军", "zhong guo ren min jie fang jun");
+
+    // 长词补全：6 个单位全对齐，候选多出尾部 jun
+    let six = ["zhong", "guo", "ren", "min", "jie", "fang"];
+    assert_eq!(Engine::pinyin_input_coverage(&army, &six), 6);
+    assert!(Engine::covers_all_input(&army, &six));
+
+    // 半截声母尾（zhongguorenminjief）：f 按首字母对齐
+    let half = ["zhong", "guo", "ren", "min", "jie", "f"];
+    assert_eq!(Engine::pinyin_input_coverage(&army, &half), 6);
+    assert!(Engine::covers_all_input(&army, &half));
+
+    // 完整音节 fa/fan 不等于 fang → 覆盖停在第五位（不是补全）
+    for last in ["fa", "fan"] {
+        let units = ["zhong", "guo", "ren", "min", "jie", last];
+        assert_eq!(Engine::pinyin_input_coverage(&army, &units), 5, "{last}");
+        assert!(!Engine::covers_all_input(&army, &units), "{last}");
+    }
+
+    // fanghu 判据回归：放还(fang huan) 不是 ["fang","hu"] 的全覆盖，防护是
+    let fanghu = ["fang", "hu"];
+    assert_eq!(
+        Engine::pinyin_input_coverage(&cand("放还", "fang huan"), &fanghu),
+        1
+    );
+    assert!(!Engine::covers_all_input(
+        &cand("放还", "fang huan"),
+        &fanghu
+    ));
+    assert!(Engine::covers_all_input(&cand("防护", "fang hu"), &fanghu));
+
+    // 短词只覆盖前几位 → 非全覆盖
+    let six_units = ["zhong", "guo", "ren", "min", "jie", "fang"];
+    assert_eq!(
+        Engine::pinyin_input_coverage(&cand("中国", "zhong guo"), &six_units),
+        2
+    );
+    assert!(!Engine::covers_all_input(
+        &cand("中国", "zhong guo"),
+        &six_units
+    ));
+}
+
+/// **长词补全压过部分覆盖词**（逐键回退家族）：输入是词库长词的严格前缀时
+/// （缺末音节），长词覆盖整条输入，结构层必须优先于「中国」这类只覆盖前
+/// 几位的词频短词——此前长词掉进前缀层，被 中国(8534) 按词频压到深位，
+/// 逐键输入时表现为「无限接近却回退」。
+///
+/// 三条覆盖形态：全拼前缀（zhongguorenminjiefang）、简拼+全拼混合
+/// （zgrmjief）、显式撇号形态（z'g'r'm'jie'f）。补上末音节 jun 后
+/// 精确命中转白词仍居首；有等长精确词时补全不抢位（中国人民）。
+#[test]
+fn test_long_word_completion_outranks_partial_words() {
+    let db = super::tests_query::seed_copy("completion_rank");
+    let engine = Engine::new_with_db(&db).expect("seed db");
+
+    for input in ["zhongguorenminjiefang", "zgrmjief", "z'g'r'm'jie'f"] {
+        let cands = engine.process(input);
+        let top = cands.first().map(|c| c.text.as_ref()).unwrap_or("");
+        assert_eq!(
+            top,
+            "中国人民解放军",
+            "{}：长词补全应排首位，实际前 6：{:?}",
+            input,
+            cands
+                .iter()
+                .take(6)
+                .map(|c| c.text.as_ref())
+                .collect::<Vec<_>>()
+        );
+        assert!(
+            cands[0].is_guess,
+            "{}：缺末音节的前缀态长词是延长预测（紫词）",
+            input
+        );
+        // 部分覆盖的高频短词必须让位
+        let cn = cands
+            .iter()
+            .position(|c| c.text.as_ref() == "中国")
+            .expect("中国应在列");
+        assert!(cn > 0, "{}：「中国」（覆盖 2/6）必须在长词之后", input);
+        // 碎片绿词（中国人民解放）仍排在长词之后（只降位不隐藏）
+        let green = cands
+            .iter()
+            .position(|c| c.is_sentence && c.text.as_ref() == "中国人民解放")
+            .expect("中国人民解放 绿词应在列");
+        assert!(
+            green > 0 && green < cn,
+            "{}：碎片绿词应在长词之后、短词之前（实际 green={} cn={}）",
+            input,
+            green,
+            cn
+        );
+    }
+
+    // 补上末音节 jun 的首字母 → 精确命中转白词，仍居首（单调收敛）
+    let full = engine.process("zhongguorenminjiefangj");
+    assert_eq!(full[0].text.as_ref(), "中国人民解放军");
+    assert!(!full[0].is_guess, "精确命中不再是紫词");
+
+    // 有等长精确词时补全不抢位：zhongguorenmin → 中国人民（tier 1）
+    let exact = engine.process("zhongguorenmin");
+    assert_eq!(
+        exact[0].text.as_ref(),
+        "中国人民",
+        "等长精确词必须压过长词补全"
+    );
+
+    super::tests_query::seed_copy_cleanup(&db);
+}
