@@ -65,10 +65,6 @@ mod tests_correction; // 智能纠错 / 多音字 / 模糊音 / 整句切分 / �
 mod tests_dict; // 词库 CRUD / TSV 导入导出 / 持久化（原 tests_learning 拆出）
 #[cfg(test)]
 mod tests_english; // 智能单词识别
-/// 平台无关性守护：
-/// 源码级扫描 engine/*.rs（不含 tests_*.rs）断言无平台分支/平台路径。
-#[cfg(test)]
-mod tests_platform_purity;
 #[cfg(test)]
 mod tests_green; // 绿词 / 多音字次音
 #[cfg(test)]
@@ -79,6 +75,10 @@ mod tests_guess; // 紫词
 mod tests_longrange; // 长程关联距离/干扰/边界实测
 #[cfg(test)]
 mod tests_pins;
+/// 平台无关性守护：
+/// 源码级扫描 engine/*.rs（不含 tests_*.rs）断言无平台分支/平台路径。
+#[cfg(test)]
+mod tests_platform_purity;
 #[cfg(test)]
 pub(crate) mod tests_query; // 基础查询 / DB / 性能探针
 #[cfg(test)]
@@ -2419,14 +2419,10 @@ impl Engine {
             // 强约束：候选字数 == 输入字母数（4 字母只认 4 字词），且主列表去重、
             // 输入纯小写无撇号、长度 3..=8——噪音面极小（>=4 字母的等字长整词
             // 基本只有成语/固定短语，正是简拼整词的用户意图）。
-            if input.len() >= 3
-                && input.len() <= 8
-                && input.chars().all(|c| c.is_ascii_lowercase())
+            if input.len() >= 3 && input.len() <= 8 && input.chars().all(|c| c.is_ascii_lowercase())
             {
-                let tokens: Vec<crate::pinyin::Token> = input
-                    .chars()
-                    .map(crate::pinyin::Token::Initial)
-                    .collect();
+                let tokens: Vec<crate::pinyin::Token> =
+                    input.chars().map(crate::pinyin::Token::Initial).collect();
                 let mut jp: Vec<Candidate> = self
                     .dict
                     .query_tokens(&tokens)
@@ -3054,8 +3050,8 @@ impl Engine {
                             continue;
                         }
                         let words = self.split_text_anchored(&s.text, alt_seg);
-                        let all_multi = words.len() >= 2
-                            && words.iter().all(|(w, _)| w.chars().count() >= 2);
+                        let all_multi =
+                            words.len() >= 2 && words.iter().all(|(w, _)| w.chars().count() >= 2);
                         if all_multi {
                             // 登记进 alt_sentence_texts：全消费判定按句子自身音节数
                             //（own_syls == green_char_count 即全消费）——营救句的
@@ -3180,10 +3176,7 @@ impl Engine {
                     // 比「当前 DP 最优句」更差（多字词段更少）= 一个高频词拼出的
                     // 怪句，别抢首位；但保留可达（降到末尾，用户仍可翻到）。
                     // 对齐失败（多音/历史条目）不做判断，保持原提升行为。
-                    let worse = match (
-                        self.memo_span_count(gt, &memo_syls),
-                        best_sentence_spans,
-                    ) {
+                    let worse = match (self.memo_span_count(gt, &memo_syls), best_sentence_spans) {
                         (Some(m), Some(b)) => m < b,
                         _ => false,
                     };
@@ -3282,9 +3275,7 @@ impl Engine {
             for (sent_idx, mut sentence) in sentences.into_iter().enumerate() {
                 // 末尾不完整音节补全：用首字母匹配字拼到整句末尾。
                 // 语气词读法共存句（拼音已含尾音节）不参与补字——再补会叠字。
-                if has_partial_tail
-                    && !particle_green_texts.contains(sentence.text.as_ref())
-                {
+                if has_partial_tail && !particle_green_texts.contains(sentence.text.as_ref()) {
                     let tail: String = best_syllables[valid_count..]
                         .iter()
                         .flat_map(|s| s.chars())
@@ -3348,8 +3339,7 @@ impl Engine {
                     // 语气词共存句（裸尾 a/e/o 并入的第二路 DP 产物）拼音已含
                     // 尾音节、字数==自身音节数——按全消费认可（has_partial_tail
                     // 对它们是主路语义，不适用）。
-                    let is_particle_green =
-                        particle_green_texts.contains(sentence.text.as_ref());
+                    let is_particle_green = particle_green_texts.contains(sentence.text.as_ref());
                     let is_full_match = is_particle_green
                         || (!has_partial_tail
                             && green_char_count == own_syls
@@ -3582,10 +3572,7 @@ impl Engine {
                 let memo_syls: Vec<&str> = resolved_py.split_whitespace().collect();
                 // 记忆条目相对质量门（同 ≥3 块内 lift）：条目词组链比当前最优句
                 // 更差 → 降级到末尾保可达（对齐失败不判断）。
-                let memo_worse = match (
-                    self.memo_span_count(gt, &memo_syls),
-                    best_chain_spans,
-                ) {
+                let memo_worse = match (self.memo_span_count(gt, &memo_syls), best_chain_spans) {
                     (Some(m), Some(b)) => m < b,
                     _ => false,
                 };
@@ -3601,7 +3588,11 @@ impl Engine {
                 // process_inner 末尾只 truncate 不重排，push 会把召回压到
                 // 第一页外）；插完 +1 让后续更弱条目落其后。质量门降级
                 // 条目保持尾部保可达的旧语义。
-                let at = if memo_worse { all_candidates.len() } else { insert_at };
+                let at = if memo_worse {
+                    all_candidates.len()
+                } else {
+                    insert_at
+                };
                 all_candidates.insert(
                     at,
                     Candidate {
@@ -3669,13 +3660,11 @@ impl Engine {
                     .derive_reading_from_text(input, &gt)
                     .unwrap_or_else(|| best_syllables.join(" "));
                 let recovered_syls: Vec<&str> = recovered_py.split_whitespace().collect();
-                let recovered_worse = match (
-                    self.memo_span_count(&gt, &recovered_syls),
-                    best_chain_spans,
-                ) {
-                    (Some(m), Some(b)) => m < b,
-                    _ => false,
-                };
+                let recovered_worse =
+                    match (self.memo_span_count(&gt, &recovered_syls), best_chain_spans) {
+                        (Some(m), Some(b)) => m < b,
+                        _ => false,
+                    };
                 if let Some(pos) = all_candidates
                     .iter()
                     .position(|c| c.text.as_ref() == gt.as_str())
@@ -5436,9 +5425,7 @@ impl Engine {
                         .split_whitespace()
                         .filter_map(|s| s.chars().next())
                         .collect();
-                    if initials.len() == input.len()
-                        && initials.eq_ignore_ascii_case(input)
-                    {
+                    if initials.len() == input.len() && initials.eq_ignore_ascii_case(input) {
                         input.len()
                     } else {
                         *b

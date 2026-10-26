@@ -68,7 +68,11 @@ fn read_schema_version(conn: &Connection) -> Option<u32> {
 ///
 /// 返回 (版本态, 缺失表清单)。缺表非致命（Storage::open 幂等补建），
 /// 仅供日志；`Newer` 才是必须处置的态。
-pub fn verify(conn: &Connection, expected_version: u32, expected_tables: &[&'static str]) -> (SchemaState, Vec<&'static str>) {
+pub fn verify(
+    conn: &Connection,
+    expected_version: u32,
+    expected_tables: &[&'static str],
+) -> (SchemaState, Vec<&'static str>) {
     let state = match read_schema_version(conn) {
         None => SchemaState::Legacy,
         Some(v) if v == expected_version => SchemaState::Ok,
@@ -107,7 +111,11 @@ pub fn stamp(conn: &Connection, version: u32) -> rusqlite::Result<()> {
 
 /// 引导链单库预检：文件不存在 = 全新（Ok 空态）；存在则开短连接校验。
 /// 打不开 = Unreadable（走既有 corrupt 改名链，调用方处置）。
-pub fn preflight(path: &Path, expected_version: u32, expected_tables: &[&'static str]) -> (SchemaState, Vec<&'static str>) {
+pub fn preflight(
+    path: &Path,
+    expected_version: u32,
+    expected_tables: &[&'static str],
+) -> (SchemaState, Vec<&'static str>) {
     if !path.exists() {
         return (SchemaState::Ok, Vec::new());
     }
@@ -156,8 +164,11 @@ mod tests {
         let p = tmp_db("legacy");
         {
             let conn = Connection::open(&p).unwrap();
-            conn.execute("CREATE TABLE db_meta (key TEXT PRIMARY KEY, value TEXT)", [])
-                .unwrap();
+            conn.execute(
+                "CREATE TABLE db_meta (key TEXT PRIMARY KEY, value TEXT)",
+                [],
+            )
+            .unwrap();
             conn.execute("CREATE TABLE user_words (id INTEGER PRIMARY KEY)", [])
                 .unwrap();
         }

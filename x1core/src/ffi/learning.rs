@@ -89,7 +89,7 @@ pub unsafe extern "C" fn x1_engine_commit_with_solidify(
         return;
     }
 
-        let engine = &mut (*ptr).inner;
+    let engine = &mut (*ptr).inner;
     if let Some(s) = c_str_to_str(text) {
         let p = c_str_to_str(pinyin);
         let inp = c_str_to_str(input).unwrap_or("");

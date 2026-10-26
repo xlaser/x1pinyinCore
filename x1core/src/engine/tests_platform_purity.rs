@@ -40,7 +40,12 @@ fn violations(dir: &Path) -> Vec<(PathBuf, usize, String, String)> {
             }
             for pat in FORBIDDEN {
                 if line.contains(pat) {
-                    out.push((path.clone(), i + 1, (*pat).to_string(), line.trim().to_string()));
+                    out.push((
+                        path.clone(),
+                        i + 1,
+                        (*pat).to_string(),
+                        line.trim().to_string(),
+                    ));
                 }
             }
         }
@@ -50,7 +55,9 @@ fn violations(dir: &Path) -> Vec<(PathBuf, usize, String, String)> {
 
 #[test]
 fn engine_sources_are_platform_agnostic() {
-    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("src").join("engine");
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("engine");
     let v = violations(&dir);
     assert!(
         v.is_empty(),

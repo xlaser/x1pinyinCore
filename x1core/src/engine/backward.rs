@@ -85,10 +85,8 @@ impl crate::engine::Engine {
         for i in 0..words.len() - 1 {
             sum += self.backward_pair_score(&words[i], &words[i + 1], freqs[i]) as i64;
         }
-        ((sum * BACKWARD_K_NUM) / BACKWARD_K_DEN).clamp(
-            -(BACKWARD_CAP as i64),
-            BACKWARD_CAP as i64,
-        ) as i32
+        ((sum * BACKWARD_K_NUM) / BACKWARD_K_DEN).clamp(-(BACKWARD_CAP as i64), BACKWARD_CAP as i64)
+            as i32
     }
 }
 

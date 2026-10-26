@@ -162,9 +162,9 @@ pub struct Candidate {
     /// 两种来源共用此标记：中文模式（拼音输入命中英文词表，`inject_english_candidates`）
     /// 与英文模式前缀补全（服务 EnglishComplete 查询后前端自行组织）。
     /// 候选特征：text 为纯小写英文单词、pinyin 恒空、base_freq 为英文侧词频
-/// （仅英文候选间定序，不与中文 freq 谱混用）、选中后全消费输入且
-/// 不进中文学习面（commit 对含 ASCII 字母 text 直接跳过）。
-/// 优先级链（drawItem if 顺序）：橙 > 绿 > 紫 > 蓝 > 英文 > 白。
+    /// （仅英文候选间定序，不与中文 freq 谱混用）、选中后全消费输入且
+    /// 不进中文学习面（commit 对含 ASCII 字母 text 直接跳过）。
+    /// 优先级链（drawItem if 顺序）：橙 > 绿 > 紫 > 蓝 > 英文 > 白。
     /// 不持久化、不影响中文排序打分（排序后定点插入，不动 candidate_sort_key）。
     pub is_english: bool,
     /// 绿词 DP 路径分：`decode_sentence` 的 N-best

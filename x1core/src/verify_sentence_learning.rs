@@ -406,7 +406,11 @@ mod verify {
             .filter(|c| c.is_sentence)
             .map(|c| c.text.to_string())
             .collect();
-        assert!(greens.is_empty(), "jisua 续打中途不得出绿词，实际: {:?}", greens);
+        assert!(
+            greens.is_empty(),
+            "jisua 续打中途不得出绿词，实际: {:?}",
+            greens
+        );
         assert!(
             !cands.iter().any(|c| c.text.as_ref() == "急速爱"),
             "不得出现 a 首字母扩词垃圾「急速爱」"
@@ -414,7 +418,11 @@ mod verify {
         assert!(
             cands.iter().any(|c| c.text.as_ref() == "计算"),
             "jisua 应含延长词「计算」（紫词）: {:?}",
-            cands.iter().take(5).map(|c| c.text.as_ref()).collect::<Vec<_>>()
+            cands
+                .iter()
+                .take(5)
+                .map(|c| c.text.as_ref())
+                .collect::<Vec<_>>()
         );
         // 对照：jisu（无末尾半截）正常
         let cands = engine.process("jisu");

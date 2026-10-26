@@ -1512,7 +1512,7 @@ pub const POLYPHONE_PRIMARY: &[(char, &str)] = &[
     ('着', "zhe"), // zhao/zhuo 是「着火/着急」次音
     ('么', "me"),  // ma 是「么么」次音
     ('吧', "ba"),  // bia 极罕见
-    ('呢', "ne"), // ni 是音译「呢子」次音；freq 已在 DB 层手动降到 100（见 COMMON_CHAR_FREQ 注释）
+    ('呢', "ne"),  // ni 是音译「呢子」次音；freq 已在 DB 层手动降到 100（见 COMMON_CHAR_FREQ 注释）
     // 常用动词/名词多音字
     ('和', "he"),    // hu(和牌) huo(和面)
     ('都', "dou"),   // du 是「京都」次音

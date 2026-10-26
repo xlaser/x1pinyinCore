@@ -45,8 +45,8 @@ impl crate::storage::Storage {
     pub fn import_x1dict_tsv(&mut self, tsv: &str, replace: bool) -> rusqlite::Result<usize> {
         let tx = self.dict.transaction()?;
         if replace {
-        // 清空必须在导入同一事务内——若在事务外先清空，导入中途失败
-        // （磁盘满/IO 错误）回滚时清空已持久化，系统词库被清空且新词未导入。
+            // 清空必须在导入同一事务内——若在事务外先清空，导入中途失败
+            // （磁盘满/IO 错误）回滚时清空已持久化，系统词库被清空且新词未导入。
             tx.execute("DELETE FROM x1dict_words", [])?;
         }
         let mut delete_stmt =

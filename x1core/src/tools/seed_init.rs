@@ -20,7 +20,9 @@ use x1core::engine::Engine;
 use x1core::storage::{EnglishWord, Storage, X1DictWord};
 
 fn asset(name: &str) -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("assets").join(name)
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("assets")
+        .join(name)
 }
 
 fn main() {
@@ -189,11 +191,10 @@ fn main() {
     }
 
     // 7. 自验证：引擎能开、基础查询有候选
-    let engine = Engine::new_with_db(out.to_str().unwrap())
-        .unwrap_or_else(|e| {
-            eprintln!("❌ 自验证失败（引擎打不开产物）: {e}");
-            std::process::exit(1);
-        });
+    let engine = Engine::new_with_db(out.to_str().unwrap()).unwrap_or_else(|e| {
+        eprintln!("❌ 自验证失败（引擎打不开产物）: {e}");
+        std::process::exit(1);
+    });
     for input in ["ni", "hao", "zhong"] {
         let cands = engine.process(input);
         if cands.is_empty() {

@@ -1062,7 +1062,14 @@ impl crate::engine::Engine {
             if !long_input && !has_strong_bigram_support && multi_word_segments < single_segments {
                 continue;
             }
-            all_paths.push((words, pinyin_parts, word_count, max_freq, path_score, word_freqs));
+            all_paths.push((
+                words,
+                pinyin_parts,
+                word_count,
+                max_freq,
+                path_score,
+                word_freqs,
+            ));
         }
 
         // 双向词格重打分：N-best 路径的后向（右文）

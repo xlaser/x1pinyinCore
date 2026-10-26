@@ -1218,15 +1218,55 @@ fn test_particle_tail_exact_reading_beats_prefix_guess() {
     {
         let mut s = Storage::open(&tmp).unwrap();
         s.import_x1dict_batch(&[
-            X1DictWord { simplified: "还".into(), pinyin: "hai".into(), freq: 8770, ..Default::default() },
-            X1DictWord { simplified: "不".into(), pinyin: "bu".into(), freq: 8000, ..Default::default() },
-            X1DictWord { simplified: "错".into(), pinyin: "cuo".into(), freq: 3000, ..Default::default() },
-            X1DictWord { simplified: "还不错".into(), pinyin: "hai bu cuo".into(), freq: 8770, ..Default::default() },
-            X1DictWord { simplified: "不错".into(), pinyin: "bu cuo".into(), freq: 7000, ..Default::default() },
-            X1DictWord { simplified: "爱".into(), pinyin: "ai".into(), freq: 6120, ..Default::default() },
-            X1DictWord { simplified: "啊".into(), pinyin: "a".into(), freq: 5000, ..Default::default() },
+            X1DictWord {
+                simplified: "还".into(),
+                pinyin: "hai".into(),
+                freq: 8770,
+                ..Default::default()
+            },
+            X1DictWord {
+                simplified: "不".into(),
+                pinyin: "bu".into(),
+                freq: 8000,
+                ..Default::default()
+            },
+            X1DictWord {
+                simplified: "错".into(),
+                pinyin: "cuo".into(),
+                freq: 3000,
+                ..Default::default()
+            },
+            X1DictWord {
+                simplified: "还不错".into(),
+                pinyin: "hai bu cuo".into(),
+                freq: 8770,
+                ..Default::default()
+            },
+            X1DictWord {
+                simplified: "不错".into(),
+                pinyin: "bu cuo".into(),
+                freq: 7000,
+                ..Default::default()
+            },
+            X1DictWord {
+                simplified: "爱".into(),
+                pinyin: "ai".into(),
+                freq: 6120,
+                ..Default::default()
+            },
+            X1DictWord {
+                simplified: "啊".into(),
+                pinyin: "a".into(),
+                freq: 5000,
+                ..Default::default()
+            },
             // 错爱真实词频 253：< 组合词门槛 500，collocation 层必须不认它
-            X1DictWord { simplified: "错爱".into(), pinyin: "cuo ai".into(), freq: 253, ..Default::default() },
+            X1DictWord {
+                simplified: "错爱".into(),
+                pinyin: "cuo ai".into(),
+                freq: 253,
+                ..Default::default()
+            },
         ])
         .unwrap();
     }
@@ -1282,13 +1322,48 @@ fn test_mapping_recall_strength_order() {
     {
         let mut s = Storage::open(&tmp).unwrap();
         s.import_x1dict_batch(&[
-            X1DictWord { simplified: "还".into(), pinyin: "hai".into(), freq: 8770, ..Default::default() },
-            X1DictWord { simplified: "不".into(), pinyin: "bu".into(), freq: 8000, ..Default::default() },
-            X1DictWord { simplified: "错".into(), pinyin: "cuo".into(), freq: 3000, ..Default::default() },
-            X1DictWord { simplified: "还不错".into(), pinyin: "hai bu cuo".into(), freq: 8770, ..Default::default() },
-            X1DictWord { simplified: "不错".into(), pinyin: "bu cuo".into(), freq: 7000, ..Default::default() },
-            X1DictWord { simplified: "爱".into(), pinyin: "ai".into(), freq: 6120, ..Default::default() },
-            X1DictWord { simplified: "啊".into(), pinyin: "a".into(), freq: 5000, ..Default::default() },
+            X1DictWord {
+                simplified: "还".into(),
+                pinyin: "hai".into(),
+                freq: 8770,
+                ..Default::default()
+            },
+            X1DictWord {
+                simplified: "不".into(),
+                pinyin: "bu".into(),
+                freq: 8000,
+                ..Default::default()
+            },
+            X1DictWord {
+                simplified: "错".into(),
+                pinyin: "cuo".into(),
+                freq: 3000,
+                ..Default::default()
+            },
+            X1DictWord {
+                simplified: "还不错".into(),
+                pinyin: "hai bu cuo".into(),
+                freq: 8770,
+                ..Default::default()
+            },
+            X1DictWord {
+                simplified: "不错".into(),
+                pinyin: "bu cuo".into(),
+                freq: 7000,
+                ..Default::default()
+            },
+            X1DictWord {
+                simplified: "爱".into(),
+                pinyin: "ai".into(),
+                freq: 6120,
+                ..Default::default()
+            },
+            X1DictWord {
+                simplified: "啊".into(),
+                pinyin: "a".into(),
+                freq: 5000,
+                ..Default::default()
+            },
         ])
         .unwrap();
     }

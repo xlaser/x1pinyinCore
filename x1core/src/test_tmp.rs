@@ -47,7 +47,8 @@ pub fn path(name: &str) -> PathBuf {
 }
 
 /// 每进程一次：清掉 24h 前的旧文件/旧目录（best effort，锁占用/权限失败静默跳过）。
-fn sweep_once(base: &Path) {    static SWEPT: Once = Once::new();
+fn sweep_once(base: &Path) {
+    static SWEPT: Once = Once::new();
     SWEPT.call_once(|| {
         let Ok(entries) = std::fs::read_dir(base) else {
             return;

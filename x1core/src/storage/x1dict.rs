@@ -244,9 +244,9 @@ impl crate::storage::Storage {
             if !exists {
                 Vec::new()
             } else {
-                let mut stmt = builtin_storage.conn().prepare(
-                    "SELECT prev, text, count FROM seed_bigram_counts",
-                )?;
+                let mut stmt = builtin_storage
+                    .conn()
+                    .prepare("SELECT prev, text, count FROM seed_bigram_counts")?;
                 let rows = stmt.query_map([], |row| {
                     let prev: String = row.get(0)?;
                     let text: String = row.get(1)?;
@@ -276,9 +276,9 @@ impl crate::storage::Storage {
             if !exists {
                 Vec::new()
             } else {
-                let mut stmt = builtin_storage.conn().prepare(
-                    "SELECT prev2, prev1, text, count FROM seed_trigram_counts"
-                )?;
+                let mut stmt = builtin_storage
+                    .conn()
+                    .prepare("SELECT prev2, prev1, text, count FROM seed_trigram_counts")?;
                 let rows = stmt.query_map([], |row| {
                     let prev2: String = row.get(0)?;
                     let prev1: String = row.get(1)?;
@@ -544,7 +544,9 @@ impl crate::storage::Storage {
         let sql = format!(
             "SELECT EXISTS(SELECT 1 FROM pragma_table_info('{table}') WHERE name = '{column}')"
         );
-        self.dict.query_row(&sql, [], |row| row.get(0)).or(Ok(false))
+        self.dict
+            .query_row(&sql, [], |row| row.get(0))
+            .or(Ok(false))
     }
 
     /// 计算内置 DB 的内容哈希（x1dict_words + seed_bigram_counts + seed_trigram_counts）。

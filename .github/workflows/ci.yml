@@ -21,6 +21,8 @@ jobs:
         run: cargo check --workspace --all-targets
       - name: Clippy（-D warnings）
         run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: 格式检查（rustfmt）
+        run: cargo fmt --all --check
       - name: 纯逻辑测试（无需种子 DB）
         run: >
           cargo test -p x1core --lib --

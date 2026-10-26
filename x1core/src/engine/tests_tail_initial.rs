@@ -101,7 +101,10 @@ fn test_trailing_vowel_syllable_keeps_partial_tail_behavior() {
         .first()
         .map(|c| c.text.to_string())
         .unwrap_or_default();
-    assert_eq!(first, "计算", "jisua 应出延长词「计算」置顶（2253>激素1503）");
+    assert_eq!(
+        first, "计算",
+        "jisua 应出延长词「计算」置顶（2253>激素1503）"
+    );
     assert!(
         !cands.iter().any(|c| c.is_sentence),
         "jisua 续打中途不得出语气词绿词（激素啊），实际: {:?}",
@@ -114,9 +117,13 @@ fn test_trailing_vowel_syllable_keeps_partial_tail_behavior() {
     // 显式撇号：用户显式断音节 → 恒语气词语义（统一规则③）
     let apos = engine.process("jisu'a");
     assert!(
-        apos.iter().any(|c| c.text.as_ref() == "激素啊" && c.is_sentence),
+        apos.iter()
+            .any(|c| c.text.as_ref() == "激素啊" && c.is_sentence),
         "jisu'a 显式撇号应可组「激素啊」，实际: {:?}",
-        apos.iter().take(5).map(|c| c.text.as_ref()).collect::<Vec<_>>()
+        apos.iter()
+            .take(5)
+            .map(|c| c.text.as_ref())
+            .collect::<Vec<_>>()
     );
     seed_copy_cleanup(&db);
 }

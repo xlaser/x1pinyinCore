@@ -266,7 +266,11 @@ fn test_consumed_prefix_cross_segment_word() {
             .position(|c| c.text.as_ref() == t)
             .map(|i| lens[i])
     };
-    assert_eq!(find("笨蛋"), Some(6), "笨蛋=ben dan 应消费 bendan 6 字节留 a");
+    assert_eq!(
+        find("笨蛋"),
+        Some(6),
+        "笨蛋=ben dan 应消费 bendan 6 字节留 a"
+    );
     assert_eq!(find("本单"), Some(6), "本单=ben dan 同款跨段词");
     assert_eq!(find("笨"), Some(3), "单字按选举边界不变");
 
@@ -279,7 +283,10 @@ fn test_consumed_prefix_cross_segment_word() {
         i4.map(|i| l4[i]),
         Some(4),
         "jisuan + 急速 应消费 jisu 4 字节留 an（实际候选: {:?}）",
-        c4.iter().take(6).map(|c| c.text.as_ref()).collect::<Vec<_>>()
+        c4.iter()
+            .take(6)
+            .map(|c| c.text.as_ref())
+            .collect::<Vec<_>>()
     );
     // 同输入下完整词仍全消费
     let i4b = c4.iter().position(|c| c.text.as_ref() == "计算");
@@ -315,7 +322,10 @@ fn test_zhenbena_particle_green() {
     assert!(
         !j.iter().any(|c| c.is_sentence),
         "jisua 有延长词证据（计算）→ 统一规则②a 半截语义，不出绿词: {:?}",
-        j.iter().take(4).map(|c| c.text.as_ref()).collect::<Vec<_>>()
+        j.iter()
+            .take(4)
+            .map(|c| c.text.as_ref())
+            .collect::<Vec<_>>()
     );
     seed_copy_cleanup(&db);
 }
@@ -364,10 +374,8 @@ fn test_display_segmentation_tracks_extension_word() {
 fn test_ssef_jianpin_whole_word() {
     let (db, engine) = seed_copy_engine("ssef_jp");
     // 诊断：query_tokens 全 Initial 能否命中
-    let toks: Vec<crate::pinyin::Token> = "ssef"
-        .chars()
-        .map(crate::pinyin::Token::Initial)
-        .collect();
+    let toks: Vec<crate::pinyin::Token> =
+        "ssef".chars().map(crate::pinyin::Token::Initial).collect();
     let jp = engine.dict.query_tokens(&toks);
     eprintln!(
         "[probe] query_tokens(s,s,e,f) 4字命中: {:?}",

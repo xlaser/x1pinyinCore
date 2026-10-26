@@ -1468,9 +1468,7 @@ fn bench_trie_memory_profile() {
         (trie_total + wi_old + sb_old) / 1048576,
         (wi_old - wi_new + sb_old - sb_new) / 1048576
     );
-    eprintln!(
-        "（对照：优化前实测 MALLOC_SMALL ~176MB resident——差额为 malloc 头/碎片/其他）"
-    );
+    eprintln!("（对照：优化前实测 MALLOC_SMALL ~176MB resident——差额为 malloc 头/碎片/其他）");
 }
 
 /// 分配器空闲页归还：release_allocator_slack 只归还 malloc 攥着的
@@ -1883,7 +1881,8 @@ fn test_jianpin_whole_word_yields_to_complete_first_syllable() {
     let texts: Vec<&str> = yem.iter().map(|c| c.text.as_ref()).collect();
     assert!(!texts.is_empty(), "yem 应有候选");
     assert_ne!(
-        texts[0], "耶尔穆",
+        texts[0],
+        "耶尔穆",
         "yem 首候选不应是纯简拼生僻词，实际: {:?}",
         &texts[..texts.len().min(6)]
     );
@@ -1909,7 +1908,10 @@ fn test_jianpin_whole_word_yields_to_complete_first_syllable() {
         ssef.first().map(|c| c.text.as_ref()),
         Some("似是而非"),
         "ssef 首候选必须是简拼整词「似是而非」，实际: {:?}",
-        ssef.iter().take(5).map(|c| c.text.as_ref()).collect::<Vec<_>>()
+        ssef.iter()
+            .take(5)
+            .map(|c| c.text.as_ref())
+            .collect::<Vec<_>>()
     );
 }
 

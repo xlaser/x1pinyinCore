@@ -608,9 +608,7 @@ impl crate::engine::Engine {
         let evidence_key = |seg: &[&str]| -> Option<(u32, u32)> {
             let w = first_word(seg)?;
             let ev = match self.context.last() {
-                Some(prev) if !prev.is_empty() => {
-                    self.freq.word_bigram_count_generalized(prev, &w)
-                }
+                Some(prev) if !prev.is_empty() => self.freq.word_bigram_count_generalized(prev, &w),
                 _ => 0,
             };
             // ct=0（冷启动常态）时跳过 freq 查表——对齐旧代码的早退结构，

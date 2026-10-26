@@ -42,10 +42,7 @@ fn test_smart_word_en_defaults_off() {
     ));
     let _ = std::fs::copy(seed, &tmp);
     let e = Engine::new_with_db(tmp.to_str().unwrap()).expect("seed db");
-    assert!(
-        !e.smart_word_en_enabled(),
-        "英文模式单词补全必须默认关闭"
-    );
+    assert!(!e.smart_word_en_enabled(), "英文模式单词补全必须默认关闭");
     assert!(
         e.english_complete("cat", 9).is_empty(),
         "默认关时英文补全必须返回空"

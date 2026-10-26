@@ -1197,20 +1197,25 @@ fn test_correction_commit_skips_typo_mapping() {
     // 纠错提交：错串 nihso + 正确读法 ni hao
     engine.commit_correction("nihso", "你好", Some("ni hao"), true, false);
     assert!(
-        !engine.input_mappings.contains_key(&("nihso".to_string(), "你好".to_string())),
+        !engine
+            .input_mappings
+            .contains_key(&("nihso".to_string(), "你好".to_string())),
         "纠错提交不得写错串映射 nihso→你好"
     );
     let freq_after = engine.freq.counts.get("你好").copied().unwrap_or(0);
     assert!(
         freq_after > freq_before,
         "纠错提交对正确词的 freq 学习照常（{} → {}）",
-        freq_before, freq_after
+        freq_before,
+        freq_after
     );
 
     // 对照：普通 commit 的映射学习不受影响（简拼/混合习惯强化是既有功能）
     engine.commit("zgrm", "中国人民", Some("zhong guo ren min"), true);
     assert!(
-        engine.input_mappings.contains_key(&("zgrm".to_string(), "中国人民".to_string())),
+        engine
+            .input_mappings
+            .contains_key(&("zgrm".to_string(), "中国人民".to_string())),
         "普通 commit 的 input_mapping 学习不得被误伤"
     );
 
@@ -1229,7 +1234,9 @@ fn test_phonetic_single_switch_governs_both_paths() {
     // 开（默认）：合法输入营救可达——zongguo → 中国[橙]
     let cands = engine.process("zongguo");
     assert!(
-        cands.iter().any(|c| c.is_correction && c.text.as_ref() == "中国"),
+        cands
+            .iter()
+            .any(|c| c.is_correction && c.text.as_ref() == "中国"),
         "发音开关开：zongguo 应出橙色「中国」（营救路径），实际橙词: {:?}",
         cands
             .iter()
@@ -1276,7 +1283,9 @@ fn test_phonetic_structural_correction_same_switch() {
     // 开（默认）：结构非法输入 faixian 纠出「海鲜」
     let cands = engine.process("faixian");
     assert!(
-        cands.iter().any(|c| c.is_correction && c.text.as_ref() == "海鲜"),
+        cands
+            .iter()
+            .any(|c| c.is_correction && c.text.as_ref() == "海鲜"),
         "发音开关开：faixian 应出橙色「海鲜」（f→h 发音变形），实际橙词: {:?}",
         cands
             .iter()
@@ -1324,7 +1333,10 @@ fn test_correction_candidate_consumes_full_input() {
             lens[pos],
             input.len(),
             "{}→{} 纠错候选应全消费 {} 字母，实际 {}",
-            input, word, input.len(), lens[pos]
+            input,
+            word,
+            input.len(),
+            lens[pos]
         );
     }
     super::tests_query::seed_copy_cleanup(&seed);
@@ -1425,7 +1437,9 @@ fn test_collapse_correction_timing_only_gate() {
     engine.process_timed("shenn", 30);
     let cands = engine.process_timed("shenng", 90);
     assert!(
-        cands.iter().any(|c| c.is_correction && c.text.as_ref() == "生"),
+        cands
+            .iter()
+            .any(|c| c.is_correction && c.text.as_ref() == "生"),
         "快双击 shenng 应折叠出橙色「生」，实际橙词: {:?}",
         cands
             .iter()
@@ -1441,7 +1455,9 @@ fn test_collapse_correction_timing_only_gate() {
     engine.process_timed("shenn", 500);
     let cands = engine.process_timed("shenng", 150);
     assert!(
-        !cands.iter().any(|c| c.is_correction && c.text.as_ref() == "生"),
+        !cands
+            .iter()
+            .any(|c| c.is_correction && c.text.as_ref() == "生"),
         "慢双写 shenng 不应折叠出橙色「生」"
     );
 
@@ -1482,7 +1498,9 @@ fn test_correction_freq_floor_real_seed() {
 
     let cands = engine.process("nagta");
     assert!(
-        !cands.iter().any(|c| c.is_correction && c.text.as_ref() == "拿他"),
+        !cands
+            .iter()
+            .any(|c| c.is_correction && c.text.as_ref() == "拿他"),
         "nagta 不得纠出低频噪音「拿他」(freq=100，地板以下)"
     );
 

@@ -283,12 +283,10 @@ impl BigramCsrTable {
         });
         let mut out: Vec<(u32, u32, u64)> = Vec::with_capacity(raw.len());
         for (o, l, c) in raw {
-            let same_text = out
-                .last()
-                .is_some_and(|&(po, pl, _)| {
-                    self.text_blob[po as usize..(po + pl) as usize]
-                        == self.text_blob[o as usize..(o + l) as usize]
-                });
+            let same_text = out.last().is_some_and(|&(po, pl, _)| {
+                self.text_blob[po as usize..(po + pl) as usize]
+                    == self.text_blob[o as usize..(o + l) as usize]
+            });
             if same_text {
                 out.last_mut().unwrap().2 += c;
             } else {
@@ -301,9 +299,9 @@ impl BigramCsrTable {
     /// text 作为「后词」的入度总量 Σcount；不在表 → 0。
     /// 后向条件概率分母：P(left|right) = count(left,right) / next_total(right)。
     pub(crate) fn next_total(&self, text: &str) -> u64 {
-        let idx = self.next_totals.partition_point(|&(o, l, _)| {
-            &self.text_blob[o as usize..(o + l) as usize] < text
-        });
+        let idx = self
+            .next_totals
+            .partition_point(|&(o, l, _)| &self.text_blob[o as usize..(o + l) as usize] < text);
         match self.next_totals.get(idx) {
             Some(&(o, l, t)) if &self.text_blob[o as usize..(o + l) as usize] == text => t,
             _ => 0,

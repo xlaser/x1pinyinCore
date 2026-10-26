@@ -33,7 +33,11 @@ fn synthetic_engine(tag: &str, words: &[(&str, &str, u32)]) -> (String, Engine) 
 fn test_backward_pair_prefers_concentrated_next_marginal() {
     let (db, mut engine) = synthetic_engine(
         "pair",
-        &[("认真", "ren zhen", 3000), ("地", "de", 4000), ("的", "de", 9999)],
+        &[
+            ("认真", "ren zhen", 3000),
+            ("地", "de", 4000),
+            ("的", "de", 9999),
+        ],
     );
     // 同计数对；「的」再造大量前词 → next_total(的) 巨大（真实分布形态）。
     engine.freq.set_seed_bigram_counts(vec![
@@ -65,7 +69,8 @@ fn test_backward_pair_prefers_concentrated_next_marginal() {
 /// 按对数偷词频分的通道被结构性封死。
 #[test]
 fn test_backward_pair_missing_lift_is_zero() {
-    let (db, mut engine) = synthetic_engine("miss", &[("问题", "wen ti", 8000), ("吧", "ba", 8600)]);
+    let (db, mut engine) =
+        synthetic_engine("miss", &[("问题", "wen ti", 8000), ("吧", "ba", 8600)]);
     engine
         .freq
         .set_seed_bigram_counts(vec![("吃饭".into(), "吧".into(), 6)]);
@@ -81,16 +86,18 @@ fn test_backward_pair_missing_lift_is_zero() {
 fn test_backward_delta_cap_and_guards() {
     let (db, mut engine) = synthetic_engine(
         "cap",
-        &[("甲", "jia", 5000), ("乙", "yi", 5000), ("丙", "bing", 5000)],
+        &[
+            ("甲", "jia", 5000),
+            ("乙", "yi", 5000),
+            ("丙", "bing", 5000),
+        ],
     );
     // 每对 p_b=1（独占后向边际）→ 单对映射分 12（freq 5000 的 unigram 插值），
     // 两对 sum=24 → ×κ_b(1/2)=12 恰触 CAP；更多对也只到 CAP。
-    engine
-        .freq
-        .set_seed_bigram_counts(vec![
-            ("甲".into(), "乙".into(), 65535),
-            ("乙".into(), "丙".into(), 65535),
-        ]);
+    engine.freq.set_seed_bigram_counts(vec![
+        ("甲".into(), "乙".into(), 65535),
+        ("乙".into(), "丙".into(), 65535),
+    ]);
     let words3: Vec<String> = vec!["甲".into(), "乙".into(), "丙".into()];
     let freqs3 = vec![5000u32, 5000, 5000];
     assert_eq!(
@@ -111,7 +118,11 @@ fn test_backward_ab_smoke_on_real_seed() {
     let db = seed_copy("backward_ab_smoke");
     let mut engine = Engine::new_with_db(&db).expect("open seed copy");
     engine.set_smart_word_zh_enabled(false);
-    for input in ["woxihuanchifan", "womenyiqiquchifanba", "tamenzhengzaikaihui"] {
+    for input in [
+        "woxihuanchifan",
+        "womenyiqiquchifanba",
+        "tamenzhengzaikaihui",
+    ] {
         Engine::set_backward_enabled_for_test(true);
         let on = engine.process(input);
         Engine::set_backward_enabled_for_test(false);

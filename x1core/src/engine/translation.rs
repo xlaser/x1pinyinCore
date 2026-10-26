@@ -120,10 +120,7 @@ impl Engine {
             let rows = storage.english_reverse_cn(term, 32);
             let mut ranked: Vec<TranslationEntry> = rows
                 .into_iter()
-                .filter(|(_, _, cn, _)| {
-                    cn.split(['；', ';'])
-                        .any(|part| part.trim() == term)
-                })
+                .filter(|(_, _, cn, _)| cn.split(['；', ';']).any(|part| part.trim() == term))
                 .map(|(word, pos, cn, freq)| TranslationEntry {
                     word,
                     pos,
@@ -135,11 +132,7 @@ impl Engine {
                 return empty();
             }
             // 种子词频降序 → 词形字典序（结果确定性）
-            ranked.sort_by(|a, b| {
-                b.freq
-                    .cmp(&a.freq)
-                    .then_with(|| a.word.cmp(&b.word))
-            });
+            ranked.sort_by(|a, b| b.freq.cmp(&a.freq).then_with(|| a.word.cmp(&b.word)));
             ranked.truncate(limit);
             return TranslationResult {
                 direction: "zh2en",
@@ -231,7 +224,9 @@ mod tests {
         // 「集成」同理：VisualStudio/Jenkins 的释义都只是包含它
         let r = e.translate_candidate("集成", 3);
         assert!(
-            r.entries.iter().all(|x| x.word != "VisualStudio" && x.word != "Jenkins"),
+            r.entries
+                .iter()
+                .all(|x| x.word != "VisualStudio" && x.word != "Jenkins"),
             "释义提及类实例词不得出现在结果: {:?}",
             r.entries
         );
@@ -244,14 +239,26 @@ mod tests {
         let r = e.translate_candidate("开发环境", 3);
         assert_eq!(r.direction, "zh2en");
         assert_eq!(r.entries[0].word, "development environment");
-        assert_eq!(e.translate_candidate("输入法", 3).entries[0].word, "input method");
-        assert_eq!(e.translate_candidate("水瓶", 3).entries[0].word, "water bottle");
+        assert_eq!(
+            e.translate_candidate("输入法", 3).entries[0].word,
+            "input method"
+        );
+        assert_eq!(
+            e.translate_candidate("水瓶", 3).entries[0].word,
+            "water bottle"
+        );
         assert_eq!(e.translate_candidate("售卖", 3).entries[0].word, "sell");
         assert_eq!(e.translate_candidate("瘦", 3).entries[0].word, "thin");
         assert_eq!(e.translate_candidate("胖", 3).entries[0].word, "fat");
-        assert_eq!(e.translate_candidate("信息学", 3).entries[0].word, "informatics");
+        assert_eq!(
+            e.translate_candidate("信息学", 3).entries[0].word,
+            "informatics"
+        );
         // 被回退收紧挡掉的合法对译由精确词典承接
-        assert_eq!(e.translate_candidate("微软", 3).entries[0].word, "Microsoft");
+        assert_eq!(
+            e.translate_candidate("微软", 3).entries[0].word,
+            "Microsoft"
+        );
         assert_eq!(e.translate_candidate("智能", 3).entries[0].word, "smart");
     }
 
