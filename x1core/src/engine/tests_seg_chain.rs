@@ -396,3 +396,182 @@ fn test_ssef_jianpin_whole_word() {
     assert_eq!(pos.map(|i| lens[i]), Some(4), "简拼整词应全消费 4 字母");
     seed_copy_cleanup(&db);
 }
+
+/// 混合声母显示/计数/消费同源（zhgrm 选「中国人民」曾残留 m）。
+///
+/// 候选链把 zh 当一个 Shengmu 单位（zh|g|r|m = 4），显示/计数/消费若仍按
+/// is_jianpin 的逐字符语义（z|h|g|r|m = 5），4 字候选就会被误判为分步，
+/// 只消费 zhgr、残留 m。本测试钉死四条链的 4 单位语义。
+#[test]
+fn test_hybrid_shengmu_display_count_consume_aligned() {
+    let engine = Engine::new();
+    let cand = |text: &str, pinyin: &str| crate::dict::Candidate {
+        text: text.into(),
+        base_freq: 1,
+        pinyin: pinyin.into(),
+        is_primary: true,
+        is_correction: false,
+        is_sentence: false,
+        is_guess: false,
+        is_shortcut: false,
+        is_english: false,
+        sentence_score: 0,
+    };
+
+    // 显示/计数：zh 是一个声母单位（zhgrm = 4，不是 z|h|g|r|m = 5）
+    assert_eq!(engine.syllable_count("zhgrm"), 4);
+    assert_eq!(
+        engine.syllable_segmentation("zhgrm"),
+        vec!["zh", "g", "r", "m"]
+    );
+    // 前缀偏移保持逐字符语义：部分选择（如「在」）只吃 z，不吃 zh。
+    assert_eq!(
+        engine.syllable_prefix_lens("zhgrm", &[1, 2, 3, 4, 5]),
+        vec![1, 2, 3, 4, 5]
+    );
+
+    // 完整候选：候选自身覆盖整条输入 → 全消费 5（修复前 4 → 残留 m）
+    assert_eq!(
+        engine.consumed_lens("zhgrm", &[cand("中国人民", "zhong guo ren min")]),
+        vec![5]
+    );
+    // 部分候选：只吃首字母 z（保留 hgrm 继续组词）
+    assert_eq!(engine.consumed_lens("zhgrm", &[cand("在", "zai")]), vec![1]);
+    // 部分多字候选按候选自身读音：中国人 = zh,g,r → 4（留 m）；中国 = zh,g → 3（留 rm）
+    assert_eq!(
+        engine.consumed_lens("zhgrm", &[cand("中国人", "zhong guo ren")]),
+        vec![4]
+    );
+    assert_eq!(
+        engine.consumed_lens("zhgrm", &[cand("中国", "zhong guo")]),
+        vec![3]
+    );
+
+    // sh/ch 同形态；zhmz 是 zh / z+h 真歧义：
+    // 完整候选（中华民族）按候选自身读音全消费 4；
+    // 部分候选（中华）保持逐字符前缀 2（z|h），不被 zh 多吞一个字母。
+    assert_eq!(engine.syllable_count("shgrm"), 4);
+    assert_eq!(engine.syllable_count("chgrm"), 4);
+    assert_eq!(engine.syllable_count("zhmz"), 3);
+    assert_eq!(
+        engine.consumed_lens("zhmz", &[cand("中华民族", "zhong hua min zu")]),
+        vec![4]
+    );
+    assert_eq!(
+        engine.consumed_lens("zhmz", &[cand("中华", "zhong hua")]),
+        vec![2]
+    );
+}
+
+/// 非 ASCII 输入不得 panic（process("中") 曾在
+/// segmentations_prefix_tail 的字节切片处崩）。
+#[test]
+fn test_non_ascii_input_no_panic() {
+    let engine = Engine::new();
+    assert!(engine.process("中").is_empty());
+    // 中英混合也不得崩（结果不强制为空——前面可能有拼音候选）
+    let _ = engine.process("ni中");
+    let _ = engine.process("你a");
+    assert!(crate::pinyin::segmentations_prefix_tail("中").is_empty());
+    let _ = engine.syllable_count("中");
+    let _ = engine.syllable_segmentation("中");
+}
+
+/// 纯简拼撇号：查询、计数、消费三链一致。
+#[test]
+fn test_jianpin_apostrophe_white_words_and_consumption() {
+    let mut engine = Engine::new();
+    engine.learn("你好", "ni hao");
+    engine.learn("社会", "she hui");
+    engine.learn("中国人民", "zhong guo ren min");
+    engine.learn("在韩国人民", "zai han guo ren min");
+    engine.learn("是", "shi");
+    engine.learn("三", "san");
+
+    let has = |cands: &[crate::dict::Candidate], text: &str| {
+        cands.iter().any(|c| c.text.as_ref() == text)
+    };
+    let nh = engine.process("nh");
+    let n_h = engine.process("n'h");
+    assert!(has(&nh, "你好"), "nh 应含 你好");
+    assert!(
+        has(&n_h, "你好"),
+        "n'h 应含 你好（撇号不得让白词查询整串失败）"
+    );
+    assert!(
+        has(&engine.process("z'g'rm"), "中国人民"),
+        "z'g'rm 应含 中国人民"
+    );
+    // zh'g'rm 的撇号显式断开 zh：按 5 个首字母解释（z,h,g,r,m），
+    // 4 字「中国人民」不是它的候选；5 字「在韩国人民」才是。
+    assert!(
+        has(&engine.process("zh'g'rm"), "在韩国人民"),
+        "zh'g'rm 应按 5 个首字母命中 在韩国人民"
+    );
+
+    assert_eq!(engine.syllable_count("n'h"), 2);
+    assert_eq!(engine.syllable_segmentation("n'h"), vec!["n", "h"]);
+    assert_eq!(engine.syllable_prefix_lens("n'h", &[1, 2]), vec![2, 3]);
+
+    let cand = |text: &str, pinyin: &str| crate::dict::Candidate {
+        text: text.into(),
+        base_freq: 1,
+        pinyin: pinyin.into(),
+        is_primary: true,
+        is_correction: false,
+        is_sentence: false,
+        is_guess: false,
+        is_shortcut: false,
+        is_english: false,
+        sentence_score: 0,
+    };
+
+    // 撇号显式边界：n'h 选 你好 全消费 3 字节；选 你 只吃 n'（2 字节，留 h）
+    assert_eq!(
+        engine.consumed_lens("n'h", &[cand("你好", "ni hao")]),
+        vec![3]
+    );
+    assert_eq!(engine.consumed_lens("n'h", &[cand("你", "ni")]), vec![2]);
+
+    // 无撇号 shengmu：sh 选「是」= sh 一个声母，全消费 2；
+    // 选「三」= s 首字母，只吃 1（留 h）。
+    assert_eq!(engine.consumed_lens("sh", &[cand("是", "shi")]), vec![2]);
+    assert_eq!(engine.consumed_lens("sh", &[cand("三", "san")]), vec![1]);
+
+    // z'g'rm 的 4 单位候选全消费 6；zh'g'rm 按 5 个首字母全消费 7
+    assert_eq!(
+        engine.consumed_lens("z'g'rm", &[cand("中国人民", "zhong guo ren min")]),
+        vec![6]
+    );
+    assert_eq!(
+        engine.consumed_lens("zh'g'rm", &[cand("在韩国人民", "zai han guo ren min")]),
+        vec![7]
+    );
+}
+
+/// 词性语法模型：的/地/得 上下文裁决。
+///
+/// 种子随包带 `x1dict_pos` / `x1func_ctx`。lift 口径：`(a,v)` 语境下
+/// 地 的 lift 远高于的（语料：地 3948 / 的 12771，但的全局占比 ~96%），
+/// 所以“认真 地 思考 / 用力 地 推”应翻到首位；“认真 的 态度”保持的。
+#[test]
+fn test_grammar_de_di_on_seed() {
+    let db = seed_copy("grammar_de");
+    let engine = Engine::new_with_db(&db).expect("open seed copy");
+    assert_eq!(top1(&engine, "renzhendesikao"), "认真地思考");
+    assert_eq!(top1(&engine, "renzhendekaolv"), "认真地考虑");
+    assert_eq!(top1(&engine, "yonglidetui"), "用力地推");
+    assert_eq!(top1(&engine, "renzhendetaidu"), "认真的态度");
+    seed_copy_cleanup(&db);
+}
+
+/// 词级上下文（DP 用整词“我在/我再”时也要能翻）。
+#[test]
+fn test_grammar_zai_qu_on_seed() {
+    let db = seed_copy("grammar_zai");
+    let engine = Engine::new_with_db(&db).expect("open seed copy");
+    assert_eq!(top1(&engine, "wozaiqu"), "我再去");
+    assert_eq!(top1(&engine, "wozaijia"), "我在家");
+    assert_eq!(top1(&engine, "quguo"), "去过");
+    seed_copy_cleanup(&db);
+}

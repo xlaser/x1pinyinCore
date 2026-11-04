@@ -42,6 +42,9 @@ mod eval;
 /// 整句正确率评测基线：固定语料 + Top1/Top3/字级准确率 + 错误归因 + JSON 落盘。
 #[cfg(test)]
 mod eval_baseline;
+/// 同音绿词评测：单字口语 + 混合句；正句 vs 同音替换负样本。
+#[cfg(test)]
+mod eval_green_homophone;
 /// 同音歧义评测：同音节合法歧义族 + 上文语境，独立于 500 句基线。
 #[cfg(test)]
 mod eval_homophone;
@@ -54,6 +57,12 @@ mod freq;
 pub mod freq_promote;
 /// 模糊音配置（from_csv 供引擎服务配置总线复刻门控逻辑）。
 pub mod fuzzy;
+/// 中文词性/语法模型（第一版消费面 = 的/地/得）。
+mod grammar;
+/// 微型词性搭配模型：`assets/x1grammar.bin` 的解码与查询。
+/// pub 是因为 `GrammarMicroInfo` 等类型经 `Engine::grammar_micro_info`
+/// 做只读观测暴露。
+pub mod grammar_micro;
 mod lm;
 /// 只读文件映射（mmap，零依赖平台 FFI；词典缓存零拷贝装载用）。
 mod mmap_file;

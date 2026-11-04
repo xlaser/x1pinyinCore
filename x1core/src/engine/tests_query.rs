@@ -2312,14 +2312,20 @@ fn test_exact_english_tops_partial_match_seed() {
 pub(crate) fn seed_copy(tag: &str) -> String {
     crate::test_tmp::require_seed_db();
     let seed = concat!(env!("CARGO_MANIFEST_DIR"), "/assets/x1pinyin.db");
+    // 进程内序号：纳秒时钟在并行测试里可能同值（时钟精度不足），
+    // 只靠 pid+nanos 会让两个测试复制到同一路径互相截断（偶发
+    // 「no such table: db_meta」红）。tag+pid+nanos+seq 才唯一。
+    static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let seq = SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let tmp = crate::test_tmp::dir().join(format!(
-        "x1pinyin_seed_copy_{}_{}_{}",
+        "x1pinyin_seed_copy_{}_{}_{}_{}",
         tag,
         std::process::id(),
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
-            .as_nanos()
+            .as_nanos(),
+        seq
     ));
     std::fs::copy(seed, &tmp).expect("copy seed db");
     // 禁用共享 bigram 缓存：seed_bigram_cache.bin
@@ -2356,14 +2362,18 @@ pub(crate) fn seed_copy_cleanup(path: &str) {
 pub(crate) fn seed_copy_keephash(tag: &str) -> String {
     crate::test_tmp::require_seed_db();
     let seed = concat!(env!("CARGO_MANIFEST_DIR"), "/assets/x1pinyin.db");
+    // 同 seed_copy：并行测试的纳秒可能同值，补进程内序号保证路径唯一。
+    static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let seq = SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let dir = crate::test_tmp::dir().join(format!(
-        "x1pinyin_seed_kh_{}_{}_{}",
+        "x1pinyin_seed_kh_{}_{}_{}_{}",
         tag,
         std::process::id(),
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
-            .as_nanos()
+            .as_nanos(),
+        seq
     ));
     std::fs::create_dir_all(&dir).expect("create keephash dir");
     let tmp = dir.join("x1pinyin.db");

@@ -22,6 +22,8 @@ x1core 是一个纯 Rust 的拼音输入法引擎库：无网络依赖、无遥�
    ▼
 整句解码（engine/sentence.rs）
    音节图 DP 切分 → N-best 路径 → 绿词（整句候选）；
+   词性/语法重打分与变体生成（grammar.rs，可选微型模型 grammar_micro.rs，
+   缺失自动降级）；
    双向词格重打分（engine/backward.rs，右文 bigram 二次打分）
    │
    ▼
@@ -51,6 +53,8 @@ x1core/src/
 ├── char_freq.rs       单字频率与主音判定
 ├── freq.rs            词频模型与上下文调制（近期衰减、竞争退化）
 ├── lm.rs / trigram.rs 插值 n-gram 语言模型（unigram/bigram/trigram）
+├── grammar.rs         词性/语法模型：的/地/得语境、词级上下文、整句模板
+├── grammar_micro.rs   微型词性搭配模型（x1grammar.bin 解码查询，可选资产）
 ├── competition.rs     竞争频率存储（同音竞争的选择分布决定权重）
 ├── engine/
 │   ├── mod.rs         Engine 状态机：查询编排、配置、启动加载
@@ -65,7 +69,8 @@ x1core/src/
 │   ├── english.rs / translation.rs  英文补全与中英互译副栏
 │   └── dict_admin.rs  词库管理与 flush（失败回填、空态覆写闸）
 ├── storage/           SQLite 层：单库 / 双库分离布局、迁移、快照 flush、
-│                      词典缓存（dict_cache.rs + mmap_file.rs）
+│                      词典缓存（dict_cache.rs + mmap_file.rs）、
+│                      词性/语法侧表（grammar.rs，随种子同步）
 ├── stats/             可选的输入统计（独立 x1stats.db，宿主显式启用）
 ├── ffi/               C ABI 导出（guard 护栏、JSON 序列化、契约文档）
 ├── platform.rs        平台差异垫片（进程内存诊断等，engine 保持平台无关）
@@ -101,9 +106,17 @@ x1core/src/
 查询）+ 元组排序；另保留一份逐对比较的参考实现，由等价性测试逐位守护两
 种实现一致——结构可以换，语义契约被测试钉死。
 
+### 词性/语法层（可选资产，缺失自动降级）
+
+绿词排序在词频与上下文证据之上叠一层词性/语法信号：种子侧表（的/地/得
+语境 lift、同音词级上下文、整句语法模板）+ 可选微型搭配模型
+（`x1grammar.bin`，随宿主安装包分发，不随本仓库分发）。该层只参与排序，
+不参与候选生成与门槛判定；任一资产缺失时逐层自动失效（空模型），排序
+回退基线，绝不阻塞启动。
+
 ### FFI 纪律
 
-111 个导出全部带契约文档；非平凡路径统一经 `catch_unwind` 护栏（panic
+112 个导出全部带契约文档；非平凡路径统一经 `catch_unwind` 护栏（panic
 返回默认值并写文件日志，绝不跨 FFI 边界传播）；内存单属主（`x1_string_free`
 唯一释放口）；线程契约成文（Engine 非线程安全，单线程串行调用）。
 

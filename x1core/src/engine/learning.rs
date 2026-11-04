@@ -264,14 +264,30 @@ impl crate::engine::Engine {
             let is_sentence = self.is_sentence_input(text, pinyin_to_store.as_deref());
             if is_sentence {
                 // 绿词采纳率数据采集：
-                // 用户 commit 的 text 走绿词路径（is_sentence=true）→ 选中了一个绿词候选。
-                // 此处只累加 total_green_picks（采集总数）。
-                // second_green_picks（选中第二位绿词）暂未采集——需要记录 process 返回候选里
-                // 绿词的位置，复杂度高，留待未来实现。采纳率微调通道在 second 采集
-                // 补齐前自然不生效，纯用动态阈值，安全无副作用。
-                // TODO：采集 second_green_picks 以激活按采纳率微调动态门槛。
+                // - total_green_picks：用户 commit 的 text 走绿词路径（is_sentence=true）
+                //   → 选中了一个绿词候选，累加采集总数。
+                // - second_green_picks：text 命中 process(input) 绿词显示序的第 2 位
+                //   （第一绿词被跳过的情形）才累加。采集方式为 commit 时重算一次
+                //   process(input) 取整句候选序——process 是 &self，此处 &mut self
+                //   重借用合法；仅整句 commit 触发，单次选择多一次查询可接受。
+                //   重算发生在本次学习写入之后（freq.record 已 +1、green_memo/context
+                //   尚未动），与用户所见列表可能有轻微分差——统计口径是按样本的比率，
+                //   可容忍。
+                let is_second_green = {
+                    let cands = self.process(input);
+                    let greens: Vec<&str> = cands
+                        .iter()
+                        .filter(|c| c.is_sentence)
+                        .map(|c| c.text.as_ref())
+                        .collect();
+                    greens.len() >= 2 && greens[1] == text
+                };
                 self.green_accept.total_green_picks =
                     self.green_accept.total_green_picks.saturating_add(1);
+                if is_second_green {
+                    self.green_accept.second_green_picks =
+                        self.green_accept.second_green_picks.saturating_add(1);
+                }
 
                 // 拆词学习（始终执行：子词 bigram 让连续输入更顺，这是绿词智能的核心）
                 self.commit_sentence_split(text, pinyin_to_store.as_deref(), advance_context);

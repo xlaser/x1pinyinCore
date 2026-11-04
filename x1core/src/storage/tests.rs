@@ -1271,3 +1271,33 @@ fn test_repo_seed_writable_open_blocked() {
     let seed = concat!(env!("CARGO_MANIFEST_DIR"), "/assets/x1pinyin.db");
     let _ = Storage::open(seed);
 }
+
+/// 词性侧表随种子同步：用户库缺表时 sync 必须补齐。
+#[test]
+fn test_sync_pos_tables_from_builtin() {
+    let db = crate::engine::tests_query::seed_copy("pos_sync");
+    {
+        let conn = rusqlite::Connection::open(&db).unwrap();
+        conn.execute_batch(
+            "DROP TABLE IF EXISTS x1dict_pos;
+             DROP TABLE IF EXISTS x1pos_trans;
+             DROP TABLE IF EXISTS x1func_ctx;",
+        )
+        .unwrap();
+    }
+    let mut s = Storage::open(&db).unwrap();
+    s.sync_x1dict_from_builtin(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/x1pinyin.db"))
+        .unwrap();
+    let pos: i64 = s
+        .dict
+        .query_row("SELECT COUNT(*) FROM x1dict_pos", [], |r| r.get(0))
+        .unwrap();
+    assert!(pos > 80_000, "x1dict_pos 同步行数不足: {pos}");
+    let func: i64 = s
+        .dict
+        .query_row("SELECT COUNT(*) FROM x1func_ctx", [], |r| r.get(0))
+        .unwrap();
+    assert!(func > 0, "x1func_ctx 未同步");
+    drop(s);
+    crate::engine::tests_query::seed_copy_cleanup(&db);
+}

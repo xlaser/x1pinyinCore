@@ -542,6 +542,80 @@ fn test_green_threshold_low_accept() {
     assert_eq!(stats.threshold_ratio(60), 0.91);
 }
 
+/// second_green_picks 采集：用户 commit 的 text 恰为 process 结果里
+/// **第二位**绿词（is_sentence 候选按显示序的第 2 个）时计数。
+/// 两个引擎各自只做一次 commit（与用户看到的 process 状态一致，避免学习
+/// 写入改变重算序导致断言漂移）。
+#[test]
+fn test_second_green_pick_collected_on_commit() {
+    let seed = super::tests_query::seed_copy("sgp1");
+    let mut engine = Engine::new_with_db(&seed).unwrap();
+    engine.set_green_candidate_count(2);
+    let input = "taolunyixiawenti";
+    let cands = engine.process(input);
+    let greens: Vec<&Candidate> = cands.iter().filter(|c| c.is_sentence).collect();
+    assert!(
+        greens.len() >= 2,
+        "前置：需要 ≥2 条绿词，实际 {} 条",
+        greens.len()
+    );
+    // 用户选中第二位绿词
+    let second = greens[1].text.clone();
+    let pinyin = greens[1].pinyin.to_string();
+    engine.commit(input, &second, Some(&pinyin), true);
+    assert_eq!(
+        engine.green_accept.second_green_picks, 1,
+        "选中第二绿词应计数"
+    );
+    assert_eq!(engine.green_accept.total_green_picks, 1);
+}
+
+/// 对照组：选中**第一**位绿词不计入 second_green_picks（只进 total）。
+#[test]
+fn test_first_green_pick_not_counted_as_second() {
+    let seed = super::tests_query::seed_copy("sgp2");
+    let mut engine = Engine::new_with_db(&seed).unwrap();
+    engine.set_green_candidate_count(2);
+    let input = "taolunyixiawenti";
+    let cands = engine.process(input);
+    let greens: Vec<&Candidate> = cands.iter().filter(|c| c.is_sentence).collect();
+    assert!(greens.len() >= 2, "前置：需要 ≥2 条绿词");
+    let first = greens[0].text.clone();
+    let pinyin = greens[0].pinyin.to_string();
+    engine.commit(input, &first, Some(&pinyin), true);
+    assert_eq!(
+        engine.green_accept.second_green_picks, 0,
+        "选中第一绿词不应计入 second"
+    );
+    assert_eq!(engine.green_accept.total_green_picks, 1);
+}
+
+/// second_green_picks 持久化：flush 写 db_meta（green_second_picks），
+/// 重开引擎恢复——否则 total 跨会话累积而 second 每次清零，采纳率被系统性
+/// 低估、按采纳率微调的动态门槛恒走「收紧」单向棘轮。
+#[test]
+fn test_second_green_picks_persist_across_flush() {
+    let seed = super::tests_query::seed_copy("sgp3");
+    let mut engine = Engine::new_with_db(&seed).unwrap();
+    engine.set_green_candidate_count(2);
+    let input = "taolunyixiawenti";
+    let cands = engine.process(input);
+    let greens: Vec<&Candidate> = cands.iter().filter(|c| c.is_sentence).collect();
+    assert!(greens.len() >= 2, "前置：需要 ≥2 条绿词");
+    let second = greens[1].text.clone();
+    let pinyin = greens[1].pinyin.to_string();
+    engine.commit(input, &second, Some(&pinyin), true);
+    assert_eq!(engine.green_accept.second_green_picks, 1);
+
+    engine.flush().expect("flush green stats");
+    let engine2 = Engine::new_with_db(&seed).expect("reopen seed copy");
+    assert_eq!(
+        engine2.green_accept.second_green_picks, 1,
+        "second_green_picks 应随 db_meta 跨会话恢复"
+    );
+    assert_eq!(engine2.green_accept.total_green_picks, 1);
+}
+
 /// 搭配惩罚逻辑验证：惩罚 -3 可被 freq_score 抵消，不导致空候选/panic。
 #[test]
 fn test_collocation_penalty_logic() {

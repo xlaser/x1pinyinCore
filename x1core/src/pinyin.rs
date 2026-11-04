@@ -551,6 +551,11 @@ pub fn segmentations_prefix_tail(input: &str) -> Vec<Vec<&str>> {
     if input.is_empty() || input.len() > MAX_INPUT_BYTES {
         return Vec::new();
     }
+    // 非 ASCII 输入不可能是拼音：先短路，避免下方按字节剥尾时切在
+    // UTF-8 字符内部（process("中") 曾在此处 panic）。
+    if !input.is_ascii() {
+        return Vec::new();
+    }
     // 全有效切分已存在的输入（正常完成态）不合成
     if !segmentations(input, 1).is_empty() {
         return Vec::new();
@@ -559,6 +564,10 @@ pub fn segmentations_prefix_tail(input: &str) -> Vec<Vec<&str>> {
     // 尾部最多剥 6 字母（最长音节长度；zh/sh/ch 双字母声母 + 单字母兜底都覆盖）
     for tail_len in 1..=6.min(n - 1) {
         let cut = n - tail_len;
+        // 双保险：即使未来放开非 ASCII，也不在字符内部切片。
+        if !input.is_char_boundary(cut) {
+            continue;
+        }
         let tail = &input[cut..];
         // 尾部必须是纯 [a-z]（不吞用户显式撇号边界）
         if !tail.bytes().all(|b| b.is_ascii_lowercase()) {

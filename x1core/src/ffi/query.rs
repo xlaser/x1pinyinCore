@@ -211,6 +211,50 @@ pub unsafe extern "C" fn x1_engine_syllable_prefix_len(
         .unwrap_or(0)
 }
 
+/// 候选级消费字节数（简拼/混合声母 token 语义）。
+///
+/// `zhgrm`→中国人民=5、中国人=4、在=1；`zhmz`→中华民族=4、中华=2；
+/// `sh`→是=2；`s'h`→你好=3。返回 0 = 非简拼形态/无法对齐
+///（调用方回退 syllable_count/prefix_len）。
+///
+/// # Safety
+/// `ptr` 必须是有效引擎指针；`input`/`pinyin` 必须是有效 UTF-8 C 字符串
+#[no_mangle]
+pub unsafe extern "C" fn x1_engine_candidate_consumed_len(
+    ptr: *const X1Engine,
+    input: *const c_char,
+    pinyin: *const c_char,
+    is_correction: i32,
+) -> usize {
+    if ptr.is_null() || input.is_null() || pinyin.is_null() {
+        return 0;
+    }
+    let engine = &(*ptr).inner;
+    let Some(input_str) = c_str_to_str(input) else {
+        return 0;
+    };
+    let Some(pinyin_str) = c_str_to_str(pinyin) else {
+        return 0;
+    };
+    guard("candidate_consumed_len", 0, || {
+        let c = crate::dict::Candidate {
+            text: "".into(),
+            base_freq: 0,
+            pinyin: pinyin_str.into(),
+            is_primary: true,
+            is_correction: is_correction != 0,
+            is_sentence: false,
+            is_guess: false,
+            is_shortcut: false,
+            is_english: false,
+            sentence_score: 0,
+        };
+        engine
+            .jianpin_candidate_consumed_len(input_str, &c)
+            .unwrap_or(0)
+    })
+}
+
 /// 返回 buffer 用 `'` 分隔的音节切分字符串（用于预输入态显示，仿微信输入法）。
 ///
 /// 例：`wenmin` → `wen'min`，`zgrm` → `z'g'r'm`，单音节 `xian` → `xian`（无分隔）。

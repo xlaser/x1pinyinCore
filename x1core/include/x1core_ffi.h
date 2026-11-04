@@ -15,6 +15,16 @@
 #include <stdlib.h>
 
 /**
+ * 的/地/得粒子选择子（`func_delta` 的 `curr` 入参；与构建端 Block 5 的
+ * de/di/de2 三列顺序一致，即 ude1/ude2/ude3）。
+ */
+#define FUNC_DE 0
+
+#define FUNC_DI 1
+
+#define FUNC_DE2 2
+
+/**
  * 不透明指针类型
  */
 typedef struct X1Engine X1Engine;
@@ -1042,6 +1052,21 @@ uintptr_t x1_engine_syllable_count(const struct X1Engine *ptr, const char *input
 uintptr_t x1_engine_syllable_prefix_len(const struct X1Engine *ptr, const char *input, uintptr_t n);
 
 /**
+ * 候选级消费字节数（简拼/混合声母 token 语义）。
+ *
+ * `zhgrm`→中国人民=5、中国人=4、在=1；`zhmz`→中华民族=4、中华=2；
+ * `sh`→是=2；`s'h`→你好=3。返回 0 = 非简拼形态/无法对齐
+ *（调用方回退 syllable_count/prefix_len）。
+ *
+ * # Safety
+ * `ptr` 必须是有效引擎指针；`input`/`pinyin` 必须是有效 UTF-8 C 字符串
+ */
+uintptr_t x1_engine_candidate_consumed_len(const struct X1Engine *ptr,
+                                           const char *input,
+                                           const char *pinyin,
+                                           int32_t is_correction);
+
+/**
  * 返回 buffer 用 `'` 分隔的音节切分字符串（用于预输入态显示，仿微信输入法）。
  *
  * 例：`wenmin` → `wen'min`，`zgrm` → `z'g'r'm`，单音节 `xian` → `xian`（无分隔）。
@@ -1258,7 +1283,7 @@ char *x1_stats_known_keys(void);
  */
 char *x1_stats_today(void);
 
-extern int32_t open(const int8_t *path, int32_t flags, int32_t mode);
+extern int32_t open(const int8_t *path, int32_t flags, ...);
 
 extern int32_t close(int32_t fd);
 

@@ -23,6 +23,7 @@ x1core 是**零网络**引擎库：不依赖任何网络组件（依赖树中无
 | 固定候选 | `user_pins` | 钉死的候选位 |
 | 竞争统计 | `competition` / `competition_totals` | 同音竞争的选择分布 |
 | 上下文快照 | `db_meta.context_snapshot` | 最近上屏词序列（重启恢复上下文） |
+| 绿词采纳统计 | `db_meta.green_total_picks` / `db_meta.green_second_picks` | 整句候选被选中的两项计数（动态门槛微调用） |
 | 英文计数 | `user_english_counts` | 英文词条选择次数 |
 
 **上述数据组合起来足以重建用户的打字历史。** 任何能读取这些文件的人

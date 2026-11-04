@@ -88,3 +88,25 @@ pub fn require_seed_db() {
         );
     }
 }
+
+/// 微型语法模型（`x1grammar.bin`）是否就位。该资产**不随本仓库分发**：
+/// 缺失时依赖它的测试跳过（与种子缺失即失败的口径不同——模型缺失属于
+/// 正常形态而非配置错误，引擎运行时自动降级，不受影响）。
+#[cfg(test)]
+pub fn grammar_model_available() -> bool {
+    std::path::Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/x1grammar.bin")).exists()
+}
+
+/// 依赖 `x1grammar.bin` 的测试统一入口：缺失即打印跳过原因并提前返回。
+/// 用法：`if skip_without_grammar_model() { return; }`。
+#[cfg(test)]
+pub fn skip_without_grammar_model() -> bool {
+    if grammar_model_available() {
+        return false;
+    }
+    eprintln!(
+        "跳过：assets/x1grammar.bin 不随本仓库分发，\
+         引擎在模型缺失时自动降级（见 README「词库说明」）"
+    );
+    true
+}

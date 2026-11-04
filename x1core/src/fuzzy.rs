@@ -271,7 +271,13 @@ impl FuzzyConfig {
         let mut tokens: Vec<String> = Vec::new();
         let mut i = 0;
         while i < chars.len() {
-            if self.jianpin_merge_zh_ch_sh && i + 1 < chars.len() {
+            // 手动撇号是显式音节边界：跳过且不跨边界合并 zh/ch/sh
+            //（s'h 必须是 s+h 两个首字母，不能并成 sh 一个声母）。
+            if chars[i] == '\'' {
+                i += 1;
+                continue;
+            }
+            if self.jianpin_merge_zh_ch_sh && i + 1 < chars.len() && chars[i + 1] != '\'' {
                 let two = format!("{}{}", chars[i], chars[i + 1]);
                 if two == "zh" || two == "ch" || two == "sh" {
                     tokens.push(two);
@@ -341,8 +347,10 @@ impl FuzzyConfig {
                 }
             }
             if next.len() > Self::MAX_JIANPIN_EXPANSIONS {
-                // 超限（≥11 个歧义 token）：放弃模糊扩展回退原串，防指数爆炸
-                return vec![input.to_string()];
+                // 超限（≥11 个歧义 token）：放弃模糊扩展回退原串，防指数爆炸。
+                // 撇号不是查询字符（query_jianpin 逐字符下钻），回退时剔掉，
+                // 否则含撇号的超长简拼整串查不到任何白词。
+                return vec![input.chars().filter(|c| *c != '\'').collect()];
             }
             results = next;
         }

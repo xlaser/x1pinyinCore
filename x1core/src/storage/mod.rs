@@ -318,6 +318,60 @@ CREATE TABLE IF NOT EXISTS x1dict_words (
                 PRIMARY KEY (zh, en)
             );
 
+            -- 中文词性资产（独立侧表，不碰
+            -- x1dict_words 热路径/arena 缓存）。word → 词性位图 + 主词性 +
+            -- 词性分布；pos_counts 形如 "n:120,v:30"。
+            CREATE TABLE IF NOT EXISTS x1dict_pos (
+                word         TEXT PRIMARY KEY,
+                pos_mask     INTEGER NOT NULL,
+                pos_dominant TEXT NOT NULL DEFAULT '',
+                pos_counts   TEXT NOT NULL DEFAULT '',
+                source       TEXT NOT NULL DEFAULT 'pfr2014'
+            );
+            -- 粗类三元词性组合（P(c|a,b) 的计数）。
+            CREATE TABLE IF NOT EXISTS x1pos_seq (
+                seq   TEXT NOT NULL PRIMARY KEY,
+                count INTEGER NOT NULL
+            ) WITHOUT ROWID;
+            -- 整句/短句语法模板（2–6 词粗类序列；只做绿词排序软特征）。
+            CREATE TABLE IF NOT EXISTS x1grammar_patterns (
+                seq    TEXT NOT NULL PRIMARY KEY,
+                len    INTEGER NOT NULL,
+                count  INTEGER NOT NULL,
+                source TEXT NOT NULL DEFAULT 'pfr2014'
+            ) WITHOUT ROWID;
+            -- 粗类词性转移（P(next_pos | prev_pos)），供将来语法模型使用。
+            CREATE TABLE IF NOT EXISTS x1pos_trans (
+                prev_pos TEXT NOT NULL,
+                next_pos TEXT NOT NULL,
+                count    INTEGER NOT NULL,
+                PRIMARY KEY (prev_pos, next_pos)
+            );
+            -- 函数词上下文（的/地/得，后续扩着/了/过等）：
+            -- key = (func, prev_pos, next_pos) → count。
+            CREATE TABLE IF NOT EXISTS x1func_ctx (
+                func     TEXT NOT NULL,
+                prev_pos TEXT NOT NULL,
+                next_pos TEXT NOT NULL,
+                count    INTEGER NOT NULL,
+                PRIMARY KEY (func, prev_pos, next_pos)
+            );
+            -- 同音歧义组的词级上下文（在/再、做/作、那/哪……）：
+            -- (func, 前词, 后词) → count；用于词级 variant 生成。
+            CREATE TABLE IF NOT EXISTS x1func_word_ctx (
+                func  TEXT NOT NULL,
+                grp   TEXT NOT NULL,
+                prev  TEXT NOT NULL,
+                next  TEXT NOT NULL,
+                count INTEGER NOT NULL,
+                PRIMARY KEY (func, grp, prev, next)
+            );
+            CREATE TABLE IF NOT EXISTS x1func_word_global (
+                func  TEXT PRIMARY KEY,
+                grp   TEXT NOT NULL,
+                total INTEGER NOT NULL
+            );
+
             CREATE TABLE IF NOT EXISTS db_meta (
                 key   TEXT PRIMARY KEY,
                 value TEXT NOT NULL
@@ -837,6 +891,8 @@ CREATE TABLE IF NOT EXISTS user_words (
 // - tests.rs    : 单元测试块
 // -----------------------------------------------------------------------------
 pub(crate) mod dict_cache;
+/// 词性/语法资产侧表（随种子分发，独立于 x1dict_words）。
+mod grammar;
 /// DB 结构版本验证（自定义数据目录配套；只进部署期引导链）。
 pub mod schema;
 pub mod split;

@@ -7,6 +7,7 @@
 //! x1_engine_new_split(data_dir, seed_path)
 //!   ① ensure_dict_db：dict.db 与种子对齐（哈希门控 + 原子替换 + 修正保护备份）
 //!   ② seed bigram 磁盘缓存预置（与 dict.db 同目录；缺省仅省首启重建）
+//!      + x1grammar.bin 微型语法模型预置（同目录；model_hash 门控 + 原子替换）
 //!   ③ 旧单库 x1pinyin.db → user.db 一次性迁移（零搬运 + 旧库改名保留）
 //!   ④ Engine::open_split(dict, user)
 //! ```
@@ -84,6 +85,36 @@ pub unsafe extern "C" fn x1_engine_new_split(
             let dst = dir.join("seed_bigram_cache.bin");
             if src.exists() && !dst.exists() {
                 let _ = std::fs::copy(&src, &dst);
+            }
+        }
+        // ② b x1grammar.bin 微型语法模型预置（2026-11-01 方案 B Task 6）：与
+        // dict.db 同目录（引擎发现逻辑 = dict_path().parent()/x1grammar.bin）。
+        // model_hash 门控（种子未换代零复制）+ 临时文件原子替换（读者永见完整
+        // 文件）。失败无害：源缺失/损坏、复制失败一律跳过，不阻塞引导、不写
+        // 用户词表；源损坏时**不覆盖**用户目录既有可用模型（宁旧勿坏——
+        // bundle 资产坏不该废掉上一代正常模型）。
+        if let Some(seed_dir) = seed.parent() {
+            let src = seed_dir.join("x1grammar.bin");
+            let dst = dir.join("x1grammar.bin");
+            if src.exists() {
+                // 只信任能通过解码校验的源（load_from_path 内含 FNV 哈希门禁）
+                let src_hash = crate::grammar_micro::GrammarMicro::load_from_path(&src)
+                    .ok()
+                    .map(|m| m.info().model_hash);
+                let need_copy = match src_hash {
+                    Some(h) => crate::grammar_micro::GrammarMicro::load_from_path(&dst)
+                        .map(|old| old.info().model_hash != h)
+                        .unwrap_or(true), // dst 缺失/损坏 → 复制
+                    None => false, // 源损坏 → 不动用户目录现状
+                };
+                if need_copy {
+                    let tmp = dir.join("x1grammar.bin.tmp");
+                    if std::fs::copy(&src, &tmp).is_ok() {
+                        let _ = std::fs::rename(&tmp, &dst);
+                    } else {
+                        let _ = std::fs::remove_file(&tmp); // 清半截临时文件
+                    }
+                }
             }
         }
         // ③ 旧单库 → user.db（幂等：已迁移/无旧库 = no-op；旧库改名保留）
@@ -278,6 +309,139 @@ mod tests {
             assert!(p2.is_null(), "空参数应返回 NULL");
             assert_eq!(x1_split_layout(c(dir.to_str().unwrap()).as_ptr()), 0);
         }
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// x1grammar.bin 预置（2026-11-01 方案 B Task 6）：首次复制 + 引擎端到端
+    /// 发现、哈希一致零复制（mtime 钉住验证）、种子换代原子更新、源损坏不
+    /// 覆盖既有模型、无源不产文件且引导照常成功。
+    #[test]
+    fn grammar_model_bootstrap_hash_gated() {
+        if crate::test_tmp::skip_without_grammar_model() {
+            return;
+        }
+        let seed_src = concat!(env!("CARGO_MANIFEST_DIR"), "/assets/x1pinyin.db");
+        let model_src = concat!(env!("CARGO_MANIFEST_DIR"), "/assets/x1grammar.bin");
+        let dir = temp("gm");
+        let seed = dir.join("seed.db");
+        std::fs::copy(seed_src, &seed).unwrap();
+        std::fs::copy(model_src, dir.join("x1grammar.bin")).unwrap();
+        let data = dir.join("data");
+        std::fs::create_dir_all(&data).unwrap();
+        let dst = data.join("x1grammar.bin");
+        let src = dir.join("x1grammar.bin");
+
+        // FNV-1a32（与 grammar_micro 构建端同算法）：测期构造「结构合法 +
+        // model_hash 不同」的换代模型——翻转 payload 尾字节（block5 末行 de2
+        // 计数的高位字节，只进总量不影响结构）后修补头部哈希。
+        fn fnv1a32(b: &[u8]) -> u32 {
+            b.iter().fold(0x811C_9DC5u32, |h, &x| {
+                (h ^ x as u32).wrapping_mul(0x0100_0193)
+            })
+        }
+        fn variant(base: &[u8]) -> Vec<u8> {
+            let mut v = base.to_vec();
+            let last = v.len() - 1;
+            v[last] ^= 0x01;
+            let h = fnv1a32(&v[32..]);
+            v[8..12].copy_from_slice(&h.to_le_bytes());
+            v
+        }
+
+        // 引导一次并断言成功（模型预置属「失败无害」，绝不允许它拖垮 split）
+        fn boot_ok(data: &std::path::Path, seed: &std::path::Path) -> *mut X1Engine {
+            let p = unsafe {
+                x1_engine_new_split(
+                    c(data.to_str().unwrap()).as_ptr(),
+                    c(seed.to_str().unwrap()).as_ptr(),
+                )
+            };
+            assert!(!p.is_null(), "split 引导应成功");
+            p
+        }
+
+        // ① 首次：复制到数据目录 + 无临时文件残留 + 引擎端到端发现该副本
+        {
+            let p = boot_ok(&data, &seed);
+            let e = unsafe { &mut *p };
+            assert!(dst.exists(), "模型应已预置到数据目录");
+            assert!(
+                !data.join("x1grammar.bin.tmp").exists(),
+                "临时文件应已收尾（rename 或清理）"
+            );
+            let info = e
+                .inner
+                .grammar_micro_info()
+                .expect("引擎应发现 dict.db 同目录模型");
+            assert_eq!(
+                info.path.as_deref(),
+                Some(dst.to_str().unwrap()),
+                "引擎加载的应是数据目录副本（bundle 内是只读母版）"
+            );
+            unsafe { drop(Box::from_raw(p)) };
+        }
+
+        // ② 哈希一致（种子未换代）：dst mtime 钉到过去 → 再引导 → mtime 不动
+        let pinned =
+            std::time::SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(1_600_000_000); // 2020-09
+        std::fs::OpenOptions::new()
+            .write(true)
+            .open(&dst)
+            .unwrap()
+            .set_modified(pinned)
+            .unwrap();
+        let p = boot_ok(&data, &seed);
+        unsafe { drop(Box::from_raw(p)) };
+        assert_eq!(
+            std::fs::metadata(&dst).unwrap().modified().unwrap(),
+            pinned,
+            "种子未换代不应重写模型（model_hash 门控零复制）"
+        );
+
+        // ③ 种子换代：结构合法但哈希不同的新模型 → 原子更新 dst + 引擎加载新代
+        let v = variant(&std::fs::read(model_src).unwrap());
+        std::fs::write(&src, &v).unwrap();
+        let p = boot_ok(&data, &seed);
+        let e = unsafe { &mut *p };
+        let got_hash = crate::grammar_micro::GrammarMicro::load_from_path(&dst)
+            .expect("换代后 dst 应可解码")
+            .info()
+            .model_hash;
+        assert_eq!(got_hash, fnv1a32(&v[32..]), "换代应传导到数据目录副本");
+        assert_eq!(
+            e.inner.grammar_micro_info().unwrap().model_hash,
+            got_hash,
+            "引擎本轮应加载新代模型"
+        );
+        unsafe { drop(Box::from_raw(p)) };
+
+        // ④ 源损坏（截断）：不覆盖既有可用模型（宁旧勿坏），引导照常成功
+        let dst_bytes = std::fs::read(&dst).unwrap();
+        std::fs::write(&src, &v[..v.len() / 2]).unwrap(); // 半截 = 解码必败
+        let p = boot_ok(&data, &seed);
+        unsafe { drop(Box::from_raw(p)) };
+        assert_eq!(
+            std::fs::read(&dst).unwrap(),
+            dst_bytes,
+            "源损坏时既有模型必须原样保留"
+        );
+
+        // ⑤ 无源（bundle 未带资产的老部署常态）：不产文件、引导成功
+        std::fs::remove_file(&src).unwrap();
+        let data2 = dir.join("data2");
+        std::fs::create_dir_all(&data2).unwrap();
+        let p = boot_ok(&data2, &seed);
+        let e = unsafe { &mut *p };
+        assert!(
+            !data2.join("x1grammar.bin").exists(),
+            "无源不应产生模型文件"
+        );
+        assert!(
+            e.inner.grammar_micro_info().is_none(),
+            "无资产 → 引擎空模型降级（老部署常态）"
+        );
+        unsafe { drop(Box::from_raw(p)) };
+
         let _ = std::fs::remove_dir_all(&dir);
     }
 }
