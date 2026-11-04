@@ -15,6 +15,9 @@
   下载覆盖；
 - 审计：SQLite 明文库，任何标准工具可查可 diff（见下文"审计速查"）；
 - 形态：VACUUM 归档后的单文件（无 `-wal`/`-shm` 边车依赖）；
+  配套两件随源码同库分发——`seed_bigram_cache.bin`（bigram 磁盘缓存，
+  加速首次装载，可用 `examples/regen_seed_cache.rs` 再生）与
+  `x1grammar.bin`（语法模型，缺失时引擎自动降级）；
 - 纯净性：发布版用户表为近似空态（`user_words` 仅少量测试残留、
   `user_input_mappings` 为 0），不含任何真实用户输入历史。
 
@@ -27,7 +30,7 @@
 | 种子搭配（bigram/trigram 统计） | 自有分词语料统计（语料协议 CC0） |
 | 完整种子 DB 词条本体 | 长期维护的自有资产（多轮增补与调优演化） |
 | 词性/搭配统计侧表（`x1dict_pos`、`x1func_ctx`、`x1pos_seq`、`x1grammar_patterns`、`x1colloc` 等，随种子 DB） | 标注语料统计挖掘 |
-| 微型语法模型 `x1grammar.bin`（可选增强，**不随本仓库分发**） | 词性搭配统计的编译产物（随宿主安装包分发；缺失时引擎自动降级） |
+| 微型语法模型 `x1grammar.bin`（随仓库分发；缺失时引擎自动降级） | 词性搭配统计的编译产物 |
 | 评测语料 `assets/eval/*.tsv` | 自建原创句集 |
 
 **不含任何第三方数据集。**

@@ -30,18 +30,14 @@ jobs:
       - name: 最小种子自举（建库 + 引擎加载自验证）
         run: cargo run -q -p x1core --bin seed_init -- target/mini_seed.db
 
-  # 有完整种子时的全量测试：在仓库变量 SEED_URL 指向种子 DB 下载地址后自动生效
+  # 全量测试：词库三件套（种子 DB / bigram 缓存 / 语法模型）随仓库分发，
+  # checkout 即得，无需外部下载
   full-tests:
-    if: ${{ vars.SEED_URL != '' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - name: 下载种子 DB
-        run: curl -L --fail -o x1core/assets/x1pinyin.db "$SEED_URL"
-        env:
-          SEED_URL: ${{ vars.SEED_URL }}
       - name: 全量测试
         run: cargo test -p x1core --lib
 

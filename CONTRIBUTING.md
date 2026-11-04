@@ -35,7 +35,7 @@ cargo test -p x1core
 
 - [ ] `cargo clippy --workspace --all-targets -- -D warnings` 零告警
 - [ ] 纯逻辑测试子集全绿（上方命令）
-- [ ] 有种子时全量测试全绿（若改动影响查询/学习/存储行为则必跑）
+- [ ] 全量测试全绿（词库三件套随仓库分发，开箱即跑；改动查询/学习/存储行为必跑）
 - [ ] FFI 签名变更需重新生成头文件：
       `cd x1core && cbindgen --config cbindgen.toml --output include/x1core_ffi.h`
       并同步更新契约文档
