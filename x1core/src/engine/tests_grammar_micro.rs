@@ -123,6 +123,9 @@ fn grammar_micro_engine_discovers_model_beside_db() {
 #[test]
 fn grammar_micro_engine_degrades_to_empty_when_asset_missing() {
     let db = seed_copy_without_model("degrade");
+    if crate::test_tmp::skip_without_grammar_tables() {
+        return;
+    }
     let engine = Engine::new_with_db(&db).expect("seed db without model");
     assert!(
         engine.grammar_micro_info().is_none(),

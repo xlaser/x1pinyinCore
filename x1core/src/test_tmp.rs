@@ -110,3 +110,41 @@ pub fn skip_without_grammar_model() -> bool {
     );
     true
 }
+
+/// 种子 DB 是否带词性/搭配侧表（以 `x1dict_pos` 为标志）。侧表随新版种子
+/// 分发：旧版种子（侧表引入前）缺失时，依赖侧表数据的测试跳过——引擎
+/// 对缺侧表自动降级（语法排序层失效，其余功能不受影响）。
+/// 只读打开，不触发种子写保护。
+#[cfg(test)]
+pub fn seed_has_grammar_tables() -> bool {
+    let seed = std::path::Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/x1pinyin.db"));
+    if !seed.exists() {
+        return false; // 种子整体缺失由 require_seed_db 的指引负责
+    }
+    let Ok(conn) =
+        rusqlite::Connection::open_with_flags(seed, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
+    else {
+        return false;
+    };
+    conn.query_row(
+        "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name='x1dict_pos')",
+        [],
+        |r| r.get::<_, i64>(0),
+    )
+    .map(|v| v == 1)
+    .unwrap_or(false)
+}
+
+/// 依赖种子词性/搭配侧表的测试统一入口：旧版种子缺侧表即打印原因并跳过。
+/// 用法：`if skip_without_grammar_tables() { return; }`。
+#[cfg(test)]
+pub fn skip_without_grammar_tables() -> bool {
+    if seed_has_grammar_tables() {
+        return false;
+    }
+    eprintln!(
+        "跳过：种子 DB 为不含词性/搭配侧表的旧版（引擎自动降级），\
+         侧表随新版种子分发（见 README「词库说明」）"
+    );
+    true
+}

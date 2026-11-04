@@ -557,6 +557,9 @@ fn test_jianpin_apostrophe_white_words_and_consumption() {
 #[test]
 fn test_grammar_de_di_on_seed() {
     let db = seed_copy("grammar_de");
+    if crate::test_tmp::skip_without_grammar_tables() {
+        return;
+    }
     let engine = Engine::new_with_db(&db).expect("open seed copy");
     assert_eq!(top1(&engine, "renzhendesikao"), "认真地思考");
     assert_eq!(top1(&engine, "renzhendekaolv"), "认真地考虑");
@@ -569,6 +572,9 @@ fn test_grammar_de_di_on_seed() {
 #[test]
 fn test_grammar_zai_qu_on_seed() {
     let db = seed_copy("grammar_zai");
+    if crate::test_tmp::skip_without_grammar_tables() {
+        return;
+    }
     let engine = Engine::new_with_db(&db).expect("open seed copy");
     assert_eq!(top1(&engine, "wozaiqu"), "我再去");
     assert_eq!(top1(&engine, "wozaijia"), "我在家");
