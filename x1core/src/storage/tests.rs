@@ -1276,6 +1276,9 @@ fn test_repo_seed_writable_open_blocked() {
 #[test]
 fn test_sync_pos_tables_from_builtin() {
     let db = crate::engine::tests_query::seed_copy("pos_sync");
+    if crate::test_tmp::skip_without_grammar_tables() {
+        return;
+    }
     {
         let conn = rusqlite::Connection::open(&db).unwrap();
         conn.execute_batch(
