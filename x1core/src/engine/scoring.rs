@@ -1331,15 +1331,6 @@ impl crate::engine::Engine {
             && Self::pinyin_input_coverage(candidate, input_units) == input_units.len()
     }
 
-    /// 两两比较器（主排序已改用 candidate_sort_key 键预计算，
-    /// 见 engine/mod.rs 主排序处注释）。本函数保留为参考实现：
-    /// 分层判定的可读语义都在这里，且 test_candidate_sort_key_matches_cmp
-    /// 用它逐位验证键排序等价性。生产路径不再调用（dead_code 是预期的）。
-    #[allow(dead_code)]
-    // 8 个参数是分层判定本身的上下文（input / 双方候选 / 音节数 / 首音节 /
-    // 窗口分 / 切分），打包成结构体只是把参数搬家；本函数是 candidate_sort_key
-    // 的语义参考实现（生产排序已改用键预计算）。
-    #[allow(clippy::too_many_arguments)]
     /// 简拼整词判据：候选字数 == 输入
     /// 字母数，且候选拼音各音节首字母拼接 == 输入（全小写）。
     ///

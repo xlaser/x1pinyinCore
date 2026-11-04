@@ -25,6 +25,33 @@ use crate::pinyin::{parse_pinyin, Token};
 /// 由本地模型从多条候选切分里挑上下文最合理的一句（AI 当裁判不当作者）。
 /// 旁路信息：只影响 AI 展示层落点，绝不参与
 /// 引擎候选排序（硬不变量）。
+/// 一条绿词路径的语法诊断（诊断命令用；只观测不参与排序）。
+#[derive(Debug, Clone, PartialEq)]
+pub struct GrammarDiagnosis {
+    /// DP 路径词分段（与 SentencePath.words 同源）。
+    pub words: Vec<String>,
+    /// 每词的中文词性名（未知为「未知」）。
+    pub pos: Vec<String>,
+    /// 每词词性是否来自语料标注（false = OOV 回退推测）。
+    pub pos_known: Vec<bool>,
+    /// 词性是否全部来自语料标注（false = 有 OOV 回退）。
+    pub all_known_pos: bool,
+    /// 整句模板是否命中，以及语料次数。
+    pub pattern_hit: bool,
+    pub pattern_count: u32,
+    /// 模板原始分 / 上下文让位后的实际分。
+    pub pattern_raw: i32,
+    pub pattern_effective: i32,
+    /// 中长句 4–6 词滑动模板覆盖（命中窗口数 / 总窗口数）。
+    pub window_hits: usize,
+    pub window_total: usize,
+    /// 是否因上文或路径强词对而让位。
+    pub context_yield: bool,
+    /// 相邻词性 Viterbi 分、三元词性分。
+    pub pair_score: i32,
+    pub triple_score: i32,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct SentencePath {
     /// 整句文本（words 直接拼接）。
@@ -65,6 +92,8 @@ mod tests_correction; // 智能纠错 / 多音字 / 模糊音 / 整句切分 / �
 mod tests_dict; // 词库 CRUD / TSV 导入导出 / 持久化（原 tests_learning 拆出）
 #[cfg(test)]
 mod tests_english; // 智能单词识别
+#[cfg(test)]
+mod tests_grammar_micro; // x1grammar.bin 微型词性搭配模型接入 A/B
 #[cfg(test)]
 mod tests_green; // 绿词 / 多音字次音
 #[cfg(test)]
@@ -338,6 +367,18 @@ pub struct Engine {
     pub(crate) freq: FreqModel,
     /// 三阶上下文模型
     pub(crate) trigram: crate::trigram::TrigramModel,
+    /// 中文词性/语法模型（第一版消费面 = 的/地/得）。
+    /// 空模型 = 老库/内置模式，所有语法增量返回 0。
+    pub(crate) grammar: crate::grammar::GrammarModel,
+    /// 微型词性搭配模型：发现自词库 DB 同目录的
+    /// `x1grammar.bin`（安装期与 DB 一起分发）；缺失/解码失败 → 空模型降级态
+    /// （`grammar_micro_info()` 返回 None，所有查询 0 分）。启动零 DB 写、
+    /// 零网络。
+    pub(crate) grammar_micro: crate::grammar_micro::GrammarMicro,
+    /// 绿词排序微型语法总闸（扩展口语语料 + 正分融合后默认开；
+    /// `X1_GRAMMAR_MICRO=0` 逃生口。模型缺失时自动回退 legacy）。
+    /// Cell 内部可变性与 score_cache 同纪律：engine 单线程。
+    pub(crate) grammar_micro_enabled: std::cell::Cell<bool>,
     /// 竞争频率存储：同音/组词/整句竞争的
     /// 选择分布。写 = commit 事件（learning.rs）；读 = 排序（scoring.rs）。
     /// 无时间参数——无事件即冻结。
@@ -650,6 +691,9 @@ impl Engine {
             dict,
             freq: FreqModel::new(),
             trigram: crate::trigram::TrigramModel::new(),
+            grammar: crate::grammar::GrammarModel::default(),
+            grammar_micro: crate::grammar_micro::GrammarMicro::empty(),
+            grammar_micro_enabled: std::cell::Cell::new(Self::grammar_micro_default_enabled()),
             competition: crate::competition::CompetitionStore::new(),
             competition_priors: std::cell::RefCell::new(HashMap::new()),
             user_words: HashMap::new(),
@@ -1024,10 +1068,38 @@ impl Engine {
             }
         };
 
+        // 词性/语法侧表（老库缺表 → 空模型，零行为变化）。
+        let grammar = crate::grammar::GrammarModel::load(&storage).unwrap_or_default();
+
+        // 微型词性搭配模型：发现自词库 DB 同目录的
+        // x1grammar.bin（安装期与 DB 一起分发）。只读加载，零 DB 写、零网络；
+        // 缺失 → 直接空模型（静默，老部署常态）；存在但解码失败 → 空模型降级 +
+        // **单次** eprintln（禁日志刷屏），绝不 panic / 不阻塞启动。
+        let grammar_micro = storage
+            .dict_path()
+            .and_then(|p| p.parent())
+            .map(|dir| dir.join("x1grammar.bin"))
+            .filter(|p| p.exists())
+            .and_then(
+                |p| match crate::grammar_micro::GrammarMicro::load_from_path(&p) {
+                    Ok(m) => Some(m),
+                    Err(e) => {
+                        eprintln!("[engine] x1grammar.bin 加载失败，降级空模型: {e}");
+                        None
+                    }
+                },
+            )
+            .unwrap_or_default();
+
         let engine = Engine {
             dict,
             freq,
             trigram,
+            grammar,
+            grammar_micro,
+            // 默认开（扩展口语语料 + 正分融合口径；逃生口
+            // X1_GRAMMAR_MICRO=0，模型缺失自动回退 legacy）。
+            grammar_micro_enabled: std::cell::Cell::new(Self::grammar_micro_default_enabled()),
             competition,
             competition_priors: std::cell::RefCell::new(HashMap::new()),
             user_words,
@@ -1099,7 +1171,8 @@ impl Engine {
         engine.init_dyn_cap();
 
         // 加载绿词采纳率统计：
-        // 从 db_meta 恢复 total_green_picks（second_green_picks 暂未采集，见 commit TODO）。
+        // total/second 同源于 db_meta 恢复，保证采纳率微调的
+        // 分子分母口径一致。
         if let Some(storage) = &engine.storage {
             let total = storage
                 .get_user_meta("green_total_picks")
@@ -1108,6 +1181,13 @@ impl Engine {
                 .and_then(|s| s.parse::<u32>().ok())
                 .unwrap_or(0);
             engine.green_accept.total_green_picks = total;
+            let second = storage
+                .get_user_meta("green_second_picks")
+                .ok()
+                .flatten()
+                .and_then(|s| s.parse::<u32>().ok())
+                .unwrap_or(0);
+            engine.green_accept.second_green_picks = second;
 
             // 恢复上下文栈快照：flush 时写入的栈尾词跨会话延续，
             // bigram/trigram/collocation 上下文加成不再随进程重启冷启动。
@@ -5153,6 +5233,121 @@ impl Engine {
         crate::pinyin::is_valid_syllable_pub(last)
     }
 
+    /// 混合声母形态（zh/sh/ch + 首字母）的显示/消费切分。
+    ///
+    /// 候选链 `process_hybrid_shengmu_inner` 用 token 语义（`zh` 是一个
+    /// Shengmu 单位），但 `is_jianpin` 会把整串按单字符算（`zhgrm` = 5）。
+    /// 两条链不一致时，4 字候选「中国人民」会被误判为「自组词分步」
+    ///（4 < 5），只消费 `zhgr`、残留 `m`。
+    ///
+    /// 本函数取 `segmentations_tokens` 中**首个含 Shengmu 的切分**（与
+    /// 候选链的 dp_seg 选择同优先），返回与候选链一致的字符串切分；
+    /// 非混合形态返回 None，调用方继续既有 is_jianpin/best_segmentation 逻辑。
+    fn hybrid_shengmu_segmentation<'a>(&self, input: &'a str) -> Option<Vec<&'a str>> {
+        if !Self::is_hybrid_shengmu_input(input) {
+            return None;
+        }
+        let segs = crate::pinyin::segmentations_tokens(input, 16);
+        let seg = segs
+            .iter()
+            .find(|seg| seg.iter().any(|t| matches!(t, Token::Shengmu(_))))
+            .or_else(|| segs.first())?;
+        let out = crate::pinyin::tokens_to_strs(input, seg);
+        if out.is_empty() {
+            None
+        } else {
+            Some(out)
+        }
+    }
+
+    /// 候选拼音在输入上覆盖的字节前缀（简拼 / 混合声母形态）。
+    ///
+    /// 返回 `Some(pos)` = 候选的完整读音对齐到输入的前 pos 字节；
+    /// `None` = 无法对齐（调用方回退逐字符基数）。逐音节对齐：
+    /// ① 优先吃完整音节（normalize 后）；
+    /// ② 其次吃声母（zh/ch/sh 两字母，其余一字母）；
+    /// ③ zh/ch/sh 音节允许退化为单字母首字母（zhmz→中华民族 的 z|h|m|z 读法）。
+    ///
+    /// **部分候选也要返回 pos**：`zhgrm` 选「中国人」（zhong guo ren）应吃
+    /// `zh,g,r` = 4 字节、剩 `m`；只修完整候选（覆盖整串）会让「中国人民」
+    /// 不再残留、但「中国人」仍按逐字符吃 3 字节剩 `rm`。
+    ///
+    /// 撇号：对齐用去撇号的归一化串，返回时映射回原始字节偏移
+    ///（`s'h` 选「你好」→ 3 字节全消费；选中「三」→ 2 字节，保留 `h`）。
+    fn candidate_consumed_prefix(input: &str, c: &Candidate) -> Option<usize> {
+        fn go(input: &[char], syls: &[&str], pos: usize, idx: usize) -> Option<usize> {
+            if idx == syls.len() {
+                return Some(pos);
+            }
+            let syl = crate::pinyin::normalize_syllable(syls[idx]);
+            let chars: Vec<char> = syl.chars().collect();
+            if chars.is_empty() {
+                return None;
+            }
+            // ① 完整音节（如 zhong 吃掉 zhong）
+            if input[pos..].starts_with(&chars) {
+                if let Some(p) = go(input, syls, pos + chars.len(), idx + 1) {
+                    return Some(p);
+                }
+            }
+            // ② 声母：zh/ch/sh 两字母，其余一字母（如 zhong→zh、guo→g）
+            let init_len =
+                if syl.starts_with("zh") || syl.starts_with("ch") || syl.starts_with("sh") {
+                    2
+                } else {
+                    1
+                };
+            if init_len <= chars.len() && input[pos..].starts_with(&chars[..init_len]) {
+                if let Some(p) = go(input, syls, pos + init_len, idx + 1) {
+                    return Some(p);
+                }
+            }
+            // ③ zh/ch/sh 退化为单字母首字母（zhmz 的 z|h|m|z 读法）
+            if init_len == 2 && pos < input.len() && input[pos] == chars[0] {
+                if let Some(p) = go(input, syls, pos + 1, idx + 1) {
+                    return Some(p);
+                }
+            }
+            None
+        }
+        if c.pinyin.is_empty() {
+            return None;
+        }
+        // 撇号不参与对齐；保留每个字母的原始字节偏移用于回映射。
+        let input_chars: Vec<(usize, char)> =
+            input.char_indices().filter(|(_, ch)| *ch != '\'').collect();
+        let normalized: Vec<char> = input_chars.iter().map(|(_, ch)| *ch).collect();
+        let syls: Vec<&str> = c.pinyin.split_whitespace().collect();
+        let pos = go(&normalized, &syls, 0, 0)?;
+        if pos >= input_chars.len() {
+            // 全消费（含尾随撇号）
+            Some(input.len())
+        } else {
+            // 下一字母的原始字节偏移（含其前分隔符，语义同 prefix_lens）
+            Some(input_chars[pos].0)
+        }
+    }
+
+    /// 简拼/混合声母候选的消费字节数（候选级）。
+    ///
+    /// `None` = 非简拼形态（调用方走既有 syllable_count/prefix_len 逻辑）；
+    /// `Some(n)` = 候选自身读音覆盖的输入前缀字节数（完整或部分）。
+    /// 覆盖 `zhgrm` / `z'g'r'm` / `sh` / `s'h` 等纯简拼与混合形态；
+    /// 纠错候选语义不变：解释整条错串 → 全消费。
+    pub(crate) fn jianpin_candidate_consumed_len(
+        &self,
+        input: &str,
+        c: &Candidate,
+    ) -> Option<usize> {
+        if !(crate::pinyin::is_jianpin(input) || Self::is_hybrid_shengmu_input(input)) {
+            return None;
+        }
+        if c.is_correction {
+            return Some(input.len());
+        }
+        Self::candidate_consumed_prefix(input, c)
+    }
+
     /// 计算输入的拼音音节数
     ///
     /// 用于自组词：知道 buffer 有多少个音节，才能决定选字后吃掉几个音节。
@@ -5173,8 +5368,16 @@ impl Engine {
             input.to_string()
         };
         let input = input.as_str();
+        // 混合声母（zhgrm/shgrm/chgrm）：zh 是一个单位，与候选链 token 语义对齐。
+        // 必须先于 is_jianpin——纯简拼分支会把 zh 拆成 z+h 两个音节，
+        // 导致 4 字候选被误判为分步、消费偏移少 1（残留尾字母）。
+        if let Some(seg) = self.hybrid_shengmu_segmentation(input) {
+            return seg.len();
+        }
         if crate::pinyin::is_jianpin(input) {
-            return input.chars().count();
+            // 撇号是分隔符不是音节（n'h 曾被数成 3，
+            // 选中 2 字词误判分步并残留字母）。
+            return input.chars().filter(|c| *c != '\'').count();
         }
         let segs = self.best_segmentation(input);
         if !segs.is_empty() {
@@ -5245,6 +5448,11 @@ impl Engine {
                     .map(|s| s.to_string())
                     .collect();
             }
+        }
+        // 混合声母：与候选链同源的 token 切分（zhgrm → zh'g'r'm，不是
+        // z'h'g'r'm）。放在简拼分支之前，避免 zh 被拆成两个显示单位。
+        if let Some(seg) = self.hybrid_shengmu_segmentation(input) {
+            return seg.iter().map(|s| s.to_string()).collect();
         }
         // 简拼：每字符一个音节
         if crate::pinyin::is_jianpin(input) {
@@ -5325,6 +5533,7 @@ impl Engine {
                 .map(|&n| {
                     input
                         .char_indices()
+                        .filter(|(_, c)| *c != '\'')
                         .nth(n)
                         .map(|(idx, _)| idx)
                         .unwrap_or(input.len())
@@ -5393,6 +5602,9 @@ impl Engine {
             return vec![0; ns.len()];
         }
         let base = self.syllable_prefix_lens(input, &ns);
+        // 简拼形态判定只与 input 有关，循环外算一次（候选可达数百个；
+        // is_hybrid_shengmu_input 内部要扫 VALID_SYLLABLES 前缀）。
+        let jianpin_like = crate::pinyin::is_jianpin(input) || Self::is_hybrid_shengmu_input(input);
         candidates
             .iter()
             .zip(base.iter())
@@ -5402,10 +5614,20 @@ impl Engine {
                     .chars()
                     .filter(|ch| *ch != ' ' && *ch != '\'')
                     .collect();
+                let candidate_consumed = if jianpin_like {
+                    self.jianpin_candidate_consumed_len(input, c)
+                } else {
+                    None
+                };
                 if compact.starts_with(input) {
                     input.len()
                 } else if !compact.is_empty() && input.starts_with(compact.as_str()) {
                     compact.len()
+                } else if let Some(pos) = candidate_consumed {
+                    // 简拼/混合声母候选级消费（zhgrm→中国人民 5 / 中国人 4 / 在 1；
+                    // zhmz→中华民族 4 / 中华 2；sh→是 2；s'h→你好 3）。完整与部分
+                    // 候选都按候选自身读音对齐，避免逐字符基数在 zh/sh 处少/多消费。
+                    pos
                 } else if c.is_correction {
                     // 橙词纠错候选全消费：
                     // 纠错假设解释的是整个输入串（变体与输入恒差编辑距离 1），

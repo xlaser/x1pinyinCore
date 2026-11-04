@@ -202,14 +202,19 @@ pub(crate) mod tests {
             let src = eval_db_path();
             // DB 副本（53MB 级）落项目 target/test-tmp（测试产物不进系统
             // 临时目录）。JSON 结果文件仍走 temp_dir——跨平台一致的输出路径。
-            let dst = crate::test_tmp::dir().join(format!(
-                "x1_eval_copy_{}_{}.db",
+            // 独立子目录（与 green_homophone 同款）：微型语法模型按
+            // 「DB 同目录」发现，副本若落 test-tmp 顶层，A/B 暂存的
+            // x1grammar.bin 会被其它并行测试的顶层裸副本互见（污染对照组臂）。
+            let dir = crate::test_tmp::dir().join(format!(
+                "x1_eval_baseline_{}_{}",
                 std::process::id(),
                 std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
                     .map(|d| d.as_nanos())
                     .unwrap_or(0)
             ));
+            std::fs::create_dir_all(&dir).expect("create eval dir");
+            let dst = dir.join("eval.db");
             let dst_str = dst.to_string_lossy().into_owned();
             let copied = rusqlite::Connection::open_with_flags(
                 &src,
@@ -218,6 +223,16 @@ pub(crate) mod tests {
             .and_then(|c| c.execute("VACUUM INTO ?1", rusqlite::params![&dst_str]))
             .is_ok();
             if copied {
+                // 微型语法模型按「DB 同目录」发现：评测副本默认不带模型 =
+                // 引擎降级回退 legacy——A/B 验收微模型臂必须显式带过去
+                // （X1_EVAL_GRAMMAR_MODEL 指向 x1grammar.bin），与
+                // green_homophone 的暂存同款；不设 env 的普通跑保持历史口径。
+                if let Ok(src_model) = std::env::var("X1_EVAL_GRAMMAR_MODEL") {
+                    let dst_model = dir.join("x1grammar.bin");
+                    if std::fs::copy(&src_model, &dst_model).is_ok() {
+                        eprintln!("[eval_baseline] 微型语法模型副本 → {}", dst_model.display());
+                    }
+                }
                 eprintln!("[eval_baseline] 源 DB 只读副本 → {}", dst_str);
                 dst_str
             } else {

@@ -24,6 +24,7 @@ pub(crate) const USER_TABLES: &[&str] = &[
 pub(crate) const USER_META_KEYS: &[&str] = &[
     "context_snapshot",
     "green_total_picks",
+    "green_second_picks",
     "user_words_letters_cleaned",
     "user_words_multi_pinyin_v1",
     "bigram_migrated",

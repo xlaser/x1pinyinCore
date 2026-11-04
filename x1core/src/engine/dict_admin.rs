@@ -214,11 +214,16 @@ impl crate::engine::Engine {
 
             bd.push(("counts", t_bd.elapsed().as_millis()));
             t_bd = std::time::Instant::now();
-            // 持久化绿词采纳率统计：total_green_picks 跨会话累积，
-            // 为后续按采纳率微调动态门槛积累样本。
+            // 持久化绿词采纳率统计：total/second 都跨会话累积，
+            // 比率分子分母同源——只持久化 total 会让 second 每次清零、
+            // 采纳率被系统性低估，按采纳率微调的动态门槛恒走单向收紧。
             let _ = storage.set_user_meta(
                 "green_total_picks",
                 &self.green_accept.total_green_picks.to_string(),
+            );
+            let _ = storage.set_user_meta(
+                "green_second_picks",
+                &self.green_accept.second_green_picks.to_string(),
             );
 
             // 持久化上下文栈快照：栈尾 CONTEXT_SNAPSHOT_SIZE 个词

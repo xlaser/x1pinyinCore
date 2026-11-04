@@ -151,6 +151,10 @@ fn test_split_migration_zero_loss() {
         old.replace_input_mappings(&[("nihao".to_string(), "你好".to_string(), 3)])
             .unwrap();
         old.set_user_meta("context_snapshot", "旧快照").unwrap();
+        // 绿词采纳率两键必须随用户库迁移（漏键 = 采纳率微调通道
+        // 分子清零、采纳率被低估，门槛单向收紧复活）
+        old.set_user_meta("green_total_picks", "7").unwrap();
+        old.set_user_meta("green_second_picks", "3").unwrap();
         old.set_seed_meta("x1dict_sync_hash", "aaaaaaaaaaaaaaaa")
             .unwrap();
     }
@@ -184,6 +188,22 @@ fn test_split_migration_zero_loss() {
         )
         .unwrap();
     assert_eq!(snap, "旧快照");
+    let green_total: String = uc
+        .query_row(
+            "SELECT value FROM db_meta WHERE key='green_total_picks'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(green_total, "7", "green_total_picks 应随用户库迁移");
+    let green_second: String = uc
+        .query_row(
+            "SELECT value FROM db_meta WHERE key='green_second_picks'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(green_second, "3", "green_second_picks 应随用户库迁移");
     let seed_key: i64 = uc
         .query_row(
             "SELECT COUNT(*) FROM db_meta WHERE key='x1dict_sync_hash'",

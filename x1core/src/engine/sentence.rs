@@ -1084,6 +1084,197 @@ impl crate::engine::Engine {
             }
         }
 
+        // 词性/语法重打分：
+        // - 对路径里的单字 的/地/得 按 (前词粗类, 后词粗类) 的 lift 加减分；
+        // - 若“的”在语境下显著应作“地”（如 用力|的|推 → 地），生成“地”变体；
+        //   变体保留原路径分 + 变体语法分，解决“地”进不了 DP top_m_single 配额
+        //   导致 yonglidetui 永远拼不出“用力地推”的问题。
+        // 词性组合层 A/B：主路径与全部变体的 `grammar_ab_pos_delta` 出口统一——
+        // 微型模型开（grammar_micro_enabled）**且模型已加载**时，legacy 三项
+        // （POS 转移+三元组合+语法模板）整体换 `grammar_micro_delta` 的
+        // path_score；开而未加载（x1grammar.bin 缺失/解码失败降级态）回退
+        // legacy 三项（不静默丢层）；关则与基线逐字节一致；候选生成与
+        // is_sentence 不动。
+        // 空模型（老库/内置模式）完全不进入本块，行为零变化。
+        if self.grammar.is_active() {
+            let mut variants = Vec::new();
+            for path in &mut all_paths {
+                let base_score = path.4;
+                let delta = self.grammar.path_delta(&path.0)
+                    + self.grammar_ab_pos_delta(&path.0)
+                    + self.grammar.path_word_ctx_delta(&path.0);
+                path.4 += delta;
+                if let Some(idx) = self.grammar.di_variant_index(&path.0) {
+                    let mut words = path.0.clone();
+                    words[idx] = "地".to_string();
+                    let mut freqs = path.5.clone();
+                    freqs[idx] = self.dict.freq_for_text("地").unwrap_or(freqs[idx]);
+                    let max_freq = freqs.iter().copied().max().unwrap_or(path.3);
+                    let variant_score = base_score
+                        + self.grammar.path_delta(&words)
+                        + self.grammar_ab_pos_delta(&words)
+                        + self.grammar.path_word_ctx_delta(&words);
+                    variants.push((
+                        words,
+                        path.1.clone(),
+                        path.2,
+                        max_freq,
+                        variant_score,
+                        freqs,
+                    ));
+                }
+                // 同音词级变体（在/再、做/作、那/哪……）：目标词在词级上下文
+                // 下显著应换成组内另一词时生成；词频取替换词真实 freq。
+                if let Some((idx, alt)) = self.grammar.word_ctx_variant(&path.0) {
+                    if let Some(freq) = self.dict.freq_for_text(&alt) {
+                        let mut words = path.0.clone();
+                        words[idx] = alt;
+                        let mut freqs = path.5.clone();
+                        freqs[idx] = freq;
+                        let max_freq = freqs.iter().copied().max().unwrap_or(path.3);
+                        let variant_score = base_score
+                            + self.grammar.path_delta(&words)
+                            + self.grammar_ab_pos_delta(&words)
+                            + self.grammar.path_word_ctx_delta(&words);
+                        variants.push((
+                            words,
+                            path.1.clone(),
+                            path.2,
+                            max_freq,
+                            variant_score,
+                            freqs,
+                        ));
+                    }
+                }
+                // 词内目标字替换（我在→我再、那本→哪本……）：DP 常把
+                // “我在/我再”整词作为一条边，单字级 variant 覆盖不到。
+                for i in 0..path.0.len() {
+                    if path.0[i].chars().count() <= 1 {
+                        continue; // 单字已由 word_ctx_variant 处理
+                    }
+                    let prev = if i == 0 {
+                        "<s>"
+                    } else {
+                        path.0[i - 1].as_str()
+                    };
+                    let next = if i + 1 == path.0.len() {
+                        "</s>"
+                    } else {
+                        path.0[i + 1].as_str()
+                    };
+                    let Some((alt, bonus)) = self.grammar.word_char_variant(&path.0[i], prev, next)
+                    else {
+                        continue;
+                    };
+                    let Some(freq) = self.dict.freq_for_text(&alt) else {
+                        continue;
+                    };
+                    let mut words = path.0.clone();
+                    words[i] = alt;
+                    let mut freqs = path.5.clone();
+                    freqs[i] = freq;
+                    let max_freq = freqs.iter().copied().max().unwrap_or(path.3);
+                    let variant_score = base_score
+                        + self.grammar.path_delta(&words)
+                        + self.grammar_ab_pos_delta(&words)
+                        + self.grammar.path_word_ctx_delta(&words)
+                        + bonus.max(0);
+                    variants.push((
+                        words,
+                        path.1.clone(),
+                        path.2,
+                        max_freq,
+                        variant_score,
+                        freqs,
+                    ));
+                    break;
+                }
+                // 词内末字 的/地/得（干的 → 干得）：单字层 di_variant 覆盖
+                // 不到整词末字，按词首字词性 + 后词词性用 func_ctx 裁决。
+                // 只服务 ≤4 音节口语短链；长句仍由路径 delta 处理，避免
+                // 词内变体改变长句的的/得分布。
+                let short_for_de = path
+                    .1
+                    .iter()
+                    .map(|p| p.split_whitespace().count())
+                    .sum::<usize>()
+                    <= 4;
+                for i in 0..path.0.len() {
+                    if !short_for_de {
+                        break;
+                    }
+                    if path.0[i].chars().count() <= 1 {
+                        continue;
+                    }
+                    let prev = if i == 0 {
+                        "<s>"
+                    } else {
+                        path.0[i - 1].as_str()
+                    };
+                    let next = if i + 1 == path.0.len() {
+                        "</s>"
+                    } else {
+                        path.0[i + 1].as_str()
+                    };
+                    let Some((alt, bonus)) = self.grammar.de_word_variant(&path.0[i], prev, next)
+                    else {
+                        continue;
+                    };
+                    // 「干得」不是词库词条，但不能因此丢掉整句变体；
+                    // 用原词频做继承（候选是 is_sentence，不依赖单词语义）。
+                    let freq = self.dict.freq_for_text(&alt).unwrap_or(path.5[i]);
+                    let mut words = path.0.clone();
+                    words[i] = alt;
+                    let mut freqs = path.5.clone();
+                    freqs[i] = freq;
+                    let max_freq = freqs.iter().copied().max().unwrap_or(path.3);
+                    let variant_score = base_score
+                        + self.grammar.path_delta(&words)
+                        + self.grammar_ab_pos_delta(&words)
+                        + self.grammar.path_word_ctx_delta(&words)
+                        + bonus;
+                    variants.push((
+                        words,
+                        path.1.clone(),
+                        path.2,
+                        max_freq,
+                        variant_score,
+                        freqs,
+                    ));
+                    break;
+                }
+                // 2 字词同音拆分（我心 → 我/信）：DP 整词边挡住第二字，
+                // 用口语搭配选拆分后的同音组合；变体继承原路径分。
+                if let Some((idx, alt_words, bonus)) = self.split_variant(&path.0, &path.1) {
+                    let py_parts: Vec<String> = path.1[idx]
+                        .split_whitespace()
+                        .map(|s| s.to_string())
+                        .collect();
+                    if py_parts.len() == alt_words.len() {
+                        let mut words = path.0.clone();
+                        let mut pys = path.1.clone();
+                        let mut freqs = path.5.clone();
+                        words.splice(idx..=idx, alt_words.iter().cloned());
+                        let word_count = words.len();
+                        pys.splice(idx..=idx, py_parts);
+                        let fs: Vec<u32> = alt_words
+                            .iter()
+                            .map(|w| self.dict.freq_for_text(w).unwrap_or(0))
+                            .collect();
+                        freqs.splice(idx..=idx, fs);
+                        let max_freq = freqs.iter().copied().max().unwrap_or(path.3);
+                        let variant_score = base_score
+                            + self.grammar.path_delta(&words)
+                            + self.grammar_ab_pos_delta(&words)
+                            + self.grammar.path_word_ctx_delta(&words)
+                            + bonus;
+                        variants.push((words, pys, word_count, max_freq, variant_score, freqs));
+                    }
+                }
+            }
+            all_paths.extend(variants);
+        }
+
         // 按 score 降序排，取 Top-K 绿词候选，去重文本。
         // 设计哲学：
         // - Top-1 思路：一个准确的首绿词优于多个噪音候选。

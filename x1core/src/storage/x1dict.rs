@@ -293,6 +293,243 @@ impl crate::storage::Storage {
                 v
             }
         };
+        // **同步词性侧表**：x1dict_pos / x1pos_trans / x1func_ctx
+        // 与 seed_bigram/trigram 同属种子级只读资产，必须随 bundle 同步到用户库。
+        // 表不存在（老种子）→ 空 Vec，跳过同步；老用户库由 ensure_grammar_tables 建表。
+        let builtin_pos: Vec<(String, i64, String, String, String)> = {
+            let exists: bool = builtin_storage
+                .dict
+                .query_row(
+                    "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='x1dict_pos')",
+                    [],
+                    |row| row.get(0),
+                )
+                .unwrap_or(false);
+            if !exists {
+                Vec::new()
+            } else {
+                let mut stmt = builtin_storage.conn().prepare(
+                    "SELECT word, pos_mask, pos_dominant, pos_counts, source FROM x1dict_pos",
+                )?;
+                let rows = stmt.query_map([], |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, i64>(1)?,
+                        row.get::<_, String>(2)?,
+                        row.get::<_, String>(3)?,
+                        row.get::<_, String>(4)?,
+                    ))
+                })?;
+                let mut v = Vec::new();
+                for r in rows {
+                    v.push(r?);
+                }
+                v
+            }
+        };
+        let builtin_pos_trans: Vec<(String, String, i64)> = {
+            let exists: bool = builtin_storage
+                .dict
+                .query_row(
+                    "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='x1pos_trans')",
+                    [],
+                    |row| row.get(0),
+                )
+                .unwrap_or(false);
+            if !exists {
+                Vec::new()
+            } else {
+                let mut stmt = builtin_storage
+                    .conn()
+                    .prepare("SELECT prev_pos, next_pos, count FROM x1pos_trans")?;
+                let rows = stmt.query_map([], |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, i64>(2)?,
+                    ))
+                })?;
+                let mut v = Vec::new();
+                for r in rows {
+                    v.push(r?);
+                }
+                v
+            }
+        };
+        let builtin_func_ctx: Vec<(String, String, String, i64)> = {
+            let exists: bool = builtin_storage
+                .dict
+                .query_row(
+                    "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='x1func_ctx')",
+                    [],
+                    |row| row.get(0),
+                )
+                .unwrap_or(false);
+            if !exists {
+                Vec::new()
+            } else {
+                let mut stmt = builtin_storage
+                    .conn()
+                    .prepare("SELECT func, prev_pos, next_pos, count FROM x1func_ctx")?;
+                let rows = stmt.query_map([], |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, String>(2)?,
+                        row.get::<_, i64>(3)?,
+                    ))
+                })?;
+                let mut v = Vec::new();
+                for r in rows {
+                    v.push(r?);
+                }
+                v
+            }
+        };
+        let builtin_func_word_ctx: Vec<(String, String, String, String, i64)> = {
+            let exists: bool = builtin_storage
+                .dict
+                .query_row(
+                    "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='x1func_word_ctx')",
+                    [],
+                    |row| row.get(0),
+                )
+                .unwrap_or(false);
+            if !exists {
+                Vec::new()
+            } else {
+                let mut stmt = builtin_storage
+                    .conn()
+                    .prepare("SELECT func, grp, prev, next, count FROM x1func_word_ctx")?;
+                let rows = stmt.query_map([], |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, String>(2)?,
+                        row.get::<_, String>(3)?,
+                        row.get::<_, i64>(4)?,
+                    ))
+                })?;
+                let mut v = Vec::new();
+                for r in rows {
+                    v.push(r?);
+                }
+                v
+            }
+        };
+        let builtin_func_word_global: Vec<(String, String, i64)> = {
+            let exists: bool = builtin_storage
+                .dict
+                .query_row(
+                    "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='x1func_word_global')",
+                    [],
+                    |row| row.get(0),
+                )
+                .unwrap_or(false);
+            if !exists {
+                Vec::new()
+            } else {
+                let mut stmt = builtin_storage
+                    .conn()
+                    .prepare("SELECT func, grp, total FROM x1func_word_global")?;
+                let rows = stmt.query_map([], |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, i64>(2)?,
+                    ))
+                })?;
+                let mut v = Vec::new();
+                for r in rows {
+                    v.push(r?);
+                }
+                v
+            }
+        };
+        let builtin_colloc: Vec<(String, String, i64)> = {
+            let exists: bool = builtin_storage
+                .dict
+                .query_row(
+                    "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='x1colloc')",
+                    [],
+                    |row| row.get(0),
+                )
+                .unwrap_or(false);
+            if !exists {
+                Vec::new()
+            } else {
+                let mut stmt = builtin_storage
+                    .conn()
+                    .prepare("SELECT prev, curr, count FROM x1colloc")?;
+                let rows = stmt.query_map([], |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, i64>(2)?,
+                    ))
+                })?;
+                let mut v = Vec::new();
+                for r in rows {
+                    v.push(r?);
+                }
+                v
+            }
+        };
+        let builtin_pos_seq: Vec<(String, i64)> = {
+            let exists: bool = builtin_storage
+                .dict
+                .query_row(
+                    "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='x1pos_seq')",
+                    [],
+                    |row| row.get(0),
+                )
+                .unwrap_or(false);
+            if !exists {
+                Vec::new()
+            } else {
+                let mut stmt = builtin_storage
+                    .conn()
+                    .prepare("SELECT seq, count FROM x1pos_seq")?;
+                let rows = stmt.query_map([], |row| {
+                    Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?))
+                })?;
+                let mut v = Vec::new();
+                for r in rows {
+                    v.push(r?);
+                }
+                v
+            }
+        };
+        let builtin_grammar_patterns: Vec<(String, i64, i64, String)> = {
+            let exists: bool = builtin_storage
+                .dict
+                .query_row(
+                    "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='x1grammar_patterns')",
+                    [],
+                    |row| row.get(0),
+                )
+                .unwrap_or(false);
+            if !exists {
+                Vec::new()
+            } else {
+                let mut stmt = builtin_storage
+                    .conn()
+                    .prepare("SELECT seq, len, count, source FROM x1grammar_patterns")?;
+                let rows = stmt.query_map([], |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, i64>(1)?,
+                        row.get::<_, i64>(2)?,
+                        row.get::<_, String>(3)?,
+                    ))
+                })?;
+                let mut v = Vec::new();
+                for r in rows {
+                    v.push(r?);
+                }
+                v
+            }
+        };
         // builtin_storage 在此处 drop（关闭只读连接，不生成 wal/shm）
 
         // 批量 INSERT OR IGNORE 到用户 DB（主连接）
@@ -354,6 +591,129 @@ impl crate::storage::Storage {
                 }
             }
             tx3.commit()?;
+        }
+
+        // 批量同步词性侧表（语义同 seed_bigram/trigram：只读种子，
+        // DELETE+全量覆盖，幂等；老用户库先 ensure 建表）。
+        if !builtin_pos.is_empty() {
+            self.ensure_grammar_tables()?;
+            let tx = self.dict.transaction()?;
+            {
+                tx.execute("DELETE FROM x1dict_pos", [])?;
+                let mut ins = tx.prepare(
+                    "INSERT OR REPLACE INTO x1dict_pos
+                     (word, pos_mask, pos_dominant, pos_counts, source)
+                     VALUES (?1, ?2, ?3, ?4, ?5)",
+                )?;
+                for (w, mask, dom, counts, src) in &builtin_pos {
+                    ins.execute(rusqlite::params![w, mask, dom, counts, src])?;
+                }
+            }
+            tx.commit()?;
+        }
+        if !builtin_pos_trans.is_empty() {
+            self.ensure_grammar_tables()?;
+            let tx = self.dict.transaction()?;
+            {
+                tx.execute("DELETE FROM x1pos_trans", [])?;
+                let mut ins = tx.prepare(
+                    "INSERT OR REPLACE INTO x1pos_trans (prev_pos, next_pos, count)
+                     VALUES (?1, ?2, ?3)",
+                )?;
+                for (a, b, c) in &builtin_pos_trans {
+                    ins.execute(rusqlite::params![a, b, c])?;
+                }
+            }
+            tx.commit()?;
+        }
+        if !builtin_func_ctx.is_empty() {
+            self.ensure_grammar_tables()?;
+            let tx = self.dict.transaction()?;
+            {
+                tx.execute("DELETE FROM x1func_ctx", [])?;
+                let mut ins = tx.prepare(
+                    "INSERT OR REPLACE INTO x1func_ctx (func, prev_pos, next_pos, count)
+                     VALUES (?1, ?2, ?3, ?4)",
+                )?;
+                for (f, p, n, c) in &builtin_func_ctx {
+                    ins.execute(rusqlite::params![f, p, n, c])?;
+                }
+            }
+            tx.commit()?;
+        }
+        if !builtin_func_word_ctx.is_empty() {
+            self.ensure_grammar_tables()?;
+            let tx = self.dict.transaction()?;
+            {
+                tx.execute("DELETE FROM x1func_word_ctx", [])?;
+                let mut ins = tx.prepare(
+                    "INSERT OR REPLACE INTO x1func_word_ctx (func, grp, prev, next, count)
+                     VALUES (?1, ?2, ?3, ?4, ?5)",
+                )?;
+                for (f, g, p, n, c) in &builtin_func_word_ctx {
+                    ins.execute(rusqlite::params![f, g, p, n, c])?;
+                }
+            }
+            tx.commit()?;
+        }
+        if !builtin_func_word_global.is_empty() {
+            self.ensure_grammar_tables()?;
+            let tx = self.dict.transaction()?;
+            {
+                tx.execute("DELETE FROM x1func_word_global", [])?;
+                let mut ins = tx.prepare(
+                    "INSERT OR REPLACE INTO x1func_word_global (func, grp, total)
+                     VALUES (?1, ?2, ?3)",
+                )?;
+                for (f, g, c) in &builtin_func_word_global {
+                    ins.execute(rusqlite::params![f, g, c])?;
+                }
+            }
+            tx.commit()?;
+        }
+        if !builtin_colloc.is_empty() {
+            self.ensure_grammar_tables()?;
+            let tx = self.dict.transaction()?;
+            {
+                tx.execute("DELETE FROM x1colloc", [])?;
+                let mut ins = tx.prepare(
+                    "INSERT OR REPLACE INTO x1colloc (prev, curr, count)
+                     VALUES (?1, ?2, ?3)",
+                )?;
+                for (a, b, c) in &builtin_colloc {
+                    ins.execute(rusqlite::params![a, b, c])?;
+                }
+            }
+            tx.commit()?;
+        }
+        if !builtin_pos_seq.is_empty() {
+            if !builtin_grammar_patterns.is_empty() {
+                self.ensure_grammar_tables()?;
+                let tx = self.dict.transaction()?;
+                {
+                    tx.execute("DELETE FROM x1grammar_patterns", [])?;
+                    let mut ins = tx.prepare(
+                        "INSERT OR REPLACE INTO x1grammar_patterns (seq, len, count, source)
+                     VALUES (?1, ?2, ?3, ?4)",
+                    )?;
+                    for (seq, len, c, src) in &builtin_grammar_patterns {
+                        ins.execute(rusqlite::params![seq, len, c, src])?;
+                    }
+                }
+                tx.commit()?;
+            }
+
+            self.ensure_grammar_tables()?;
+            let tx = self.dict.transaction()?;
+            {
+                tx.execute("DELETE FROM x1pos_seq", [])?;
+                let mut ins =
+                    tx.prepare("INSERT OR REPLACE INTO x1pos_seq (seq, count) VALUES (?1, ?2)")?;
+                for (seq, c) in &builtin_pos_seq {
+                    ins.execute(rusqlite::params![seq, c])?;
+                }
+            }
+            tx.commit()?;
         }
 
         Ok(())
@@ -473,7 +833,7 @@ impl crate::storage::Storage {
     ///
     /// 种子侧键：`x1dict_sync_hash`（本 dict.db 来自哪个种子版本）、
     /// `freq_*` / `x1dict_*` / `polyphone_migrated` 等词库维护标记。
-    /// 用户侧键（`context_snapshot` / `green_total_picks` / `user_words_*` /
+    /// 用户侧键（`context_snapshot` / `green_total_picks` / `green_second_picks` / `user_words_*` /
     /// `bigram_migrated`）走 `get_user_meta`。写错库会导致键在更新后丢失，
     /// 因此调用点必须显式选择正确的一侧。
     pub fn get_seed_meta(&self, key: &str) -> rusqlite::Result<Option<String>> {
@@ -513,7 +873,7 @@ impl crate::storage::Storage {
 
     /// 读取用户侧 db_meta 键值（用户库连接；合并模式即同一文件）。
     ///
-    /// 用户侧键：`context_snapshot`（跨会话上下文栈）、`green_total_picks`、
+    /// 用户侧键：`context_snapshot`（跨会话上下文栈）、`green_total_picks`、`green_second_picks`、
     /// `user_words_letters_cleaned`、`user_words_multi_pinyin_v1`、`bigram_migrated`。
     pub fn get_user_meta(&self, key: &str) -> rusqlite::Result<Option<String>> {
         let value: Option<String> = self
@@ -715,6 +1075,237 @@ impl crate::storage::Storage {
                 zh_en_count += 1;
             }
             zh_en_count.hash(&mut hasher);
+        }
+
+        // 第六部分：x1dict_pos（词性资产）：词性表变更必须触发
+        // dict.db 重铺/用户库同步，否则装机侧停留在旧词性（或空表）。
+        let pos_exists: bool = self.dict.query_row(
+            "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='x1dict_pos')",
+            [],
+            |row| row.get(0),
+        ).unwrap_or(false);
+        if pos_exists {
+            let mut pos_stmt = self.dict.prepare(
+                "SELECT word, pos_mask, pos_dominant, pos_counts, source
+                 FROM x1dict_pos ORDER BY word",
+            )?;
+            let pos_rows = pos_stmt.query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, i64>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, String>(3)?,
+                    row.get::<_, String>(4)?,
+                ))
+            })?;
+            let mut pos_count: u64 = 0;
+            for r in pos_rows {
+                let (w, mask, dom, counts, src) = r?;
+                w.hash(&mut hasher);
+                mask.hash(&mut hasher);
+                dom.hash(&mut hasher);
+                counts.hash(&mut hasher);
+                src.hash(&mut hasher);
+                pos_count += 1;
+            }
+            pos_count.hash(&mut hasher);
+        }
+
+        // 第七部分：x1pos_trans（粗类词性转移）。
+        let trans_exists: bool = self.dict.query_row(
+            "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='x1pos_trans')",
+            [],
+            |row| row.get(0),
+        ).unwrap_or(false);
+        if trans_exists {
+            let mut trans_stmt = self.dict.prepare(
+                "SELECT prev_pos, next_pos, count FROM x1pos_trans ORDER BY prev_pos, next_pos",
+            )?;
+            let trans_rows = trans_stmt.query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, i64>(2)?,
+                ))
+            })?;
+            let mut trans_count: u64 = 0;
+            for r in trans_rows {
+                let (a, b, c) = r?;
+                a.hash(&mut hasher);
+                b.hash(&mut hasher);
+                c.hash(&mut hasher);
+                trans_count += 1;
+            }
+            trans_count.hash(&mut hasher);
+        }
+
+        // 第八部分：x1func_ctx（的/地/得 等函数词上下文）。
+        let func_exists: bool = self.dict.query_row(
+            "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='x1func_ctx')",
+            [],
+            |row| row.get(0),
+        ).unwrap_or(false);
+        if func_exists {
+            let mut func_stmt = self.dict.prepare(
+                "SELECT func, prev_pos, next_pos, count FROM x1func_ctx
+                 ORDER BY func, prev_pos, next_pos",
+            )?;
+            let func_rows = func_stmt.query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, i64>(3)?,
+                ))
+            })?;
+            let mut func_count: u64 = 0;
+            for r in func_rows {
+                let (f, p, n, c) = r?;
+                f.hash(&mut hasher);
+                p.hash(&mut hasher);
+                n.hash(&mut hasher);
+                c.hash(&mut hasher);
+                func_count += 1;
+            }
+            func_count.hash(&mut hasher);
+        }
+
+        // 第九部分：x1func_word_ctx（同音歧义词级上下文）。
+        let fwc_exists: bool = self.dict.query_row(
+            "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='x1func_word_ctx')",
+            [],
+            |row| row.get(0),
+        ).unwrap_or(false);
+        if fwc_exists {
+            let mut stmt = self.dict.prepare(
+                "SELECT func, grp, prev, next, count FROM x1func_word_ctx
+                 ORDER BY func, grp, prev, next",
+            )?;
+            let rows = stmt.query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, String>(3)?,
+                    row.get::<_, i64>(4)?,
+                ))
+            })?;
+            let mut n: u64 = 0;
+            for r in rows {
+                let (f, g, p, x, c) = r?;
+                f.hash(&mut hasher);
+                g.hash(&mut hasher);
+                p.hash(&mut hasher);
+                x.hash(&mut hasher);
+                c.hash(&mut hasher);
+                n += 1;
+            }
+            n.hash(&mut hasher);
+        }
+
+        // 第十部分：x1func_word_global（同音歧义词全局计数）。
+        let fwg_exists: bool = self.dict.query_row(
+            "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='x1func_word_global')",
+            [],
+            |row| row.get(0),
+        ).unwrap_or(false);
+        if fwg_exists {
+            let mut stmt = self
+                .dict
+                .prepare("SELECT func, grp, total FROM x1func_word_global ORDER BY func")?;
+            let rows = stmt.query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, i64>(2)?,
+                ))
+            })?;
+            let mut n: u64 = 0;
+            for r in rows {
+                let (f, g, c) = r?;
+                f.hash(&mut hasher);
+                g.hash(&mut hasher);
+                c.hash(&mut hasher);
+                n += 1;
+            }
+            n.hash(&mut hasher);
+        }
+
+        // 第十一部分：x1colloc（口语搭配，拆分变体证据）。
+        let colloc_exists: bool = self
+            .dict
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='x1colloc')",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap_or(false);
+        if colloc_exists {
+            let mut stmt = self
+                .dict
+                .prepare("SELECT prev, curr, count FROM x1colloc ORDER BY prev, curr")?;
+            let rows = stmt.query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, i64>(2)?,
+                ))
+            })?;
+            let mut n: u64 = 0;
+            for r in rows {
+                let (a, b, c) = r?;
+                a.hash(&mut hasher);
+                b.hash(&mut hasher);
+                c.hash(&mut hasher);
+                n += 1;
+            }
+            n.hash(&mut hasher);
+        }
+
+        // 第十二部分：x1pos_seq（粗类三元词性组合，排序特征）。
+        let ps_exists: bool = self.dict.query_row(
+            "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='x1pos_seq')",
+            [],
+            |row| row.get(0),
+        ).unwrap_or(false);
+        if ps_exists {
+            let mut stmt = self
+                .dict
+                .prepare("SELECT seq, count FROM x1pos_seq ORDER BY seq")?;
+            let rows = stmt.query_map([], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?))
+            })?;
+            let mut n: u64 = 0;
+            for r in rows {
+                let (seq, c) = r?;
+                seq.hash(&mut hasher);
+                c.hash(&mut hasher);
+                n += 1;
+            }
+            n.hash(&mut hasher);
+        }
+
+        // 第十三部分：x1grammar_patterns（整句语法模板，排序特征）。
+        let gp_exists: bool = self.dict.query_row(
+            "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='x1grammar_patterns')",
+            [],
+            |row| row.get(0),
+        ).unwrap_or(false);
+        if gp_exists {
+            let mut stmt = self
+                .dict
+                .prepare("SELECT seq, count FROM x1grammar_patterns ORDER BY seq")?;
+            let rows = stmt.query_map([], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?))
+            })?;
+            let mut n: u64 = 0;
+            for r in rows {
+                let (seq, c) = r?;
+                seq.hash(&mut hasher);
+                c.hash(&mut hasher);
+                n += 1;
+            }
+            n.hash(&mut hasher);
         }
 
         Ok(alloc::format!("{:016x}", hasher.finish()))
