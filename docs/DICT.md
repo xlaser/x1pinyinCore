@@ -10,8 +10,9 @@
 
 - 许可：与源码同为 **GPL-3.0**——任何人可下载、编辑、再分发，衍生作品
   （含修改后的词库）须以 GPL-3.0 开源发布；商业使用遵守同一条款；
-- 获取：从 GitHub [Releases](https://github.com/xlaser/x1pinyinCore/releases)
-  下载 `x1pinyin.db`，放到 `x1core/assets/x1pinyin.db`；
+- 获取：随源码分发（`x1core/assets/x1pinyin.db`，2026-11-05 起入库）；
+  历史版本可从 GitHub [Releases](https://github.com/xlaser/x1pinyinCore/releases)
+  下载覆盖；
 - 审计：SQLite 明文库，任何标准工具可查可 diff（见下文"审计速查"）；
 - 形态：VACUUM 归档后的单文件（无 `-wal`/`-shm` 边车依赖）；
 - 纯净性：发布版用户表为近似空态（`user_words` 仅少量测试残留、

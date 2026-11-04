@@ -1,25 +1,19 @@
 # 构建产物
 /target
 
-# 本地词库/运行时数据（种子 DB 不随源码分发，运行时副产物与缓存不入库）
+# 本地词库/运行时数据（运行时副产物与缓存不入库；种子三件随源码分发——
+# 2026-11-05 用户裁决：x1pinyin.db / seed_bigram_cache.bin / x1grammar.bin
+# 进仓库，随开源发布，显式例外如下）
 *.db
 *.db-shm
 *.db-wal
 *.bin
+!x1core/assets/x1pinyin.db
+!x1core/assets/seed_bigram_cache.bin
+!x1core/assets/x1grammar.bin
 
 # 维护脚本的回滚备份
 backups/
 
 # Python 字节码缓存
 __pycache__/
-
-# 本地工具与编辑器状态
-.mimosa/
-.claude/
-.zcode/
-.idea/
-.vscode/
-
-# 系统杂物
-.DS_Store
-Thumbs.db
