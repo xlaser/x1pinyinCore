@@ -1,6 +1,6 @@
 //! x1dict_words 表 CRUD：系统词库的增删改查与批量导入。
 //!
-//! 从 storage.rs 拆出（mod.rs 模块化重构）。
+//! 从 storage.rs 拆出。
 
 use super::*;
 
@@ -65,7 +65,7 @@ impl crate::storage::Storage {
     where
         F: Fn(&str) -> u32,
     {
-        // 第一步：清理拼音为空的脏词条（如「一定||1」）。
+        // 第一步：清理拼音为空的脏词条（历史 bug 产物，如「一定||1」）。
         let dirty = self.dict.execute(
             "DELETE FROM x1dict_words WHERE pinyin = '' OR pinyin IS NULL",
             [],
@@ -106,12 +106,12 @@ impl crate::storage::Storage {
     /// - 1000 <= freq < 5000 → 200（中频档：一般多字词）
     /// - freq < 1000 → 100（低频档：兜底字、冷僻词）
     ///
-    /// 设计目的：把原 freq 的 200 倍差距（9999 vs 50）压扁到 3 倍（300 vs 100），
+    /// **设计目的**：把原 freq 的 200 倍差距（9999 vs 50）压扁到 3 倍（300 vs 100），
     /// 让 candidate_score 里 base 分量不再碾压 user 学习信号（recent/counts/bigram），
-    /// 用户行为成为排序主导。同时保留 3 档区分度（default_pick
+    /// 用户行为成为排序主导。同时保留 3 档区分度避免翅葡萄 bug 复发（default_pick
     /// 的 freq_ratio 守卫仍能在跨档场景生效）。
     ///
-    /// 幂等性：再次执行按当前 freq 重新映射。建议只在 rebuild_x1dict_freq 之后
+    /// **幂等性**：再次执行按当前 freq 重新映射。建议只在 rebuild_x1dict_freq 之后
     /// 立即调用（重算出真实 freq 后压扁），不要单独对已压扁的 DB 再跑（会失去分级）。
     pub fn flatten_freq_to(&mut self, tiers: &[(u32, u32)]) -> rusqlite::Result<usize> {
         let rows: Vec<(i64, i64)> = {
@@ -190,7 +190,7 @@ impl crate::storage::Storage {
         // 但用户 DB 中缺失的词，保留用户对已有系统词的修改（频率、删除等）。
         // 这样即使哈希判断失效或 db_meta 表异常，也不会破坏用户数据。
         //
-        // 注意：不搬内置 DB 的 id（曾导致严重 bug）：内置 DB 的 id 是 importer
+        // **不搬内置 DB 的 id**（曾导致严重 bug）：内置 DB 的 id 是 importer
         // 按导入顺序分配的（谁 shui id=121842），但用户 DB 的 id 分配完全不同
         //（用户 DB 的 121842 可能是「龙阳」）。若 SELECT id 直接插入用户 DB，
         // 主键冲突会被 OR IGNORE 静默跳过，导致新词（如补全的「谁 shui」多音字）
@@ -199,12 +199,13 @@ impl crate::storage::Storage {
         // 正确做法：不指定 id，让用户 DB 自动分配新 id；依赖 (simplified, pinyin)
         // 唯一约束（见 ensure_x1dict_unique_constraint）让 OR IGNORE 按业务键去重。
         //
-        // 必须只读打开 builtin DB：原实现用 ATTACH DATABASE 打开 builtin（可读写），
-        // SQLite WAL 会在 builtin DB 同目录生成 .db-wal/.db-shm 文件。builtin DB 在
-        // bundle 的 Resources 目录里，这些 wal/shm 文件加进 bundle 后破坏 codesign
-        // 密封（verify 报 "file added: x1pinyin.db-wal"），导致系统拒绝加载输入法。
-        // 改用 open_readonly 打开 builtin，读到内存再批量插入用户 DB，builtin
-        // 永远不被写，不生成 wal/shm。
+        // **必须只读打开 builtin DB**（修复签名密封破坏）：
+        // 原实现用 ATTACH DATABASE 打开 builtin（可读写），SQLite WAL 会在
+        // builtin DB 同目录生成 .db-wal/.db-shm 文件。builtin DB 在 bundle 的
+        // Resources 目录里，这些 wal/shm 文件加进 bundle 后破坏 codesign 密封
+        //（verify 报 "file added: x1pinyin.db-wal"），导致系统拒绝加载输入法，
+        // 菜单栏不自动出现图标。改用 open_readonly 打开 builtin，读到内存再
+        // 批量插入用户 DB，builtin 永远不被写，不生成 wal/shm。
         let builtin_storage = Storage::open_readonly(builtin_path)?;
         // 读出 builtin 全部 x1dict_words 到内存（只读连接，不写 builtin）。
         let builtin_words: Vec<(String, String, i64, i64)> = {
@@ -228,7 +229,7 @@ impl crate::storage::Storage {
             }
             v
         };
-        // 同步 seed_bigram_counts（必须在 drop builtin_storage 前读）：
+        // **同步 seed_bigram_counts（必须在 drop builtin_storage 前读）**：
         // 种子 bigram 表与 x1dict_words 同属"种子级权威数据"，需从 builtin 同步到用户 DB。
         // 用户 DB 的 seed_bigram_counts 是冷启动兜底数据源，必须随 app bundle 流转。
         // 只读 (prev,text,count)——新旧表形态通用（新形态无 updated_at）。
@@ -260,7 +261,7 @@ impl crate::storage::Storage {
                 v
             }
         };
-        // 同步 seed_trigram_counts（镜像 seed_bigram 同步）：
+        // **同步 seed_trigram_counts（镜像 seed_bigram 同步）**：
         // 种子 trigram 表与 seed_bigram_counts 同属"种子级权威数据"，
         // 必须随 app bundle 从 builtin 同步到用户 DB（冷启动兜底数据源）。
         // 只读四列——新旧表形态通用（新形态无 updated_at）。
@@ -722,17 +723,17 @@ impl crate::storage::Storage {
     /// 用源 DB（种子）的 x1dict_words 频率覆盖当前 DB（用户）的 x1dict_words 频率
     /// （取消 freq 压扁后的数据修复迁移）。
     ///
-    /// 背景：`ensure_freq_flattened` 的幂等性问题把用户 DB 的 freq 全压成 100，
+    /// **背景**：`ensure_freq_flattened` 的幂等性 bug 把用户 DB 的 freq 全压成 100，
     /// base 分量完全失效。此方法用种子 DB 的正确 freq（compute_freq 真实值 50-9999）
     /// 覆盖用户 DB 的 x1dict_words.freq，修复失真的排序基线。
     ///
-    /// 与 sync_x1dict_from_builtin 的区别：
-    /// - sync 用 INSERT OR IGNORE，只补缺失词，不更新已有词 freq（保护用户修改）
-    /// - restore 用 UPDATE，强制更新已有词 freq（修复被破坏的数据）
+    /// **与 sync_x1dict_from_builtin 的区别**：
+    /// - sync 用 INSERT OR IGNORE，只补缺失词，**不更新已有词 freq**（保护用户修改）
+    /// - restore 用 UPDATE，**强制更新已有词 freq**（修复 bug 破坏的数据）
     ///
-    /// 安全保证：
-    /// - 只动 x1dict_words.freq 和 is_primary，不碰 user_words/user_counts/
-    ///   input_mappings/bigram/trigram 等用户数据表
+    /// **安全保证**：
+    /// - 只动 x1dict_words.freq 和 is_primary，**不碰 user_words/user_counts/
+    ///   input_mappings/bigram/trigram 等用户数据表**
     /// - 用户自造词（user_words）不在 x1dict_words，不受影响
     /// - 用户学习统计（counts/recent/bigram）独立于 freq，不受影响
     ///
@@ -792,15 +793,15 @@ impl crate::storage::Storage {
     /// 到 3 档（100/200/300），与新版种子 DB 一致。压扁后写入 freq_flattened_v1
     /// 标记，后续启动直接跳过。
     ///
-    /// 绕过 sync_x1dict_from_builtin 的 INSERT OR IGNORE 限制：sync 只补缺失词，
+    /// **绕过 sync_x1dict_from_builtin 的 INSERT OR IGNORE 限制**：sync 只补缺失词，
     /// 不更新已有词的 freq，所以老用户的高 freq 不会被自动压扁。本方法独立执行
     /// 压扁，确保老用户升级后行为与新用户一致。
     ///
-    /// 只在真实用户 DB 执行：通过 db_meta 里是否有 x1dict_sync_hash 判断。
+    /// **只在真实用户 DB 执行**：通过 db_meta 里是否有 x1dict_sync_hash 判断。
     /// 测试临时 DB（Storage::open 新建，未经过 sync）没有 sync_hash，跳过压扁，
     /// 避免破坏测试 setup 里精心构造的 freq 值（如"吃"=6800）。
     ///
-    /// 幂等：已标记的 DB 直接返回 Ok(0)，不重复压扁。
+    /// **幂等**：已标记的 DB 直接返回 Ok(0)，不重复压扁。
     pub fn ensure_freq_flattened(&mut self) -> rusqlite::Result<usize> {
         // 已压扁过 → 跳过
         if let Some(v) = self.get_seed_meta("freq_flattened_v1")? {
@@ -829,7 +830,7 @@ impl crate::storage::Storage {
     // DB 元数据（db_meta 表）：用于追踪系统词库同步版本
     // -----------------------------------------------------------------
 
-    /// 读取种子侧 db_meta 键值（双库分离后按角色分流）。
+    /// 读取 **种子侧** db_meta 键值（双库分离后按角色分流）。
     ///
     /// 种子侧键：`x1dict_sync_hash`（本 dict.db 来自哪个种子版本）、
     /// `freq_*` / `x1dict_*` / `polyphone_migrated` 等词库维护标记。
@@ -848,7 +849,7 @@ impl crate::storage::Storage {
         Ok(value)
     }
 
-    /// 写入种子侧 db_meta 键值。
+    /// 写入 **种子侧** db_meta 键值。
     pub fn set_seed_meta(&mut self, key: &str, value: &str) -> rusqlite::Result<()> {
         self.dict.execute(
             "INSERT INTO db_meta (key, value) VALUES (?1, ?2)
@@ -859,7 +860,7 @@ impl crate::storage::Storage {
     }
 
     /// 词条编辑版本（缓存失效键）：所有 `x1dict_words` 变更
-    /// API 尾部自增。为什么不复用 `x1dict_sync_hash`：那个键的语义是
+    /// API 尾部自增。**为什么不复用 `x1dict_sync_hash`**：那个键的语义是
     /// 「与种子内容的比对基线」，拿它当编辑标记会让管理器删词被误判成
     /// 「种子变了」→ 下次启动 sync 把删掉的词恢复。
     /// 裸改 DB（绕过本模块 API）由缓存头的行数哨兵兜底（同级暴露面）。
@@ -871,7 +872,7 @@ impl crate::storage::Storage {
         self.set_seed_meta("x1dict_rev", &(cur + 1).to_string())
     }
 
-    /// 读取用户侧 db_meta 键值（用户库连接；合并模式即同一文件）。
+    /// 读取 **用户侧** db_meta 键值（用户库连接；合并模式即同一文件）。
     ///
     /// 用户侧键：`context_snapshot`（跨会话上下文栈）、`green_total_picks`、`green_second_picks`、
     /// `user_words_letters_cleaned`、`user_words_multi_pinyin_v1`、`bigram_migrated`。
@@ -887,7 +888,7 @@ impl crate::storage::Storage {
         Ok(value)
     }
 
-    /// 写入用户侧 db_meta 键值。
+    /// 写入 **用户侧** db_meta 键值。
     pub fn set_user_meta(&mut self, key: &str, value: &str) -> rusqlite::Result<()> {
         self.user_mut().execute(
             "INSERT INTO db_meta (key, value) VALUES (?1, ?2)
@@ -897,8 +898,8 @@ impl crate::storage::Storage {
         Ok(())
     }
 
-    /// 表是否含指定列（种子 n-gram 表 WITHOUT ROWID 换代的双形态兼容判据：
-    /// 老 rowid 形态有 updated_at，新形态没有）。
+    /// 表是否含指定列（种子 n-gram 表 WITHOUT ROWID 换代的双形态
+    /// 兼容判据：老 rowid 形态有 updated_at，新形态没有）。
     fn table_has_column(&self, table: &str, column: &str) -> rusqlite::Result<bool> {
         // 表名/列名均为本文件内常量，无注入面；低频调用不进 prepare_cached。
         let sql = format!(
@@ -915,10 +916,9 @@ impl crate::storage::Storage {
     /// `(prev, text, count)` + seed_trigram_counts 的 `(prev2, prev1, text, count)`
     /// 做确定性聚合哈希，用于检测内置 DB 是否发生变化。
     ///
-    /// 修订：原版只哈希 x1dict_words，导致 seed_bigram_counts
-    /// 变化时不触发 sync（用户 DB 的 seed_bigram_counts 永远空）。修订后把
-    /// seed_bigram_counts 也纳入哈希，让种子 bigram 更新生效；
-    /// seed_trigram_counts 同理纳入哈希（否则种子 trigram 更新不同步到用户 DB）。
+    /// **哈希范围**：除 x1dict_words 外还纳入 seed_bigram_counts 与
+    /// seed_trigram_counts——原版只哈希 x1dict_words 时，种子搭配表变化
+    /// 不触发 sync（用户 DB 的 seed_bigram_counts 永远停留在空/旧版）。
     ///
     /// 返回十六进制字符串（16 字符，64 位）。
     pub fn x1dict_content_hash(&self) -> rusqlite::Result<String> {
@@ -1013,7 +1013,7 @@ impl crate::storage::Storage {
             tri_count.hash(&mut hasher);
         }
 
-        // 第四部分：english_words：英文词表
+        // 第四部分：english_words（智能单词识别入种子）：英文词表
         // 变更必须触发 dict.db 重铺（ensure_dict_db 哈希门控），否则装机侧
         // 永远停留在旧表。与第二/三部分同理——表不存在（老 DB）跳过。
         let en_exists: bool = self.dict.query_row(
@@ -1045,7 +1045,7 @@ impl crate::storage::Storage {
             en_count.hash(&mut hasher);
         }
 
-        // 第五部分：zh_en_words：与第四部分
+        // 第五部分：zh_en_words（中译英词表入种子）：与第四部分
         // 同理——词表变更必须触发 dict.db 重铺（ensure_dict_db 哈希门控）。
         // 表不存在（老 DB）跳过。
         let zh_en_exists: bool = self.dict.query_row(
@@ -1363,7 +1363,7 @@ impl crate::storage::Storage {
                 .replace("%", "\\%")
                 .replace("_", "\\_");
             let pattern = format!("%{}%", escaped);
-            // 音节感知排序（「搜 de 看不到 地」）：REPLACE(pinyin,' ','')
+            // 音节感知排序（修「搜 de 看不到 地」）：REPLACE(pinyin,' ','')
             // LIKE '%de%' 的子串匹配会命中 deng/记得/觉得 等拼音内含 de 的词（实测
             // 命中 7168 行），高频次音字（地/de）被排到 200+ 位看不见。四级排序：
             // 0=拼音精确同音（的 de）→ 1=音节前缀（德国 de guo；LIKE 'de %' 只在
@@ -1445,7 +1445,7 @@ impl crate::storage::Storage {
 
     /// 添加或替换一条系统词（以 simplified+pinyin 为业务键，先删除旧记录避免重复）。
     ///
-    /// 本地修正标记：这是宿主前端 / 词库管理器修正系统词库的通道之一，写入后打
+    /// **本地修正标记**：这是文本学习 / 词库管理器修正系统词库的通道之一，写入后打
     /// `local_corrections` 标（更新覆盖 dict.db 前据此先备份，见 `split.rs`）。
     pub fn add_x1dict_word(&mut self, word: &X1DictWord) -> rusqlite::Result<usize> {
         // 事务包裹：DELETE+INSERT 原子——否则崩溃在中间 =
@@ -1543,7 +1543,7 @@ impl crate::storage::Storage {
 
     /// 按 text 删除 x1dict_words 里所有同名词（不区分读音）。
     ///
-    /// 用户 Command+Backspace 删除某词时调用，彻底从系统词库清除。
+    /// 用户整词删除某词时调用，彻底从系统词库清除。
     /// 这样 DP 查 dict（含 x1dict_words 加载的 Trie）查不到该词，不再被选来拼绿词。
     /// 返回删除的行数。写入后打本地修正标记（同 add）。
     pub fn delete_x1dict_word_by_text(&mut self, text: &str) -> rusqlite::Result<usize> {
@@ -1562,7 +1562,7 @@ impl crate::storage::Storage {
 
     /// 流式加载全部 X1Dict 词条，逐行回调（内存优化）。
     ///
-    /// 供 `Engine::new()` 启动时填充 Trie。替代 load_all_for_trie 的全量物化：
+    /// 供 `Engine::new()` 启动时填充 Trie。**替代 load_all_for_trie 的全量物化**：
     /// 原实现先收集 `Vec<(String, String, u32, bool)>`（187k × 2 String 堆分配）
     /// 再插 Trie，启动期间峰值内存 ≈ 数据 3 份（SQLite 页缓存 + Vec 物化 + Trie）。
     /// 本方法在 SQL 迭代中逐行回调（闭包内直接 insert 进 Trie），峰值减约
@@ -1589,7 +1589,7 @@ impl crate::storage::Storage {
             let simplified = row.get_ref(1)?.as_str()?;
             let raw_freq: i64 = row.get(2)?;
             let is_primary: bool = row.get::<_, i64>(3).map(|v| v != 0).unwrap_or(true);
-            // defense-in-depth clamp：任何 freq > MAX_FREQ（10000）视为异常，
+            // **defense-in-depth clamp**：任何 freq > MAX_FREQ（10000）视为异常，
             // clamp 到 100（低频档）。防止异常值进 Trie 导致候选排序错乱。
             let freq = if raw_freq.max(0) as u32 > crate::char_freq::MAX_FREQ {
                 100
@@ -1607,7 +1607,7 @@ impl crate::storage::Storage {
     /// `is_primary` 表示该 (字, 拼音) 组合的拼音是否为该字的主音，
     /// 用于排序时主音字优先于次音字。
     ///
-    /// 实现包装 `for_each_trie_word`（流式），
+    /// 实现为包装 `for_each_trie_word`（流式），
     /// 不再全量物化（峰值内存 -60-80MB）；返回顺序契约不变（ORDER BY freq DESC）。
     /// 新代码优先用 `for_each_trie_word`（避免 Vec 物化），本方法保留供
     /// 测试/工具使用。
@@ -1625,7 +1625,7 @@ impl crate::storage::Storage {
     /// 历史发布版的用户 DB 三表（x1dict_words.freq /
     /// seed_bigram_counts.count / seed_trigram_counts.count）是 XOR 密文，
     /// db_meta 有 `freq_encryption_version=v1` 标记。加密代码已删除（无密钥可解），
-    /// 迁移策略是丢弃密文数据：用明文种子覆盖 freq（restore_x1dict_freq_from）、
+    /// 迁移策略是**丢弃密文数据**：用明文种子覆盖 freq（restore_x1dict_freq_from）、
     /// 清空种子搭配表（下一次 sync_x1dict_from_builtin 从明文种子重建）、清除标记。
     /// user_words / input_mappings 等用户数据表不受影响。
     ///
@@ -1652,7 +1652,7 @@ impl crate::storage::Storage {
     }
 
     // ── 英文单词表查询（智能单词识别）──
-    // 全部参数绑定 + prepare_cached（按键热路径；不拼接 SQL）。
+    // 全部参数绑定 + prepare_cached（按键热路径；SQL 拼接禁令）。
     // word 主键 B 树：精确查 = 点查；前缀 = 字典序区间扫描（upper = 前缀末字节
     // +1），前缀族仅数十行，ORDER BY freq DESC 无需额外索引。
     // 无 DB（Engine::new 内置模式）由引擎侧判 None 短路，不进这里。
@@ -1679,7 +1679,7 @@ impl crate::storage::Storage {
         .ok()
     }
 
-    /// 精确查词的轻量版：返回 (规范展示词形, freq)。
+    /// 精确查词的轻量版：返回 (**规范展示词形**, freq)。
     ///
     /// 查询键 = lower(input)（输入不区分大小写），返回值是存储的
     /// 规范词形（打 `ibm` → 候选 `IBM`）。候选注入/纠错短路热路径。
@@ -1728,8 +1728,8 @@ impl crate::storage::Storage {
     }
 
     /// 中文释义反查（候选翻译副栏）：`cn` 包含 `term` 的英文词，
-    /// 按种子 freq 降序取前 `limit` 行；引擎层只保留整条义项精确命中
-    /// （子串提及不算对译，SQL 只负责缩小候选集合）。
+    /// 按种子 freq 降序取前 `limit` 行；**引擎层只保留整条义项精确命中**
+    /// （收紧口径：子串提及不算对译，SQL 只负责缩小候选集合）。
     /// term 的 LIKE 通配符已转义（`%` / `_` / `\`）。
     ///
     /// 10k 行全表 LIKE 实测 ~0.3ms（选中项变化时才查，非按键热路径）；
@@ -1869,7 +1869,7 @@ impl crate::storage::Storage {
 
     /// 新增/覆盖一条英文词（大小写变体视为同一条：按 lower(word) 先删旧行）。
     ///
-    /// word 列存规范展示词形（IBM / iPhone），不是查询键。`is_word_shape`
+    /// word 列存**规范展示词形**（IBM / iPhone），不是查询键。`is_word_shape`
     /// 已在引擎层校验（纯字母 2..=24，允许混合大小写）。
     pub fn english_upsert(&self, w: &EnglishWord) -> bool {
         let key = w.word.to_ascii_lowercase();

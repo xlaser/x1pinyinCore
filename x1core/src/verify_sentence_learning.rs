@@ -560,7 +560,7 @@ mod verify {
     /// - 若删除后绿词完全消失，会导致死循环——绿词消失后用户
     ///   选不到它，无法 commit 复活；
     /// - 因此删除后绿词降级排到候选列表末尾（不打扰但仍可翻页找到），
-    ///   让用户改变主意时能选中复活。Command+Backspace 仍是基本功能。
+    ///   让用户改变主意时能选中复活。整词删除仍是基本功能。
     #[test]
     fn verify_remove_sentence_blacklisted_until_revive() {
         let seed = concat!(env!("CARGO_MANIFEST_DIR"), "/assets/x1pinyin.db");

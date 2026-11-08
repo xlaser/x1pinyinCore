@@ -6,14 +6,14 @@
 //! - 用 **lift（语境份额 / 全局份额）** 而不是原始计数：的全局占比 ~96%，
 //!   原始计数会让任何语境都偏向的；lift 才能表达“该语境下地显著更可能”。
 //!
-//! 全部数据由标注语料离线挖掘而来（随种子 DB 分发的侧表）。
+//! 全部数据来自 PFR 2014（CC0），离线挖掘。
 
 use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::storage::Storage;
 
-/// 细标签 → 粗类。`ad` 归 a（副词性形容词），`vn/vi/...` 归 v。
+/// PFR 细标签 → 粗类。`ad` 归 a（副词性形容词），`vn/vi/...` 归 v。
 /// （运行时当前只用 dominant 粗类。）
 pub(crate) fn coarse_class(tag: &str) -> &'static str {
     if tag.starts_with('n') {
@@ -61,7 +61,7 @@ pub(crate) fn colloc_key(prev: &str, curr: &str) -> u64 {
     h
 }
 
-/// OOV 构词后缀 → 粗类（短词/自造词没有语料词性时的兜底）。
+/// OOV 构词后缀 → 粗类（短词/自造词没有 PFR 词性时的兜底）。
 /// 只做保守的单字后缀，避免把生词硬塞进错误词性。
 fn suffix_coarse(word: &str) -> Option<&'static str> {
     const SUFFIXES: &[(char, &str)] = &[
@@ -119,7 +119,7 @@ fn pattern_key(ids: &[u8]) -> u64 {
         .fold(0u64, |k, id| (k << 4) | ((*id as u64 & 0xf) + 1))
 }
 
-/// 位图 → 粗类（与 seed_pos_build.py 的 POS_BITS 对齐）。
+/// 位图 → 粗类（磁盘表 `pos_mask` 的位序定义）。
 const POS_CLASSES: &[(u16, &str)] = &[
     (1, "n"),
     (2, "v"),
@@ -136,17 +136,216 @@ const POS_CLASSES: &[(u16, &str)] = &[
     (4096, "x"),
 ];
 
-#[derive(Debug, Clone)]
-pub(crate) struct PosInfo {
-    pub(crate) mask: u16,
-    /// 细标签位图（如 ad/v/n），将来语法模型用；当前只用 coarse。
-    #[allow(dead_code)]
-    pub(crate) dominant: String,
-    pub(crate) coarse: &'static str,
-    /// 粗类多词性分布（只对 mask 多位的词加载；单类词为 None）。
-    #[allow(dead_code)]
-    pub(crate) weights: Option<Arc<[(&'static str, u32)]>>,
+/// 全部合法粗类位；由 `POS_CLASSES` 派生，新增第 14 类时自动跟上。
+const KNOWN_POS_MASK: u16 = {
+    let mut mask = 0u16;
+    let mut i = 0;
+    while i < POS_CLASSES.len() {
+        mask |= POS_CLASSES[i].0;
+        i += 1;
+    }
+    mask
+};
+
+/// 词性表的紧凑行：mask + 粗类 id，不再为每个词保留独立 String。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct PosEntry {
+    mask: u16,
+    coarse: u8,
 }
+
+/// 词性只读表（紧凑内存表示）。
+///
+/// 旧表示 `HashMap<Arc<str>, PosInfo>` 为 81,399 个词各分配一个 HashMap 桶、
+/// 一份词字符串和一份 `dominant: String`；内容不足 1MB，运行时对象头与重复
+/// 字符串却吃掉约 10MB。新表示：
+/// - `words`：所有词按字典序拼成单一 blob；
+/// - `spans`：`(offset, len)` 平行索引，二分查找；
+/// - `entries`：mask + 粗类 id 平行数组；
+/// - `weights`：仅 55 个粗类多词性词有分布，稀疏 HashMap 保存。
+///
+/// 数据真相仍是 `x1dict_pos`（外部编辑入口不变）；这里只是启动期派生的
+/// 只读表示，**不落盘、不参与失效协议**，改词性后按既有语义重启生效。
+#[derive(Debug, Default)]
+struct PosTable {
+    words: String,
+    spans: Vec<(u32, u32)>,
+    entries: Vec<PosEntry>,
+    weights: HashMap<u32, Arc<[(&'static str, u32)]>>,
+}
+
+impl PosTable {
+    fn new() -> Self {
+        Self::default()
+    }
+
+    fn reserve(&mut self, rows: usize) {
+        self.spans.reserve(rows);
+        self.entries.reserve(rows);
+    }
+
+    /// 追加一行；输入必须按词字典序。同词后写覆盖（与旧 HashMap insert 相同）。
+    fn push_sorted(&mut self, word: &str, mask: u16, coarse: u8) {
+        if let Some(&(off, len)) = self.spans.last() {
+            let prev = &self.words[off as usize..(off + len) as usize];
+            debug_assert!(prev <= word, "PosTable 输入必须按词字典序: {prev} > {word}");
+            if prev == word {
+                if let Some(entry) = self.entries.last_mut() {
+                    *entry = PosEntry { mask, coarse };
+                }
+                return;
+            }
+        }
+        let off = self.words.len() as u32;
+        self.words.push_str(word);
+        self.spans.push((off, word.len() as u32));
+        self.entries.push(PosEntry { mask, coarse });
+    }
+
+    fn finish(mut self) -> Self {
+        self.words.shrink_to_fit();
+        self.spans.shrink_to_fit();
+        self.entries.shrink_to_fit();
+        self
+    }
+
+    #[cfg(test)]
+    fn from_rows<I>(rows: I) -> Self
+    where
+        I: IntoIterator<Item = (String, u16, u8)>,
+    {
+        let mut rows: Vec<(String, u16, u8)> = rows.into_iter().collect();
+        rows.sort_by(|a, b| a.0.cmp(&b.0));
+        let mut table = Self::new();
+        table.reserve(rows.len());
+        for (word, mask, coarse) in rows {
+            table.push_sorted(&word, mask, coarse);
+        }
+        table.finish()
+    }
+
+    fn index(&self, word: &str) -> Option<usize> {
+        self.spans
+            .binary_search_by(|&(off, len)| {
+                self.words[off as usize..(off + len) as usize].cmp(word)
+            })
+            .ok()
+    }
+
+    #[cfg(test)]
+    fn len(&self) -> usize {
+        self.spans.len()
+    }
+
+    fn is_empty(&self) -> bool {
+        self.spans.is_empty()
+    }
+
+    fn contains_key(&self, word: &str) -> bool {
+        self.index(word).is_some()
+    }
+
+    fn mask(&self, word: &str) -> Option<u16> {
+        self.index(word).map(|i| self.entries[i].mask)
+    }
+
+    fn coarse_id(&self, word: &str) -> Option<u8> {
+        self.index(word).map(|i| self.entries[i].coarse)
+    }
+
+    fn coarse(&self, word: &str) -> Option<&'static str> {
+        self.coarse_id(word).map(coarse_name)
+    }
+
+    fn weights(&self, word: &str) -> Option<&[(&'static str, u32)]> {
+        let i = self.index(word)?;
+        self.weights.get(&(i as u32)).map(|w| w.as_ref())
+    }
+
+    fn set_weights(&mut self, word: &str, weights: Arc<[(&'static str, u32)]>) {
+        if let Some(i) = self.index(word) {
+            self.weights.insert(i as u32, weights);
+        }
+    }
+
+    #[cfg(test)]
+    fn upsert(&mut self, word: &str, mask: u16, coarse: u8) {
+        let mut rows: Vec<(String, u16, u8)> = self
+            .spans
+            .iter()
+            .zip(&self.entries)
+            .map(|(&(off, len), entry)| {
+                (
+                    self.words[off as usize..(off + len) as usize].to_string(),
+                    entry.mask,
+                    entry.coarse,
+                )
+            })
+            .collect();
+        if let Some(row) = rows.iter_mut().find(|(w, _, _)| w == word) {
+            *row = (word.to_string(), mask, coarse);
+        } else {
+            rows.push((word.to_string(), mask, coarse));
+        }
+        *self = Self::from_rows(rows);
+    }
+
+    #[cfg(test)]
+    fn remove(&mut self, word: &str) {
+        let rows: Vec<(String, u16, u8)> = self
+            .spans
+            .iter()
+            .zip(&self.entries)
+            .filter_map(|(&(off, len), entry)| {
+                let w = &self.words[off as usize..(off + len) as usize];
+                (w != word).then(|| (w.to_string(), entry.mask, entry.coarse))
+            })
+            .collect();
+        *self = Self::from_rows(rows);
+    }
+}
+
+/// 粗类 id（`POS_CLASSES` 下标）→ 粗类名。数组顺序即 `class_id` 的映射基准。
+fn coarse_name(id: u8) -> &'static str {
+    POS_CLASSES
+        .get(id as usize)
+        .map(|(_, name)| *name)
+        .unwrap_or("x")
+}
+
+/// 词的可能粗类迭代器：mask 位序 = `POS_CLASSES` 顺序；OOV 回退为单类。
+/// 栈上结构，不分配 Vec（`classes_for` 在候选打分热路径调用）。
+struct PosClasses {
+    mask: u16,
+    fallback: Option<&'static str>,
+    next: usize,
+}
+
+impl Iterator for PosClasses {
+    type Item = &'static str;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while self.mask != 0 && self.next < POS_CLASSES.len() {
+            let (bit, name) = POS_CLASSES[self.next];
+            self.next += 1;
+            if self.mask & bit != 0 {
+                return Some(name);
+            }
+        }
+        self.fallback.take()
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let remaining_mask = POS_CLASSES[self.next..]
+            .iter()
+            .filter(|(bit, _)| self.mask & bit != 0)
+            .count();
+        let n = remaining_mask + usize::from(self.fallback.is_some());
+        (n, Some(n))
+    }
+}
+
+impl ExactSizeIterator for PosClasses {}
 
 /// 一个 (prev_pos, next_pos) 语境下的 的/地/得 计数。
 #[derive(Debug, Clone, Copy, Default)]
@@ -165,7 +364,7 @@ impl FuncCounts {
 /// 词性/语法模型。空模型 = 无词性资产（老库/内置模式），所有消费点返回 0。
 #[derive(Default)]
 pub(crate) struct GrammarModel {
-    pos: HashMap<Arc<str>, PosInfo>,
+    pos: PosTable,
     /// prev_pos → next_pos → 的/地/得计数（键是粗类，静态字符串，查询零分配）。
     func_ctx: HashMap<&'static str, HashMap<&'static str, FuncCounts>>,
     total_de: u64,
@@ -187,7 +386,7 @@ pub(crate) struct GrammarModel {
     pos_total_all: u64,
     /// 同音歧义词级上下文：func → (prev_word,next_word) → count。
     word_ctx: HashMap<String, HashMap<(String, String), u32>>,
-    /// func → (group, 全局出现次数)。
+    /// func → (group, PFR 全局出现次数)。
     func_global: HashMap<String, (String, u64)>,
     /// group → (prev,next) → 组内总次数（P(context|group) 分母）。
     group_ctx: HashMap<String, HashMap<(String, String), u32>>,
@@ -202,18 +401,16 @@ impl GrammarModel {
     pub(crate) fn load(storage: &Storage) -> rusqlite::Result<Self> {
         let mut model = GrammarModel::default();
 
-        for (word, mask, dominant) in storage.load_pos_entries()? {
-            let coarse = coarse_class(&dominant);
-            model.pos.insert(
-                Arc::from(word),
-                PosInfo {
-                    mask,
-                    dominant,
-                    coarse,
-                    weights: None,
-                },
-            );
-        }
+        // 流式构建紧凑表：不物化 81k 个 (word, dominant) String。SQL 已按
+        // 字典序返回，push_sorted 直接追加；同词后写覆盖语义保持不变。
+        let pos_rows = storage.pos_entry_count()?;
+        let mut pos_table = PosTable::new();
+        pos_table.reserve(pos_rows);
+        storage.for_each_pos_entry(|word, mask, dominant| {
+            let coarse = class_id(coarse_class(dominant));
+            pos_table.push_sorted(word, mask, coarse);
+        })?;
+        model.pos = pos_table.finish();
 
         // 多词性细分布：只覆盖粗类真正多类（55 个）的词；单类词不加载。
         for (word, counts) in storage.load_pos_multi_counts()? {
@@ -228,11 +425,11 @@ impl GrammarModel {
                 *by_class.entry(coarse_class(tag)).or_default() += n;
             }
             if by_class.len() > 1 {
-                if let Some(info) = model.pos.get_mut(word.as_str()) {
-                    let mut v: Vec<(&'static str, u32)> = by_class.into_iter().collect();
-                    v.sort_unstable_by_key(|(_, n)| std::cmp::Reverse(*n));
-                    info.weights = Some(Arc::from(v.into_boxed_slice()));
-                }
+                let mut v: Vec<(&'static str, u32)> = by_class.into_iter().collect();
+                v.sort_unstable_by_key(|(_, n)| std::cmp::Reverse(*n));
+                model
+                    .pos
+                    .set_weights(&word, Arc::from(v.into_boxed_slice()));
             }
         }
 
@@ -348,53 +545,82 @@ impl GrammarModel {
         sum
     }
 
-    /// 词性查询（诊断/未来语法模型用；当前 de_choice 内部直查）。
-    #[allow(dead_code)]
-    pub(crate) fn pos_info(&self, word: &str) -> Option<&PosInfo> {
-        self.pos.get(word)
-    }
-
     fn pos_active(&self) -> bool {
         !self.pos.is_empty() && !self.pos_trans.is_empty()
     }
 
+    /// 测试构造入口：向紧凑词性表 upsert 一行（生产数据始终来自 `x1dict_pos`）。
+    #[cfg(test)]
+    fn insert_pos(&mut self, word: &str, mask: u16, dominant: &str) {
+        let coarse = class_id(coarse_class(dominant));
+        self.pos.upsert(word, mask, coarse);
+    }
+
+    #[cfg(test)]
+    fn remove_pos(&mut self, word: &str) {
+        self.pos.remove(word);
+    }
+
+    #[cfg(test)]
+    fn pos_len(&self) -> usize {
+        self.pos.len()
+    }
+
+    #[cfg(test)]
+    fn pos_mask(&self, word: &str) -> Option<u16> {
+        self.pos.mask(word)
+    }
+
+    #[cfg(test)]
+    fn coarse_for(&self, word: &str) -> Option<&'static str> {
+        self.pos.coarse(word)
+    }
+
     /// 词的可能粗类（mask 全展开；mask=0 时回退 dominant 粗类）。
-    fn classes_for(&self, word: &str) -> Vec<&'static str> {
-        let Some(info) = self.pos.get(word) else {
+    /// 返回栈上迭代器，热路径不分配 Vec。
+    fn classes_for(&self, word: &str) -> PosClasses {
+        let Some(mask) = self.pos.mask(word) else {
             // OOV / 自造词 / 短词：用末字词性、首字词性或构词后缀回退。
             // 只参与排序（path_pos_delta），不生成候选文本。
-            if word.chars().count() >= 2 {
-                let chars: Vec<char> = word.chars().collect();
-                for ch in [chars.last(), chars.first()].into_iter().flatten() {
-                    if let Some(info) = self.pos.get(ch.to_string().as_str()) {
-                        return vec![info.coarse];
+            let fallback = if word.chars().count() >= 2 {
+                // 不物化 Vec<char>，也不为单字构造临时 String（热路径零分配）。
+                let mut buf = [0u8; 4];
+                let mut fallback = None;
+                if let Some(ch) = word.chars().last() {
+                    fallback = self.pos.coarse(ch.encode_utf8(&mut buf));
+                }
+                if fallback.is_none() {
+                    if let Some(ch) = word.chars().next() {
+                        fallback = self.pos.coarse(ch.encode_utf8(&mut buf));
                     }
                 }
-                if let Some(p) = suffix_coarse(word) {
-                    return vec![p];
-                }
-            }
-            return Vec::new();
+                fallback.or_else(|| suffix_coarse(word))
+            } else {
+                None
+            };
+            return PosClasses {
+                mask: 0,
+                fallback,
+                next: 0,
+            };
         };
-        let mut out = Vec::new();
-        for (bit, name) in POS_CLASSES {
-            if info.mask & bit != 0 {
-                out.push(*name);
-            }
+        // 与旧实现等价：仅当没有任何已知粗类位（含非法高位）时才回退 dominant。
+        let fallback = if mask & KNOWN_POS_MASK == 0 {
+            self.pos.coarse(word)
+        } else {
+            None
+        };
+        PosClasses {
+            mask,
+            fallback,
+            next: 0,
         }
-        if out.is_empty() && !info.coarse.is_empty() {
-            out.push(info.coarse);
-        }
-        out
     }
 
     /// 多词性先验：log2(该粗类占比)×0.5，钳 ±1。只对加载了 weights 的
     /// 55 个粗类多词性词生效；单类词恒 0。
     fn pos_prior(&self, word: &str, c: &str) -> f64 {
-        let Some(info) = self.pos.get(word) else {
-            return 0.0;
-        };
-        let Some(weights) = info.weights.as_ref() else {
+        let Some(weights) = self.pos.weights(word) else {
             return 0.0;
         };
         let total: u32 = weights.iter().map(|(_, n)| *n).sum();
@@ -424,10 +650,10 @@ impl GrammarModel {
 
     /// 词的主导粗类（已知词用 dominant，OOV 用回退的第一类）。
     fn dominant_class(&self, word: &str) -> Option<&'static str> {
-        if let Some(info) = self.pos.get(word) {
-            return Some(info.coarse);
+        if let Some(coarse) = self.pos.coarse(word) {
+            return Some(coarse);
         }
-        self.classes_for(word).first().copied()
+        self.classes_for(word).next()
     }
 
     /// 模板命中次数（按粗类 id 序列；不套用阈值/OOV 门控）。
@@ -457,7 +683,7 @@ impl GrammarModel {
     ///
     /// 短路径（≤6 词）查完整模板；中长路径（7–24 词）用 4–6 词滑动窗口
     /// 评估语法块覆盖——支持多词组合，不把长句硬塞进稀疏全句模板。
-    /// 只奖励高频、全词有语料词性的组合；未命中不罚。
+    /// 只奖励高频、全词有 PFR 词性的组合；未命中不罚。
     pub(crate) fn pattern_delta(&self, words: &[String]) -> i32 {
         if self.patterns.is_empty() || words.len() < 2 {
             return 0;
@@ -565,13 +791,13 @@ impl GrammarModel {
             sum += (p_cond / p_cls).log2();
         }
         // 轻量三元先验：权重刻意低（0.5、钳 ±2），避免局部词性组合压过
-        // 后文长程语境；G1 中性，作为词性组合记录的第一版特征保留。
+        // 后文长程语境；本层保持中性，作为词性组合记录的第一版特征保留。
         ((sum * 0.5).round() as i32).clamp(-2, 2)
     }
 
     /// 短路径（≤6 词）的 POS 转移增量（Viterbi 选每词最合适的粗类）。
     ///
-    /// 中长句实测：相邻 Viterbi 在长句会误推错误同音句，
+    /// 中长句 A/B 实测：相邻 Viterbi 在长句会误推错误同音句，
     /// 因此 >6 词交给三元/滑动模板与长程语境。只参与排序、不生成文本；
     /// 返回 PMI 和×1.5，钳 ±12。做/作、那/哪 的 POS 类相同，靠本层无法区分
     /// （留给词级上下文）。
@@ -581,18 +807,16 @@ impl GrammarModel {
         }
         // 词性 + 词性组合只参与排序，不生成文本。
         // OOV 的粗类由 classes_for 的末字/首字/后缀回退提供；
-        // 生成缺口由 G1 的 Any 单独观察。
+        // 生成缺口由绿词层单独观察。
         let first = self.classes_for(&words[0]);
-        if first.is_empty() {
+        if first.len() == 0 {
             return 0;
         }
-        let mut prev: HashMap<&'static str, f64> = first
-            .into_iter()
-            .map(|c| (c, self.pos_prior(&words[0], c)))
-            .collect();
+        let mut prev: HashMap<&'static str, f64> =
+            first.map(|c| (c, self.pos_prior(&words[0], c))).collect();
         for word in &words[1..] {
             let cur = self.classes_for(word);
-            if cur.is_empty() {
+            if cur.len() == 0 {
                 return 0;
             }
             let mut next: HashMap<&'static str, f64> = HashMap::new();
@@ -811,8 +1035,8 @@ impl GrammarModel {
     }
 
     fn de_choice(&self, prev: &str, next: &str) -> Option<FuncCounts> {
-        let p = self.pos.get(prev)?.coarse;
-        let n = self.pos.get(next)?.coarse;
+        let p = self.pos.coarse(prev)?;
+        let n = self.pos.coarse(next)?;
         self.func_ctx.get(p).and_then(|m| m.get(n)).copied()
     }
 
@@ -884,16 +1108,16 @@ impl GrammarModel {
             // 生成“地”变体只走典型状中结构：前词形容词/副词（a/d）+
             // 后词动词/形容词/副词（v/a/d）。避免在名词前、代词后等
             // 语境滥用 lift 造出错误变体（原“的”候选仍保留）。
-            let Some(prev_info) = self.pos.get(words[i - 1].as_str()) else {
+            let Some(prev_coarse) = self.pos.coarse(words[i - 1].as_str()) else {
                 continue;
             };
-            if !matches!(prev_info.coarse, "a" | "d") {
+            if !matches!(prev_coarse, "a" | "d") {
                 continue;
             }
-            let Some(next_info) = self.pos.get(words[i + 1].as_str()) else {
+            let Some(next_coarse) = self.pos.coarse(words[i + 1].as_str()) else {
                 continue;
             };
-            if !matches!(next_info.coarse, "v" | "a" | "d") {
+            if !matches!(next_coarse, "v" | "a" | "d") {
                 continue;
             }
             let Some(c) = self.de_choice(&words[i - 1], &words[i + 1]) else {
@@ -941,17 +1165,17 @@ impl GrammarModel {
 impl crate::engine::Engine {
     /// 绿词排序微型模型开关：开启后在 ≤5 词口语短链上给 legacy
     /// 词性三项叠加正向微型分（见 [`Self::grammar_ab_pos_delta`]）；关闭或模型
-    /// 缺失 = 逐字节保持 legacy。**默认开**（扩展口语语料 + 正分融合口径）。
+    /// 缺失 = 逐字节保持 legacy。**默认开**（扩展口语语料 + 正分融合验证通过）。
     pub fn set_grammar_micro_enabled(&self, on: bool) {
         self.grammar_micro_enabled.set(on);
     }
 
-    /// 当前微型语法分是否参与排序。
+    /// 当前微型语法分是否参与排序（调试 CLI 诊断展示生产默认态）。
     pub fn grammar_micro_enabled(&self) -> bool {
         self.grammar_micro_enabled.get()
     }
 
-    /// 已加载微型模型的元信息（资产缺失/解码失败降级态 = None）。
+    /// 已加载微型模型的元信息（资产缺失/解码失败降级态 = None）。调试 CLI 诊断消费。
     pub fn grammar_micro_info(&self) -> Option<crate::grammar_micro::GrammarMicroInfo> {
         let info = self.grammar_micro.info();
         info.path.is_some().then_some(info)
@@ -961,15 +1185,14 @@ impl crate::engine::Engine {
     /// 首位；OOV 走末字/首字/构词后缀回退，仍未知 → 类 0，与 legacy
     /// `pattern_count` 的 `unwrap_or(0)` 同款，模型不惩罚未命中组合）。
     /// 排序（`grammar_micro_delta`）与只读观测（`grammar_micro_path_components`）
-    /// 共用同一实现——词→类映射全工程仅此一份。
+    /// 共用同一实现，词→类映射全工程仅此一份（消费侧诊断不复刻映射）。
     fn micro_classes(&self, words: &[String]) -> Vec<u8> {
         words
             .iter()
             .map(|w| {
                 self.grammar
                     .classes_for(w)
-                    .first()
-                    .copied()
+                    .next()
                     .map(class_id)
                     .unwrap_or(0)
             })
@@ -999,7 +1222,7 @@ impl crate::engine::Engine {
                 .windows(2)
                 .any(|w| self.freq.word_bigram_count(&w[0], &w[1]) >= 3);
         // 强上下文（上文栈/路径强词对）时完全让位：正分融合实验中 raw/4
-        // 仍会翻转部分长程语境（回归实测）。
+        // 仍会翻转 moxingdafen/womendetongshi 长程语境。
         if strong_context {
             0
         } else {
@@ -1007,11 +1230,12 @@ impl crate::engine::Engine {
         }
     }
 
-    /// 微型语法模型的路径分诊断（只读观测，供诊断命令消费；词→粗类映射
-    /// 与逐层分量只在此一份实现，避免镜像复刻漂移）。
+    /// 微型语法模型的路径分诊断（只读观测；调试 CLI
+    /// `grammar` 命令消费——词→粗类映射与逐层分量不在消费侧复刻，
+    /// 避免双份逻辑漂移）。
     ///
     /// - **不受总闸开关影响**：任何开关状态都能拿到分量（观测 ≠ 参与排序，
-    ///   关闭态的「仅观测」行仍由旗标渲染）；
+    ///   调试 CLI 的「关闭（仅观测）」行仍由旗标渲染）；
     /// - 词→粗类映射与 `grammar_micro_delta` 共用 [`Self::micro_classes`]；
     /// - 逐层分量来自 `GrammarMicro::path_breakdown`（与排序 `path_score`
     ///   单实现，`(bigram+trigram+block).clamp(-24,24)` 恒等于 `raw_total`）；
@@ -1052,7 +1276,7 @@ impl crate::engine::Engine {
     /// 绿词语法分「词性组合层」的出口（sentence.rs 语法打分块唯一消费点）：
     /// 微型模型开启、已加载且路径 ≤5 词时，在 legacy 三项之上叠加
     /// **正向微型分的四分之一**（`max(micro,0)/4`）。只叠正分的原因：
-    /// 语料统计仍有域偏差，负分惩罚会误压口语短链；正向奖励只把
+    /// PFR/口语混合统计仍有域偏差，负分惩罚会误压口语短链；正向奖励只把
     /// 「更常见词性搭配」往上抬。其余情况与旧组合逐字节一致（关臂 = 基线）。
     ///
     /// 降级回退（纵深防御）：开关开但资产缺失/
@@ -1258,16 +1482,7 @@ mod tests {
             ("用力", 4, "ad"),
             ("推", 2, "v"),
         ] {
-            let coarse = coarse_class(dominant);
-            m.pos.insert(
-                Arc::from(word),
-                PosInfo {
-                    mask,
-                    dominant: dominant.to_string(),
-                    coarse,
-                    weights: None,
-                },
-            );
+            m.insert_pos(word, mask, dominant);
         }
         let mut av = HashMap::new();
         av.insert(
@@ -1301,16 +1516,7 @@ mod tests {
     fn test_pattern_delta_requires_known_pos() {
         let mut m = GrammarModel::default();
         for (word, mask, dominant) in [("我", 16u16, "r"), ("信", 2, "v"), ("你", 16, "r")] {
-            let coarse = coarse_class(dominant);
-            m.pos.insert(
-                Arc::from(word),
-                PosInfo {
-                    mask,
-                    dominant: dominant.to_string(),
-                    coarse,
-                    weights: None,
-                },
-            );
+            m.insert_pos(word, mask, dominant);
         }
         let seq: Vec<u8> = ["r", "v", "r"].iter().map(|c| class_id(c)).collect();
         m.patterns.insert(pattern_key(&seq), 4000);
@@ -1327,7 +1533,7 @@ mod tests {
         m.pattern_kinds[3] = 2;
         assert!(m.pattern_delta(&words(&["我", "信", "你"])) > 0);
         // OOV 回退是猜测，不能叠加句式奖励。
-        m.pos.remove("信");
+        m.remove_pos("信");
         assert_eq!(m.pattern_delta(&words(&["我", "信", "你"])), 0);
     }
 
@@ -1343,16 +1549,7 @@ mod tests {
             ("很", 8, "d"),
             ("好", 4, "a"),
         ] {
-            let coarse = coarse_class(dominant);
-            m.pos.insert(
-                Arc::from(word),
-                PosInfo {
-                    mask,
-                    dominant: dominant.to_string(),
-                    coarse,
-                    weights: None,
-                },
-            );
+            m.insert_pos(word, mask, dominant);
         }
         let key: Vec<u8> = ["r", "v", "r", "u"].iter().map(|c| class_id(c)).collect();
         m.patterns.insert(pattern_key(&key), 4000);
@@ -1370,7 +1567,7 @@ mod tests {
         let words = words(&["我", "信", "你", "的", "猫", "很", "好"]);
         assert!(m.pattern_delta(&words) > 0, "7 词路径应走滑动模板");
         assert_eq!(m.pattern_window_stats(&words), (1, 9));
-        m.pos.remove("猫");
+        m.remove_pos("猫");
         assert_eq!(m.pattern_delta(&words), 0, "含 OOV 时不叠加模板奖励");
         assert_eq!(m.pattern_window_stats(&words), (0, 0));
     }
@@ -1397,24 +1594,90 @@ mod tests {
     fn test_oov_pos_fallback_uses_char_or_suffix() {
         let mut m = GrammarModel::default();
         for (word, mask, dominant) in [("推", 2u16, "v"), ("心", 1, "n")] {
-            let coarse = coarse_class(dominant);
-            m.pos.insert(
-                Arc::from(word),
-                PosInfo {
-                    mask,
-                    dominant: dominant.to_string(),
-                    coarse,
-                    weights: None,
-                },
-            );
+            m.insert_pos(word, mask, dominant);
         }
         // 末字已知 → 末字；末字未知 → 首字；两字都未知 → 构词后缀。
-        assert_eq!(m.classes_for("推心"), vec!["n"]);
-        assert_eq!(m.classes_for("心化"), vec!["n"]);
-        assert_eq!(m.classes_for("囧性"), vec!["n"]);
-        assert_eq!(m.classes_for("囧化"), vec!["v"]);
+        assert_eq!(m.classes_for("推心").collect::<Vec<_>>(), vec!["n"]);
+        assert_eq!(m.classes_for("心化").collect::<Vec<_>>(), vec!["n"]);
+        assert_eq!(m.classes_for("囧性").collect::<Vec<_>>(), vec!["n"]);
+        assert_eq!(m.classes_for("囧化").collect::<Vec<_>>(), vec!["v"]);
         // 单字 OOV 不硬猜。
-        assert!(m.classes_for("囧").is_empty());
+        assert!(m.classes_for("囧").next().is_none());
+    }
+
+    #[test]
+    fn test_pos_table_reloads_after_external_edit() {
+        use rusqlite::Connection;
+
+        let db = crate::test_tmp::path("grammar_pos_external_reload.db");
+        let _ = std::fs::remove_file(&db);
+        {
+            let storage = Storage::open(&db).unwrap();
+            storage.ensure_grammar_tables().unwrap();
+        }
+        {
+            let conn = Connection::open(&db).unwrap();
+            conn.execute(
+                "INSERT INTO x1dict_pos(word, pos_mask, pos_dominant, pos_counts, source)
+                 VALUES('测试', 1, 'n', 'n:1', 'pfr2014')",
+                [],
+            )
+            .unwrap();
+        }
+        {
+            let storage = Storage::open(&db).unwrap();
+            let m = GrammarModel::load(&storage).unwrap();
+            assert_eq!(m.coarse_for("测试"), Some("n"));
+        }
+        // 等价于外部编辑器保存后 x1dict_pos 的生效值（override 元数据由编辑侧维护，
+        // 引擎运行期只读生效表）。
+        {
+            let conn = Connection::open(&db).unwrap();
+            conn.execute(
+                "UPDATE x1dict_pos SET pos_mask=2, pos_dominant='v', pos_counts='v:1',
+                 source='tlv2' WHERE word='测试'",
+                [],
+            )
+            .unwrap();
+        }
+        {
+            // 新启动周期重新加载：不依赖任何持久化词性缓存即可读到新值。
+            let storage = Storage::open(&db).unwrap();
+            let m = GrammarModel::load(&storage).unwrap();
+            assert_eq!(m.coarse_for("测试"), Some("v"));
+            assert_eq!(m.pos_mask("测试"), Some(2));
+        }
+    }
+
+    #[test]
+    fn test_compact_pos_table_lookup_upsert_remove() {
+        let mut m = GrammarModel::default();
+        m.insert_pos("认真", 4, "ad");
+        m.insert_pos("态度", 1, "n");
+        assert_eq!(m.pos_len(), 2);
+        assert_eq!(m.pos_mask("认真"), Some(4));
+        assert_eq!(m.coarse_for("认真"), Some("a"));
+        assert_eq!(m.coarse_for("态度"), Some("n"));
+        assert_eq!(m.pos_mask("不存在"), None);
+
+        // 后写覆盖同词条，保持与旧 HashMap insert 相同的最后写入语义。
+        m.insert_pos("认真", 2, "vn");
+        assert_eq!(m.pos_len(), 2);
+        assert_eq!(m.pos_mask("认真"), Some(2));
+        assert_eq!(m.coarse_for("认真"), Some("v"));
+
+        m.remove_pos("认真");
+        assert_eq!(m.pos_len(), 1);
+        assert_eq!(m.pos_mask("认真"), None);
+        assert_eq!(m.coarse_for("态度"), Some("n"));
+
+        // 多词性按 POS_CLASSES 位序展开；mask=0/仅非法高位时回退 dominant。
+        m.insert_pos("多性", 1 | 2, "v");
+        assert_eq!(m.classes_for("多性").collect::<Vec<_>>(), vec!["n", "v"]);
+        m.insert_pos("零位", 0, "v");
+        assert_eq!(m.classes_for("零位").collect::<Vec<_>>(), vec!["v"]);
+        m.insert_pos("高位", 1 << 13, "a");
+        assert_eq!(m.classes_for("高位").collect::<Vec<_>>(), vec!["a"]);
     }
 
     #[test]

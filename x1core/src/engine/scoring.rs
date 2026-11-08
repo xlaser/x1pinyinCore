@@ -11,7 +11,7 @@ use crate::engine::ScoreBreakdown;
 #[allow(unused_imports)]
 use super::char_commonness;
 
-/// 候选排序键（键预计算排序）。
+/// 候选排序键（键预计算排序重构）。
 ///
 /// 字段声明顺序即比较优先级（派生 Ord 按字段序逐层比较，全升序；
 /// 降序字段用 Reverse 包装）。与 candidate_cmp 的判定层一一对应：
@@ -59,24 +59,24 @@ impl crate::engine::Engine {
         v
     }
 
-    /// 同分同长切分的逐侧成词强度键（替代成对
+    /// 同分同长切分的**逐侧**成词强度键（全序修复，替代成对
     /// first_divergence_window_cmp）：该切分自身的所有连续 2..=3 音节跨度中，
     /// 词库（含用户词）能命中的最高 base_freq（复用 window_word_freq 的
     /// 逐查询缓存）。
     ///
-    /// 语义保持：成对窗口比较在首分歧窗口比两侧成词频次——
+    /// 语义保持：原成对窗口比较在首分歧窗口比两侧成词频次——
     /// fang+an(方案 3455) vs fan+gan(反感 997)、sang+e 无词 vs san+ge 有词
     /// 的判例结果都由本键复现（公共前后缀跨度两侧同值相消，分歧跨度分高者
-    /// 胜）。改逐侧键的动因：成对比较的窗口随对变化（A/B、B/C、A/C 各自首分歧窗口
-    /// 不同），三切分可成环 → sort 全序违规 panic（172k 语料 learn 实测，
-    /// 生产等价用户积累统计后打字崩服务）；本键为纯逐侧函数，严格全序。
+    /// 胜）。全序修复动因：窗口随**对**变化（A/B、B/C、A/C 各自首分歧窗口
+    /// 不同），三切分可成环 → sort 全序违规 panic（172k 语料 learn 实测）；
+    /// 本键为纯逐侧函数，严格全序。
     /// k=1 单字跨度不参与：单字频次是结构噪音（防/反这类单字高频会淹没
     /// 方案/反感的词级分歧），与原窗口 ≥2 音节的主流形态一致。
     pub(crate) fn max_span_word_freq(&self, seg: &[&str]) -> u32 {
         // 逐段 memo（"sp:" 前缀隔离键空间，与 window_freq_cache 同生命周期）：
         // 比较器在退化枚举（混合输入 cap 扩到 512 段）里被调 O(m·log m) 次，
         // 不 memo 时每次现算 3n 个窗口查表 → shishierfe 实测 17ms/查询超
-        // bench 时限；memo 后每段每查询只算一次。
+        // bench 红线；memo 后每段每查询只算一次。
         let mut key = String::with_capacity(seg.len() * 6 + 3);
         key.push_str("sp:");
         for (i, s) in seg.iter().enumerate() {
@@ -107,10 +107,10 @@ impl crate::engine::Engine {
     /// 给一个音节切分方案打分，用于 `best_segmentation` 选最优切分。
     ///
     /// 打分由两部分取较大者，再施加拆分惩罚：
-    /// 1. 整词命中分：词级候选（含连续前缀词）中的最高 base_freq。
+    /// 1. **整词命中分**：词级候选（含连续前缀词）中的最高 base_freq。
     ///    单字补充不计分，避免 "ken+eng" 靠单字频率反超 "ke+neng"。
-    /// 2. 可分词质量分（`segmentation_coverage_score`）：
-    ///    评估切分能被词典多字词覆盖的程度。应对长句切分歧义——
+    /// 2. **可分词质量分**（`segmentation_coverage_score`）：
+    ///    评估切分能被词典多字词覆盖的程度。修复长句切分歧义——
     ///    `neng|jie|jue|wen|ti` 整序列无词命中（得 0），但 jie|jue 命中「解决」，
     ///    可分词分让正确长句切分能被选中，交给 `decode_sentence` DP 拆词。
     ///
@@ -118,14 +118,14 @@ impl crate::engine::Engine {
     /// 一个更长的有效音节（如 du+an → duan），说明该切分把一个完整音节拆开，
     /// 应大幅降权，避免 duan 被拆成 du+an 而优先给出「都安」。
     ///
-    /// pub 供离线调试工具的切分选举诊断（seg 子命令）：与引擎内部同一打分
+    /// pub 供调试 CLI 的切分选举诊断：与引擎内部同一打分
     /// 口径复现「枚举 → 打分 → 选举」全链路，免真机打字复现切分类问题。
     /// 切分的「词跨度数」：序列中能组成多字词（字数≥2）的连续 2~3 音节段个数
     /// （含重叠）。
     ///
     /// 用途两处（单一来源，防口径漂移）：
-    /// 1. `score_for_syllables` 的层内小额加分（平局裁决）；
-    /// 2. 整句 DP 的仲裁触发（当选读法 1 个跨度
+    /// 1. `score_for_syllables` 的层内小额加分（nizaiganmane 平局裁决）；
+    /// 2. 整句 DP 的**仲裁触发**（shougangeili 案例：当选读法 1 个跨度
     ///    「首钢」vs 备选 2 个跨度「手感/给力」——一个高频词压过更自然的词组链，
     ///    此时才值得让 DP 用真实语言证据裁决）。
     pub(crate) fn word_span_count(&self, syllables: &[&str]) -> u32 {
@@ -159,16 +159,16 @@ impl crate::engine::Engine {
             return 0;
         }
 
-        // 打分用候选：
+        // 打分用候选（xiaoguo bug 修复）：
         // 优先取「字数==音节数」的精确匹配词 freq，不计前缀词（字数<音节数）。
-        // 防止 xiaoguo 的 [xiao,gu,o] 切分靠前缀匹配的「小姑」(xiao gu, 字数2 < 音节数3)
+        // 修复 xiaoguo 的 [xiao,gu,o] 切分靠前缀匹配的「小姑」(xiao gu, 字数2 < 音节数3)
         // 高 freq 压过 [xiao,guo] 的精确匹配「效果」(字数2==音节数2)。
         let cands = self.word_candidates_for_syllables(input, syllables);
         let syl_count = syllables.len();
         // 精确匹配词（字数==音节数 且 拼音逐音节精确等于输入音节，含单字词）。
         // 必须验证拼音——只看字数会把 [s,hu,ru] 切分的「撒欢儿」(sa huan r, 3字==3音节)
-        // 误判精确匹配，但 s≠sa/hu≠huan/ru≠r，实际是前缀匹配——
-        // 因此必须逐音节验证拼音，不能只 filter 字数==音节数。
+        // 误判精确匹配，但 s≠sa/hu≠huan/ru≠r，实际是前缀匹配。
+        // 修复 shuru bug：原版只 filter 字数==音节数，未验证拼音。
         let exact_multi_freq = cands
             .iter()
             .filter(|c| {
@@ -191,7 +191,7 @@ impl crate::engine::Engine {
         // 前缀词参与兜底是为了 nihsou 等拼错输入的切分能有非零分（依赖前缀匹配的候选）。
         // 但当存在精确匹配词时，优先用精确匹配（不让前缀词的高 freq 干扰）。
         //
-        // 覆盖门槛：前缀词覆盖的音节数必须
+        // 覆盖门槛（houxuanguding 修复）：前缀词覆盖的音节数必须
         // ≥ 一半，否则不参与兜底。原缺陷：[hou,xu,ang,u,ding] 碎片切分（xuan 被
         // 撕成 xu+ang+u，拆分惩罚只查相邻合并查不到跨三段重组）靠开头 2 音节的
         // 「后续」(freq 1755) 把 base 顶到 999 格顶（层级 2 = 1000+999 = 1999），
@@ -206,7 +206,7 @@ impl crate::engine::Engine {
             .max();
         let max_freq = exact_multi_freq.or(fallback_freq).unwrap_or(0);
 
-        // 可分词质量分（应对 nengjiejuewenti 类长句切分歧义）：
+        // 可分词质量分（修复 nengjiejuewenti 类长句切分歧义）：
         //
         // 背景：旧版只用「整序列是否构成单个词」打分。但长句切分（如 neng|jie|jue|wen|ti）
         // 根本没有 5 音节的整词，导致正确切分得 0 分，被前缀命中整词的错误切分
@@ -218,7 +218,7 @@ impl crate::engine::Engine {
         // 这让 best_segmentation 能选中正确切分，再交给 decode_sentence DP 拆词。
         let cover_score = self.segmentation_coverage_score(syllables);
 
-        // 全有效音节基础分：
+        // 全有效音节基础分（biegen/genbu bug 修复）：
         // 切分全是有效音节（无单字符拆分）时，即使没词命中也给予基础分，
         // 让它胜过有拆分但靠前缀词得分的切分。
         // 例：biegen 的 [bie,gen]（全有效，无词命中）应胜过 [bi,e,gen]（拆 bie，靠「避恶」得分）。
@@ -253,7 +253,7 @@ impl crate::engine::Engine {
             if crate::pinyin::is_valid_syllable_pub(&joined) {
                 // 拆分惩罚：当前音节+下一音节能合并成完整音节（如 li+ao→liao、
                 // du+an→duan），应惩罚这种"拆开完整音节"的切分。
-                // 不豁免：完整音节被拆开几乎总是
+                // **不豁免（duan 回归修正）**：完整音节被拆开几乎总是
                 // 错（用户想打 duan，拆 du+an 只能靠罕见词/用户词续命）——守护
                 // 测试 test_duan_prefers_full_syllable 锁定此语义；词频豁免仅适用
                 // 下方的贪婪合并惩罚（两种读法都是拆分形态的真歧义）。
@@ -263,7 +263,7 @@ impl crate::engine::Engine {
             // 且末尾字符+下一音节也构成有效音节，说明存在更短的切分。
             // 例如 sang+e：sang 去掉 g → san(有效)，g+e → ge(有效)，
             // 存在更短切分 san+ge，应惩罚 sang+e 让 san+ge 优先。
-            // 同款窗口词频豁免：fang+an 触发本惩罚（fan+gan 替代），
+            // **同款窗口词频豁免**：fang+an 触发本惩罚（fan+gan 替代），
             // 但「方案」(3455) > 「反感」(997)——长句无整词兜底时被 ÷100 压死，
             // 绿词 DP 收到 fan+gan 拼出「技术反感文档」。词频高的一侧免罚；
             // sang+e 无词 < san+ge「三个」，照罚（原行为保持）。
@@ -282,7 +282,7 @@ impl crate::engine::Engine {
                 }
             }
         }
-        // 跨 token 重建惩罚（jiaoleng→「浇了能够」垃圾绿词，
+        // 跨 token 重建惩罚（jiaoleng→「浇了能够」垃圾绿词修复，
         // 与 bushijiaolengshui「不是交了那个谁」同族）：既有拆分惩罚只查
         // 「相邻两 token 能合并」（du+an→duan 的 k=2 情形）——但碎片切分可以
         // 把一个合法音节拆成 3+ 段（leng→le|n|g），单看相邻对 le+n/n+g 都
@@ -326,8 +326,8 @@ impl crate::engine::Engine {
                 }
             }
         }
-        // 中位游离首字母惩罚（zhenbena→「真笨啊」场景）：单字符
-        // 非音节 token 前后都存在完整音节（≥2 字母有效）= 碎片化标志——
+        // 中位游离首字母惩罚（zhenbena→「真笨啊」案例）：单字符
+        // 非音节 token **前后都存在完整音节**（≥2 字母有效）= 碎片化标志——
         // [zhen,b,e,na] 的 b 夹在 zhen 与 na 之间，靠纠错候选词频（真版→层2
         // 999）压过正解 [zhen,ben,a]（真笨 仅 100），整句绿词无从谈起。
         // 位置判据天然豁免三类合法形态：简拼头（zgrmjfjxa 的 z/g/r/m 前方无
@@ -375,7 +375,7 @@ impl crate::engine::Engine {
         // max_freq 为 0（整序列无词命中）但 cover_score > 0（能拆成子词）时，
         // 用 cover_score 作为基础分，让正确长句切分（如 neng|jie|jue|wen|ti）能被选中，
         // 交给 decode_sentence DP 进一步拆词。两者取较大者再施加同样的拆分惩罚。
-        // 词跨度丰富度（平局裁决，nizaiganmane→你在干慢而 案例）：
+        // 词跨度丰富度（平局裁决，nizaiganmane→你在干慢而 修复）：
         // 统计切分序列中「能成词的连续 2~3 音节跨度」个数（含重叠）。词频平手时
         // 它是决定性信号：[ma,ne] 侧 你在/干嘛/干嘛呢/嘛呢 4 个词跨度 vs
         // [man,e] 侧 你在/满额 2 个——错误切分在词典里几乎组不出词，而对的切分
@@ -391,7 +391,7 @@ impl crate::engine::Engine {
         let combined = base.max(cover);
         let base_score = combined / divisor + word_span_count.min(999); // 层级 1：0-999 范围
 
-        // 层级化打分（替代 500K/1M 大数）：
+        // 层级化打分（规范化，替代 500K/1M 大数）：
         // 层级 3（精确匹配）：2000 + base_score（原 1M+）
         // 层级 2（无拆分惩罚）：1000 + base_score（原 500K+）
         // 层级 1（有拆分）：base_score（原 freq 量级）
@@ -474,20 +474,20 @@ impl crate::engine::Engine {
         best
     }
 
-    /// 切分择优比较器——候选链与显示/消费链同源共用。
+    /// 切分择优比较器——候选链与显示/消费链**同源共用**（wangou 吞键修复）。
     ///
     /// 语义 = 原 process_inner best_idx 的 max_by 比较器逐字节搬移：
     /// 分数高优先 → 同分全有效音节切分优先 → 同分同音节数时逐侧成词强度
     /// 裁决（`max_span_word_freq`，fang+an vs fan+gan 类真歧义）→ 音节数少
     /// 优先 → 首音节短优先。
     ///
-    /// 全序保证（172k 语料 learn 实测 sort panic 修复）：
-    /// 同分分支的每一层都是纯逐侧函数（all_valid / 证据键 / 成词强度键），
+    /// **全序保证（172k 语料 learn 实测 sort panic 修复）**：
+    /// 同分分支的每一层都是**纯逐侧函数**（all_valid / 证据键 / 成词强度键），
     /// 尾部为固定结构链（分→长度→首音节长）——整个比较器严格全序。历史上
     /// 两层成对裁决（选择史 20× 守卫、首分歧窗口）可三元成环，真实用户
-    /// 积累选择史后打字即可触发全序违规 panic（服务进程崩溃）。
+    /// 积累选择史后打字即可触发全序违规 panic。
     ///
-    /// 背景（wangou 案例）：显示/消费链（`pick_segmentation`）此前同分时
+    /// 背景（wangou 报障）：显示/消费链（`pick_segmentation`）此前同分时
     /// 「保留先枚举到的」——DFS 长音节优先把 wang|ou 排在 wan|gou 前，平分
     /// 即定；候选链却走上述精细裁决选 wan|gou。两边切分不同 → 预编辑显示
     /// wang'ou、候选却是「wan」音字；选「弯」后 consumed 按显示切分的前 n
@@ -512,11 +512,11 @@ impl crate::engine::Engine {
                     Ordering::Less
                 };
             }
-            // 两层裁决只对双方全有效音节的真歧义开放（判例全是全音节场景：
+            // 两层裁决只对**双方全有效音节**的真歧义开放（判例全是全音节场景：
             // fangan / jishufanganwendang / kanta 大致）。悬尾/单字母混合段
             //（shishierfe 类 125 候选热路径）免付两层查表成本——旧实现在
             // 这些段上两层也几乎恒 None（initial 段成词查询必 miss），行为等价
-            //（perf 约束：该输入基线 9.8ms 贴 10ms 线）。
+            //（perf 预算：该输入基线 9.8ms 贴 10ms 线）。
             if a_all_valid && b_all_valid {
                 // 读法偏好裁决：上文 bigram 证据 >
                 // 用户选择史。无证据/打平返回 None，成词强度裁决接管。
@@ -525,8 +525,8 @@ impl crate::engine::Engine {
                 }
                 if a.len() == b.len() {
                     // 同分同长度时：逐侧成词强度键裁决（词频裁决真歧义）。
-                    // 成对首分歧窗口比较的窗口随对
-                    // 变化可成环 → 改为纯逐侧键，见
+                    // 原实现是**成对**首分歧窗口比较，窗口随对
+                    // 变化可成环 → 修复为纯逐侧键，见
                     // max_span_word_freq 注释。
                     let fa = self.max_span_word_freq(a);
                     let fb = self.max_span_word_freq(b);
@@ -546,25 +546,25 @@ impl crate::engine::Engine {
             })
     }
 
-    /// 读法偏好裁决（含全序修复）：
+    /// 读法偏好裁决（全序修复）：
     /// 同分真歧义时按证据选读法，两层证据按优先级：
     ///
-    /// ① 上文 bigram（commit「十分」后输入 fangan 应读 fan'gan）：
+    /// ① **上文 bigram**（commit「十分」后输入 fangan 应读 fan'gan）：
     ///    比较「上下文末词 × 各读法首词」的泛化关联强度
     ///    （word_bigram_count_generalized，含等价类成员行聚合——种子只有成员行
     ///    很→反感=10、类键行从未物化），有证据且不等 → 证据强的读法胜。
-    /// ② 用户选择史（选过 反感 30 次后打 fangan 仍出方案——
-    ///    选举 2999:2999 平局、tie-break 只看词库存频）：比较 input_mappings
-    ///    里「本输入 × 各读法首词」的选择次数。谱地板门控：词自身
-    ///    freq≥500（谱中位）才计选择史（个人噪音不翻盘结构性高频）；
+    /// ② **用户选择史**（选过 反感 30 次后打 fangan 仍出方案——选举
+    ///    2999:2999 平局、tie-break 只看词库存频）：比较 input_mappings
+    ///    里「本输入 × 各读法首词」的选择次数。词自身 freq≥500（谱中位）
+    ///    才计选择史（个人噪音不翻盘结构性高频）；
     ///    首次即生效（与 green_memo「首次即记忆」同哲学）、改选另一读法
     ///    一次即拉平（自愈对称）。
     ///
-    /// 全序修复（172k 语料 learn 实测 panic）：早期实现②用
-    /// 成对 20× 词频守卫（A/B、B/C、A/C 三对各自判定），叠加①②层间条件
+    /// **全序修复（172k 语料 learn 实测 panic）**：原实现②用
+    /// **成对** 20× 词频守卫（A/B、B/C、A/C 三对各自判定），叠加①②层间条件
     /// 激活——三切分可成环（A>B>C>A），sort_by 检测全序违规直接 panic；真实
-    /// 用户积累 input_mappings 后打字即可触发（服务进程崩溃）。改为逐侧
-    /// 绝对谱地板门控，证据键 = 纯逐侧函数 (bigram, counts)，严格全序；
+    /// 用户积累 input_mappings 后打字即可触发（服务进程崩溃）。改为**逐侧
+    /// 绝对谱地板**门控，证据键 = 纯逐侧函数 (bigram, counts)，严格全序；
     /// 两轮裁决案例（反感/方案 同谱段，两侧都过地板）行为不变。
     ///
     /// 首词 = 该切分从位置 0 起、字数==音节数的最长可成词 span（k≤3，span 须
@@ -572,7 +572,7 @@ impl crate::engine::Engine {
     /// [fan,gan]→反感；两个方向都由证据说话，不是单边偏置。
     ///
     /// 调用面：seg_order_cmp 的同分分支——显示（预编辑）/消费/候选三链同源
-    /// 生效（切分同源不变量），且只在选举打平的真歧义上介入。
+    /// 生效（红线：切分同源不变量），且只在选举打平的**真歧义**上介入。
     /// pub(crate)：tests_seg_chain 全序回归测试直调。
     pub(crate) fn reading_preference_cmp(
         &self,
@@ -612,7 +612,7 @@ impl crate::engine::Engine {
                 _ => 0,
             };
             // ct=0（冷启动常态）时跳过 freq 查表——对齐旧代码的早退结构，
-            // 比较器热路径（shishierfe 类 125 候选）零增费（perf 约束）。
+            // 比较器热路径（shishierfe 类 125 候选）零增费（perf 预算）。
             let ct = match self.input_choice_count(input, &w) {
                 0 => 0,
                 n => {
@@ -644,11 +644,11 @@ impl crate::engine::Engine {
 
     /// 切分枚举 + 打分择优（自适应扩枚举），`tokens` 选择枚举语义。
     ///
-    /// 自适应扩枚举：
+    /// **自适应扩枚举（yigerenguodehaob 修复）**：
     /// DFS 先序枚举按「长音节优先」产出，名额（cap）会被退化子树占满——
     /// 实测 `yigerenguodehaob` 在 pos=4 的 reng 分支（ren+g 误并成 reng，
     /// 后续 u/o 靠单字符兜底续命）子树 ≥16 叶，把 cap 吃光，正解
-    /// `ren|guo|de|hao|b`（手工打分 1381，垃圾态全 0 分）从未被枚举 →
+    /// `ren|guo|de|hao|b`（手工打分 1381，垃圾态全 0 分）**从未被枚举** →
     /// 候选层只出前缀词、绿词整句崩塌（显示 reng'u'o 乱切）。
     /// 策略：按 [小, 中, 大] 逐级扩大枚举上限，某级出现正分即停——正常输入
     /// 第一级即有正分（零额外开销）；仅「全 0 分退化态」付扩大成本，且大
@@ -661,7 +661,7 @@ impl crate::engine::Engine {
     ) -> (Vec<&'a str>, u32) {
         let mut best: Vec<&str> = Vec::new();
         let mut best_score = 0u32;
-        // 打字进行中形态保底切分：「完整音节前缀 +
+        // 打字进行中形态保底切分（绿词消失修复）：「完整音节前缀 +
         // 尾部未拼完字母」合成变体先入局——含尾枚举的 DFS 名额会被贪长退化子树
         // 挤满（reng|o|n|g 一族把 ren|gong 正解挤出 cap），FULL_ONLY 对含尾输入
         // 又整体返回空，正解不入局则 best 全是垃圾切分（绿词消失根因）。合成变体
@@ -706,18 +706,18 @@ impl crate::engine::Engine {
         (best, best_score)
     }
 
-    /// 混合语义最优切分（guangzh 声母残留场景）。
+    /// 混合语义最优切分（guangzh 声母残留修复）。
     ///
     /// `best_segmentation`（FULL_ONLY）对含声母尾段的输入（guangzh）返回空——
     /// "zh" 不是合法全音节；但候选生成路径用 token 语义（`segmentations_tokens`，
-    /// Shengmu(zh) 整段）能切出 [guang, zh] 命中「广州」。两条链路语义不一致
+    /// Shengmu(zh) 整段）能切出 [guang, zh] 命中「广州」。**两条链路语义不一致**
     /// 是残留根因：consumed/显示/音节数按 FULL_ONLY→parse_pinyin 贪心切出
     /// [guang, z, h]，广州 只消费 6 字母，h 成残留上屏后滞留 buffer。
     ///
     /// 本方法给偏移类消费者（syllable_count / syllable_segmentation /
-    /// syllable_prefix_lens）提供与候选查询同源的切分：FULL_ONLY 有结果时
+    /// syllable_prefix_lens）提供与候选查询**同源**的切分：FULL_ONLY 有结果时
     /// 调用方不会走到这里（行为零变化）；为空时枚举 token 切分打分择优。
-    /// 注意「末音节是否完整」判定（is_valid 消费者）不适用本方法——
+    /// 注意「末音节是否完整」判定（is_valid 消费者）**不适用**本方法——
     /// 那个问题的答案不应被 Initial/Shengmu 段回答成 true（如 guangzho 的尾段 o）。
     pub(crate) fn best_token_segmentation<'a>(&self, input: &'a str) -> Vec<&'a str> {
         let (best, _) = self.pick_segmentation(input, &[8, 128, 512], true);
@@ -727,12 +727,12 @@ impl crate::engine::Engine {
     /// 近期提交加分：指数衰减的近期分，让“刚选过的词”快速置顶，
     /// 久未使用的词自然下降，避免历史高频词长期霸占首位。
     /// `recent_score` 是固定点值（RECENT_SCALE = 1000 代表 1.0）。
-    /// 权重 5000：让单次 recent ≈ base 量级，
-    /// 不"夸张反超"高频常用字。用户连续选 N 次后 recent 衰减叠加仍能反超。
+    /// 权重 5000（从 12000 下调）：让单次 recent ≈ base 量级，
+    /// 不再"夸张反超"高频常用字。用户连续选 N 次后 recent 衰减叠加仍能反超。
     pub(crate) const RECENT_COMMIT_BONUS: u64 = 5_000;
     pub(crate) const RECENT_SCALE: u64 = 1_000;
     /// 累计选择上屏加分：每次历史上屏提供固定分数加成，且持久化后仍生效。
-    /// 上限 15 次：对齐同音词候选规模（一般十来个），
+    /// 上限 15 次（从 50 下调）：对齐同音词候选规模（一般十来个），
     /// 避免重度使用词拿到 25000 碾压高频系统词。
     pub(crate) const TOTAL_COMMIT_BONUS: u64 = 500;
     pub(crate) const TOTAL_COMMIT_BONUS_CAP: u32 = 15;
@@ -758,12 +758,12 @@ impl crate::engine::Engine {
     pub(crate) const BIGRAM_BONUS: u64 = 1_500;
     #[allow(dead_code)]
     pub(crate) const BIGRAM_BONUS_CAP: u32 = 10;
-    /// 纠错候选词频地板（低频词占黄金位的防线——
+    /// 纠错候选词频地板（低频词占黄金位问题——
     /// 崔颢(483) 经非邻接替换[已移除]、拿他(100) 经删除变形）。
     /// 纠错本身是低置信假设，被救回的词必须足够常见才配得上这个假设
     /// （贝叶斯直觉：低概率事件需要强证据）。
-    /// 阈值 300：崔颢案的生成路径（非邻接替换）已整体移除，不再需 500 来挡；
-    /// 真实种子谱
+    /// 阈值 300（从 500 下调）：崔颢案的生成路径
+    ///（非邻接替换）已整体移除，不再需 500 来挡；真实种子谱
     /// 取证——≤200 档是 拿他/人名地名 类真噪音（地板要挡的），300-499 档是
     /// 一刹那(491)/传染性(491)/运行时(355) 类合法常用词（500 会误杀，
     /// 文档旗舰例 yunxongshi→运行时 因此在真实库上失效）。300 同时仍挡住
@@ -779,7 +779,7 @@ impl crate::engine::Engine {
     pub(crate) const CONTEXT_RESCUE_GAP: u32 = 3;
     // 双击故障判定阈值已改为引擎可配字段 double_fault_threshold_ms
     ///（默认 100，偏好设置滑块 30..1000，set_double_fault_threshold_ms 钳制），
-    /// 见 mod.rs 字段文档与 process_timed。
+    /// ——见 mod.rs 字段文档与 process_timed。
     /// 自适应 bigram cap：对数增长，替代固定 CAP。
     /// 公式：dyn_cap = CAP_BASE + log2(max_user_bigram + 1) × CAP_K
     /// 冷启动（max=0）→ cap = CAP_BASE = 8，接近原 CAP=10 行为。
@@ -790,7 +790,7 @@ impl crate::engine::Engine {
     /// 对数压缩后的 bigram 加分系数。
     /// 旧：min(count,10) × 1500，count=10 满血 15000。
     /// 新：log2(min(count,cap)+1) × K，count=10 → log2(11)×8000 ≈ 27500。
-    /// 8000（而非 3000）的由来：让上下文搭配（collocation_freq 命中的组合词，
+    /// 从 3000 上调到 8000：让上下文搭配（collocation_freq 命中的组合词，
     /// 如 机→制 的「机制」）能压过高频字的 total+primary 加成。实测 3000 时
     /// bigram_bonus=6000 不足以让「制」超过「只」(total+primary≈13000)。
     pub(crate) const BIGRAM_BONUS_K: u64 = 8_000;
@@ -800,7 +800,7 @@ impl crate::engine::Engine {
     pub(crate) const UNUSED_FREQ_DECAY: u64 = 600;
     /// 上下文历史栈最大长度（最近30个上屏词，加权衰减参与 bigram 重排）。
     ///
-    /// 30（而非 20）的由来：标点/切输入法不再清空 context（引擎运行期间持续
+    /// 从 20 调到 30：标点/切输入法不再清空 context（引擎运行期间持续
     /// 生效），更长窗口让跨句连续输入也能享受 bigram 引导。第30个词权重 ≈0.85^30≈0.008，
     /// 自然衰减到可忽略，不会引入噪音。
     pub(crate) const CONTEXT_HISTORY_SIZE: usize = 30;
@@ -845,12 +845,12 @@ impl crate::engine::Engine {
         // 单查询缓存：candidate_cmp 在 sort_by 比较器中对每对候选各调
         // 一次本函数，123 候选 ≈1700+ 次调用 × ~7.5µs → 17ms 尖峰（shishierfe 卡顿）。
         // 缓存后每候选只算一次（~123 次），尖峰消除。生命周期 = 单次 process_inner
-        //（入口清空），同一次查询内打分确定。
+        // （入口清空），同一次查询内打分确定。
         if let Some(&v) = self.score_cache.borrow().get(c.text.as_ref()) {
             return v;
         }
         let bd = self.score_breakdown(input, c);
-        // 学习型排序器：仅当运行时显式注入权重（离线训练后 set_ranker_weights）
+        // 学习型排序器：仅当运行时显式注入权重（训练后 set_ranker_weights）
         // 才走点积路径。编译期 ranker_weights() 不自动启用——
         // 实测点积路径与 primary_reading_bonus(5000)、context_bonus(6000) 等手工加成
         // 不在同一量级（点积后 bigram_bonus=6000 缩水到 ~16），导致上下文关联被稀释
@@ -886,7 +886,7 @@ impl crate::engine::Engine {
     /// 计算候选打分的各分量明细（供 candidate_score 求和 + 学习型排序器训练特征）。
     ///
     /// 拆分自 candidate_score，行为完全一致，只是返回结构化的分量而非标量总分。
-    /// pub 供离线调试工具（`--breakdown` / `repl :b`）：单候选分值逐分量展开，
+    /// pub 供调试 CLI（`--breakdown` / `repl :b`）：单候选分值逐分量展开，
     /// 排序问题定位（哪一层/哪个信号在起决定作用）免写临时测试。
     pub fn score_breakdown(&self, input: &str, c: &Candidate) -> ScoreBreakdown {
         // 单字按音隔离频率统计：用 (text, pinyin) 维度的数据，
@@ -895,16 +895,16 @@ impl crate::engine::Engine {
         let is_single = c.text.chars().count() == 1;
         // 取候选拼音的首音节作为隔离维度（单字各项统计共用）
         let pinyin_syl = c.pinyin.split_whitespace().next().unwrap_or(&c.pinyin);
-        // 竞争频率（「退化」通道）：只作用在「候选拼音与输入
-        // 音节完全一致」的候选（同音竞争的本来语义——de 下 的/得/地 都
-        // 拼音恰为 de，才是同一场竞争）。前缀/简拼候选完全走现状模型——
+        // 竞争频率（「退化」通道）：**只作用在「候选拼音与输入
+        // 音节完全一致」的候选**（同音竞争的本来语义——de 下 的/得/地 都
+        // 拼音恰为 de，才是同一场竞争）。**前缀/简拼候选完全走现状模型**——
         // 它们拼音与输入不一致，不属同音竞争（按候选拼音评会把 sh 的单字
         // 错切进各自的音节语境；test_user_feedback/test_cross_reading 两案
         // 即此教训）。recent_score 不动（短期通道）。
         //
-        // 单字的竞争 ctx 必须按音隔离（首音节 pinyin_syl，与既有
+        // 单字的竞争 ctx 必须**按音隔离**（首音节 pinyin_syl，与既有
         // pinyin_rank_boost/recent 的隔离维度一致——test_cross_reading 的
-        // 守护点：di 选「的」不得让 de 读音的「的」获任何加成）；多字词拼音
+        // 红线：di 选「的」不得让 de 读音的「的」获任何加成）；多字词拼音
         // 与输入不一致时不评（其 boost 走现状）。
         let pin_key: String = if is_single {
             pinyin_syl.to_string()
@@ -918,9 +918,9 @@ impl crate::engine::Engine {
         // 零证据 = 0；只在「用户在该语境实际选过某读法」时非零。
         let mut ctx_homophone_bonus: u64 = 0;
         let (rank_boost, total_count) = if is_precise {
-            // 同音精确阶梯：静态保持现状（按音隔离的 ilog2 计数——
+            // 同音精确阶梯：静态保持现状（**按音隔离的 ilog2 计数**——
             // pinyin_count(text, syl) 的 ilog2，与旧 pinyin_rank_boost 同构，
-            // 隔离守护（test_cross_reading）：di 选「的」不影响 de 的「的」的
+            // 隔离 test_cross_reading 红线：di 选「的」不影响 de 的「的」的
             // 静态 boost）+ 动态竞争增量（±480，竞争证据饱和 total≥α_pin
             // 后生效）——用过则涨、停用则跌，dynamic override 依旧。
             let priors = self.pin_priors_full(&pin_key);
@@ -948,7 +948,7 @@ impl crate::engine::Engine {
             };
             let static_boost = 1000 + (static_count + 1).ilog2() * 150;
             // 上下文同音证据：`(拼音, 上一上屏词) → 选择` 的
-            // 平滑份额增量，只在用户在该语境实际选过时非零（零证据 = 0，
+            // 平滑份额增量，只在**用户在该语境实际选过**时非零（零证据 = 0，
             // 排序逐字节保持现状）。与全局 dynamic_term 叠加：上下文证据是更
             // 具体的意图，量级更高（±600 vs ±480）。
             let ctx_term = self
@@ -975,11 +975,11 @@ impl crate::engine::Engine {
         // 用过的词 ×1.0 不变；没用过 ×UNUSED_FREQ_DECAY（0.6）。
         // 冷启动（counts 为空）全部 ×1.0，行为同现状。
         //
-        // 「用过」的豁免必须按 (text, pinyin) 维度隔离：
+        // 「用过」的豁免必须**按 (text, pinyin) 维度隔离**：
         //
         // counts 是不分音的文本级表——di 选「的」会写 counts[的]，若沿用
-        // counts_contains 会让 de 读音的「的」拿到"用过"豁免（600→1000，
-        // test_cross_reading 的守护点）。改查既有 `freq.pinyin_count(text, pinyin_syl)`
+        // counts_contains 会让 **de 读音**的「的」拿到"用过"豁免（600→1000，
+        // test_cross_reading 的红线）。改查既有 `freq.pinyin_count(text, pinyin_syl)`
         // ——di 的选择只写 pinyin_count(的, di)，不影响 pinyin_count(的, de)。
         // 全局冷启动守卫（counts_is_empty）保持不分音。多字词沿用 counts_contains
         //（跨词豁免是其设计语义）。
@@ -995,12 +995,12 @@ impl crate::engine::Engine {
         };
         // base 分量：词库 freq × 用户使用加成。
         //
-        // base 话语权下调（/1M → /5M）：
+        // **base 话语权下调（/1M → /5M）**：
         // 原公式 base = freq × rank_boost × user_modulator / 1_000_000，满血时
         // base ≈ freq（如「的」9999），与 total_bonus 满血（7500）同量级——
         // 高频字即使没用过也能压过用户重度使用的低频词，freq 主导排序。
         //
-        // 用户论点：freq 唯一用途是「同音节内候选间相对排序」，不该主导总分。
+        // freq 唯一用途是「同音节内候选间相对排序」，不该主导总分。
         // 主导权应交给 bigram（上下文关联）+ total/recent/mapping（用户学习）。
         //
         // 改为 /5_000_000 后：
@@ -1015,7 +1015,7 @@ impl crate::engine::Engine {
             (total_count.min(Self::TOTAL_COMMIT_BONUS_CAP)) as u64 * Self::TOTAL_COMMIT_BONUS;
         let recent = recent_score as u64 * Self::RECENT_COMMIT_BONUS / Self::RECENT_SCALE;
         let mapping_bonus = if self.input_mapping_enabled {
-            // 精确映射计数（exact_bonus 不设：与 total_bonus/recent 高度重叠，
+            // 精确映射计数（exact_bonus 已砍：与 total_bonus/recent 高度重叠，
             // 选过该词已经 counts+1/recent 加分，再加 exact 多余）。
             // mapping_count 仍保留，仅用于下面 prefix 查询的跳过优化（exact 命中时不查 prefix）。
             let mapping_count = self
@@ -1041,7 +1041,7 @@ impl crate::engine::Engine {
             let prefix_bonus = (prefix_count.min(Self::PREFIX_MAPPING_BONUS_CAP)) as u64
                 * Self::PREFIX_MAPPING_BONUS;
 
-            // 首字母简拼映射（如 js→竞赛）：
+            // 首字母简拼映射（js→竞赛 修复）：
             // 当前输入是纯简拼（如 js），历史全拼输入（如 jingsai）的首字母提取（j+s=js）
             // 与当前输入匹配时，说明用户用全拼选过这个词，简拼也应优先。
             // 与 prefix_bonus 叠加（不互斥）——prefix 匹配"jsai→js"（部分前缀），
@@ -1123,7 +1123,7 @@ impl crate::engine::Engine {
             0
         };
 
-        // 上下文搭配命中（candidate_cmp 第3层判定用）。
+        // 上下文搭配命中（candidate_cmp 第3层判定用，分层重构）。
         // collocation_freq 查「上文词 + 候选」是否构成词库词（如「记忆」）。
         // 仅看 context.last()（紧邻上文），冷启动 context 空 = false。
         // 读音校验：传候选 pinyin，避免「你+呢(ni)」误匹配词库「你呢(ni ne)」。
@@ -1164,7 +1164,7 @@ impl crate::engine::Engine {
     }
 
     /// extract_features + 序列化一步到位（FFI x1_engine_extract_features 与
-    /// 引擎服务侧 selections 记录共用，见下方 features_to_json）。
+    /// selections 记录共用，见下方 features_to_json）。
     pub fn extract_features_json(&self, input: &str) -> String {
         features_to_json(&self.extract_features(input))
     }
@@ -1182,7 +1182,7 @@ impl crate::engine::Engine {
     /// 简拼路径（process_jianpin_inner）的完全匹配加分按 `min(FULL_MATCH_BONUS, base_freq × 本系数)`
     /// 计算，让加分与词频正相关：高频成语仍拿高分排首位，冷僻成语加分显著降低，
     /// 避免冷僻词（如「蜗行牛步」freq=1040）靠固定加分压过高频单字（如「我」freq=9950）。
-    /// 系数 8：1040×8=8320（蜗行牛步被压下），1976×8=15808（中国人民仍首位），见 §3.x。
+    /// 系数 8：1040×8=8320（蜗行牛步被压下），1976×8=15808（中国人民仍首位）。
     pub(crate) const FULL_MATCH_BONUS_SCALE: u64 = 8;
 
     /// 整句自动固化默认阈值（0=禁用，用户可通过偏好设置调整为 1-5）。
@@ -1198,7 +1198,7 @@ impl crate::engine::Engine {
 
     /// 多音字主音加成：精确匹配当前音节时，主音字比次音字额外高的分数。
     ///
-    /// 1000（而非 5000，随 base 分量 /5M 同步缩 5 倍）：
+    /// **从 5000 下调到 1000（base 分量 /5M 同步）**：
     /// base 公式从 /1M 改为 /5M 后，base_freq 主导项缩小 5 倍（德的 base
     /// 从 5230→1046）。primary_reading_bonus 也需同步缩 5 倍保持相对关系：
     /// - 德(主音) base 1046 + primary 1000 = 2046 > 地(次音) base 1756 ✓ 主音优先
@@ -1208,9 +1208,9 @@ impl crate::engine::Engine {
     /// 用户实际输入习惯可通过 `primary_reading_bonus` 动态调整该加成
     pub(crate) const PRIMARY_READING_BONUS: u64 = 1_000;
 
-    /// 多音字次音反超主音的偏好由 `primary_reading_bonus` 静态化，
-    /// 统一走用户频率信号，「选择次数差反超」的动态补偿不再使用
-    ///（禁止重新引入补偿）。
+    /// 多音字次音反超主音的偏好由 `primary_reading_bonus` 静态化后统一走
+    /// 用户频率信号，原「选择次数差反超」常量已随动态补偿一并移除
+    /// （禁止重新引入补偿）。
     /// 计算某候选在「主音优先 + 动态权重」下的净加成分数。
     ///
     /// 仅当候选精确匹配当前查询音节时调用（由调用方判断）。
@@ -1223,8 +1223,8 @@ impl crate::engine::Engine {
     ///   `PRIMARY_READING_BONUS / OVERRUN_THRESHOLD` 分，使次音字
     ///   在用户选够阈值次后能反超主音字（动态尊重用户输入习惯）。
     pub(crate) fn primary_reading_bonus(&self, c: &Candidate) -> u64 {
-        // 主音加成：仅返回基础常量（主音字 +1000，次音字 0）。
-        // 不做 user_count 动态补偿——补偿会让 primary_reading_bonus
+        // 主音加成：仅返回基础常量（主音字 +5000，次音字 0）。
+        // 去掉了 user_count 动态补偿——原补偿让 primary_reading_bonus
         // 膨胀到 40000+（user_count×1666），远超 bigram/context_bonus，导致上下文关联
         // 被压制（机→zhi 场景「制」排不到「只」前）。candidate_score 的 base/total/recent
         // 已反映用户偏好，primary 不需重复叠加 user_count。
@@ -1250,17 +1250,17 @@ impl crate::engine::Engine {
     ///          + recent_score(text) / 1000 × 12_000
     ///          + min(mapping_count, 20) × 1_000
     ///          + min(prefix_mapping_count, 20) × 600
-    ///          + bigram_bonus（§3.6，见 `candidate_score`）
-    ///          + long_word_bonus（§3.8，见 `candidate_score`）
+    ///          + bigram_bonus（见 `candidate_score`）
+    ///          + long_word_bonus（见 `candidate_score`）
     ///    多音节输入且字数等于音节数时额外加 FULL_MATCH_BONUS；
-    ///    精确匹配当前音节的主音单字额外加 PRIMARY_READING_BONUS（§3.4）。
+    ///    精确匹配当前音节的主音单字额外加 PRIMARY_READING_BONUS。
     ///    （score 完整计算见 `candidate_score`，本注释只列主要项。）
     /// 4. 同分单字按常用度降序（无用户历史时保证高频单字在前）
     /// 5. 分数相同且为多音节输入时，字数多的词优先；单音节输入时字数少的词优先
     /// 6. 上述全部相等时，按 pinyin、text 字符串升序比较，确保全序确定性
     /// 判断候选是否「完整匹配」输入音节：候选拼音的每个音节都精确等于对应输入音节。
     ///
-    /// 区分完整匹配 vs 前缀匹配的关键（fanghu 案例）：
+    /// 区分完整匹配 vs 前缀匹配的关键（fanghu bug 修复）：
     /// - 防护 拼音 "fang hu" → split → ["fang","hu"]，逐个 == 输入 ["fang","hu"] → 完整匹配 ✓
     /// - 放还 拼音 "fang huan" → split → ["fang","huan"]，第二音节 "huan" != 输入 "hu" → 前缀匹配 ✗
     ///
@@ -1287,21 +1287,22 @@ impl crate::engine::Engine {
             .all(|(c, i)| c == i)
     }
 
-    /// 候选拼音对输入单位的**前缀覆盖数**（长词补全置顶的判据）。
+    /// 候选拼音对输入单位的**前缀覆盖数**（长词补全置顶）。
     ///
     /// 从第一个单位起逐位对齐，返回连续匹配的单位数；0 = 连首个单位都不匹配。
     /// 匹配口径：
     /// - 单字母单位（简拼首字母 / 半截声母）→ 候选音节以该字母开头
     ///   （z g r m jie f ↔ zhong guo ren min jie fang 全位对齐）；
     /// - 完整音节单位（len≥2 且在 VALID_SYLLABLES）→ 候选音节**精确相等**
-    ///   （fang hu 不吃 fang huan，与 `is_pinyin_full_match` 同判据）；
+    ///   （fang hu 不吃 fang huan——fanghu bug 判据不变）；
     /// - 其余（zh/ch/sh 声母、半截音节如 zhon）→ 候选音节以该单位开头。
     ///
-    /// 「覆盖数 == 输入单位数」= 候选吃掉整条输入：除等长精确命中外，
-    /// **音节数更多、但输入是它严格前缀**的长词（zhongguorenminjiefang →
-    /// 中国人民解放军）同样成立。此前这类词掉进前缀层，会被「中国」这类
-    /// 只覆盖 2/6 单位的高频短词按词频压住——已敲部分一个不落的候选，
-    /// 结构证据应当强于只覆盖前几位的词。
+    /// 「覆盖数 == 输入单位数」= 候选吃掉整条输入：精确等长命中是
+    /// `is_pinyin_full_match`；**音节数更多、但输入是它严格前缀**的长词
+    /// （zhongguorenminjiefang → 中国人民解放军）同样成立——这正是既有
+    /// 「覆盖全部输入单位的词结构层优先于留尾巴的词」规则在长词补全
+    /// 形态下的缺位（此前它掉进 tier 2 前缀层，被「中国」这类只覆盖 2/6
+    /// 单位的高频短词按词频压住）。
     pub(crate) fn pinyin_input_coverage(candidate: &Candidate, input_units: &[&str]) -> usize {
         let mut matched = 0usize;
         for (cand_syl, unit) in candidate.pinyin.split_whitespace().zip(input_units.iter()) {
@@ -1331,12 +1332,12 @@ impl crate::engine::Engine {
             && Self::pinyin_input_coverage(candidate, input_units) == input_units.len()
     }
 
-    /// 简拼整词判据：候选字数 == 输入
+    /// 简拼整词判据（ssef→「似是而非」案例）：候选字数 == 输入
     /// 字母数，且候选拼音各音节首字母拼接 == 输入（全小写）。
     ///
     /// 语义：纯首字母简拼的「每字母一字」读法——4 字母输入对应 4 字词
-    /// （ssef → 似是而非 si shi er fei）。这是最强对位结构证据：候选恰好
-    /// 解释整条输入、不多不少一个字母一个字，应排在普通词频候选之前（微软式）。
+    /// （ssef → 似是而非 si shi er fei）。这是**最强对位结构证据**：候选恰好
+    /// 解释整条输入、不多不少一个字母一个字，应排在普通词频候选之前。
     /// 只对纯小写无撇号输入生效；输入侧补充处另有长度 3..=8 与去重约束
     /// （见 process_inner 简拼整词补充段），本函数是排序层的同源判据。
     pub(crate) fn is_jianpin_whole_word(input: &str, c: &Candidate) -> bool {
@@ -1354,7 +1355,7 @@ impl crate::engine::Engine {
         initials.len() == input.len() && initials.eq_ignore_ascii_case(input)
     }
 
-    /// 输入首个音节能否成完整音节（「纯简拼让位」判据）。
+    /// 输入首个音节能否成**完整音节**（「纯简拼让位」判据）。
     ///
     /// 语义：input 的某个前缀是合法完整音节（a/o/e 这类单字母音节也算——
     /// 它们本就是合法音节）。用于区分两类「每字母一字」输入：
@@ -1362,10 +1363,10 @@ impl crate::engine::Engine {
     ///   （页面 ye|m / 也没 ye|m），全简拼读法（耶尔穆 y|e|m）应让位；
     /// - `ssef`：前缀 s/ss/sse 都不是完整音节（首个完整音节 se 在第二位，
     ///   只能靠 s|se|f 读到）→ 全简拼是唯一读法，简拼整词（似是而非）保持
-    ///   最优先。
+    ///   最优先（不能回归）。
     ///
-    /// 判据只看输入本身的字面结构：不看候选、不调词频参数——结构层判据，
-    /// 与分层排序同哲学（否则同类现象换一批词又复发）。
+    /// 判据只看输入本身的字面结构：不看候选、不调词频参数——结构层判据
+    /// （否则同类现象换一批词又复发）。
     pub(crate) fn input_starts_with_complete_syllable(input: &str) -> bool {
         // 完整音节最长 6 字母（zhuang/chuang）；1 起步含 a/o/e 单字母音节
         let max = input.len().min(6);
@@ -1376,19 +1377,19 @@ impl crate::engine::Engine {
         })
     }
 
-    /// 「有效简拼整词」= 每字母一字且输入首音节不能完整成音节。
+    /// 「有效简拼整词」= 每字母一字 **且** 输入首音节不能完整成音节。
     /// 排序层唯一入口——「纯简拼让位」判定收敛在此，
     /// candidate_cmp / candidate_sort_key 两条路径共用，避免条件漂移。
     ///
-    /// `input_first_syl_complete` 由调用方在排序前算一次
+    /// `input_first_syl_complete` 由调用方在排序前**算一次**
     /// （[`Self::input_starts_with_complete_syllable`]）传进来——判据只与
     /// input 有关、与候选无关，放进每候选的键计算就是重复劳动（候选数百、
     /// 按键热路径预算敏感）。
     ///
-    /// 背景（yem 场景）：旧版 is_jianpin_whole_word 无条件置顶 tier 0，
+    /// 背景（yem 输入）：旧版 is_jianpin_whole_word 无条件置顶 tier 0，
     /// 使 seed 里 base=6 的生僻词「耶尔穆」(ye er mu) 压过 base=248 的「也没」
-    /// 与「页面」(ye mian)——纯简拼词霸屏。原则：「ye 能组成完整音节时
-    /// 纯简拼应让位」；实现为整类机制：首音节完整时简拼整词退出 tier 0，
+    /// 与「页面」(ye mian)——纯简拼词霸屏。修复为整类机制：首音节完整时
+    /// 简拼整词退出 tier 0，
     /// 回到常规分层（完整匹配词 > 前缀词），与词频无关。
     #[inline]
     pub(crate) fn is_jianpin_whole_word_eligible(
@@ -1399,13 +1400,14 @@ impl crate::engine::Engine {
         !input_first_syl_complete && Self::is_jianpin_whole_word(input, c)
     }
 
-    /// 排序比较器参考实现（矩阵守护）：生产排序已迁移 sort_by_key +
+    /// 排序比较器权威实现（分层序矩阵容错守护）：生产排序已迁移 sort_by_key +
     /// candidate_sort_key（本文件顶部），本函数仅测试直调守护（tests_query
     /// 的分层序断言）——防误删保留 #[allow]。
-    #[cfg_attr(not(test), allow(dead_code))]
-    // 参数即分层判定的完整上下文（输入/双方候选/音节数/首音节/窗口分/切分），
-    // 打包结构体只是把参数搬家
+    // 9 个参数是分层判定本身的上下文（input / 双方候选 / 音节数 / 首音节 /
+    // 窗口分 / 切分），打包成结构体只是把参数搬家；本函数是 candidate_sort_key
+    // 的语义参考实现（生产排序已改用键预计算）。
     #[allow(clippy::too_many_arguments)]
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn candidate_cmp(
         &self,
         input: &str,
@@ -1430,7 +1432,7 @@ impl crate::engine::Engine {
                 _ => {}
             }
             // 简拼整词（每字母一字）＝ 最强对位结构证据，先于完整/前缀分层
-            //（ssef 的 似是而非 会被 2 字高频词按词频压到 rank 11）。
+            // （ssef 的 似是而非 曾被 2 字高频词按词频压到 rank 11）。
             //
             // 「纯简拼让位」：仅当输入首音节不能完整成音节时成立。
             // yem 的 ye 是完整音节 → 简拼整词（耶尔穆）退出本层、按常规分层；
@@ -1447,16 +1449,16 @@ impl crate::engine::Engine {
             // 多音节输入下，完整匹配（候选的拼音音节精确等于输入音节）的多字词
             // 绝对优先于前缀匹配（候选拼音音节多于输入音节）的多字词。
             //
-            // 关键（fanghu 案例）：只看「字数==音节数」判断完整匹配是错的——
+            // 关键修复（fanghu bug）：旧版只看「字数==音节数」判断完整匹配，
             // 但放还(fang huan, 2字) 和 防护(fang hu, 2字) 字数都等于输入音节数(2)，
-            // 会被误判为都完整匹配，导致高 freq 的放还(2400) 压过防护(1050)。
+            // 被误判为都完整匹配，导致高 freq 的放还(2400) 压过防护(1050)。
             // 正确判据：候选的拼音音节数必须等于输入音节数（拼音真的精确匹配，
             // 而非 fang hu 作为 fang huan 的前缀）。
             //
-            // 简拼/混合输入同样适用（结构层原则，
-            // 取代早期多轮频率类补丁——seg_all_complete 门控/撇号例外/freq 门槛资格）：
-            // 输入是合法简拼（含混合）时，能匹配上（覆盖全部
-            // 输入单位）的单个词候选，结构层优先于部分匹配（留尾巴）的词。
+            // 简拼/混合输入同样适用（取代此前三轮频率类补丁——
+            // seg_all_complete 门控/撇号例外/freq 门槛资格，全部删除）：
+            // **输入是合法简拼（含混合）时，能匹配上（覆盖全部
+            // 输入单位）的单个词候选，结构层优先于部分匹配（留尾巴）的词**。
             // 这是层级判断而非词频判断——很多人(3单位全匹配) 优先于 很多(留 r)，
             // 现在网 优先于 现在，与词频无关；词频只在同层（都匹配上/都没
             // 匹配上）内排序。实测依据：hendr 最佳匹配是「很多人」但排在
@@ -1474,13 +1476,14 @@ impl crate::engine::Engine {
             // ── 全输入覆盖词（含长词补全）优先于部分覆盖词 ──
             //
             // 场景：zhongguorenminjiefang（6 单位，缺末音节）时候选按词频把
-            // 「中国」（覆盖 2/6）排首位、词库长词「中国人民解放军」（覆盖
-            // 6/6，输入是其严格前缀）沉底；zgrmjief 同型。语义：已敲单位
-            // 一个不落的候选 = 完整读法假设，结构层强于只覆盖前几位的词
-            // ——「覆盖全部输入单位」的判据此前只认等长精确，漏了长词补全
-            // 这一形态。与 full-match 的分工：等长精确仍在最前
-            // （确定性 > 预测），长词补全多出的尾部音节只是对后续输入的
-            // 预测。只对多字词生效；单字层级由上方 tier 隔离，不到这里。
+            // 「中国」（覆盖 2/6）排首位、词库长词「中国人民解放军」（覆盖 6/6，
+            // 输入是其严格前缀）只能当紫词沉底；zgrmjief 同型。
+            // 语义：已敲单位一个不落的候选 = 完整读法假设，结构层强于只覆盖
+            // 前几位的词（「覆盖全部输入单位」的判据此前只认等长精确，
+            // 漏了长词补全这一形态）。
+            // 与 full-match 的分工：等长精确仍在最前（确定性 > 预测），
+            // 长词补全多出的尾部音节只是对后续输入的预测。
+            // 只对多字词生效；单字层级由上方 tier 隔离，不到这里。
             let a_covers_all = a_prefix && Self::covers_all_input(a, best_syllables);
             let b_covers_all = b_prefix && Self::covers_all_input(b, best_syllables);
             if a_covers_all != b_covers_all {
@@ -1546,7 +1549,7 @@ impl crate::engine::Engine {
             }
         }
 
-        // 第3层：上下文搭配优先。
+        // 第3层：上下文搭配优先（分层重构）。
         // 候选与上文 context.last() 构成词库词（collocation 命中）的优先于无搭配的。
         // 例：上文「记」+「忆」=「记忆」在词库 → 优先于「已」（无「记已」）。
         // 双方都命中或都不命中 → 进第4层比分数。冷启动 context 空 → 都不命中，行为同现状。
@@ -1569,7 +1572,7 @@ impl crate::engine::Engine {
             }
 
             // 第3.5层：紧邻用户强 bigram 硬规则。
-            // context.last() 与候选的用户 bigram count ≥ 阈值 → 优先。
+            // context.last() 与候选的**用户** bigram count ≥ 阈值 → 优先。
             // 场景（轮胎→放气）：教学「轮胎→放气」(count=9) 后，输轮胎再输
             // fangqi，首候选仍是放弃——栈内重复历史（利益→放弃多轮教学残留）在
             // context_bonus 里被 0.85 弱衰减累加多份，叠加放弃的 recent_score，
@@ -1594,7 +1597,7 @@ impl crate::engine::Engine {
         let mut score_b = self.candidate_score(input, b);
 
         // 注：FULL_MATCH_BONUS 加分块已删除（dead code）。
-        // 完整 vs 前缀的绝对优先级已在 candidate_cmp 开头判定（上方
+        // 完整 vs 前缀的绝对优先级已在 candidate_cmp 开头判定（line 669-670
         // 的 a_full/b_full 比较），到此处要么双方都 full 要么都 prefix，
         // 加分到两边净零效果。FULL_MATCH_BONUS 常量保留（简拼路径仍真实使用）。
         // 混合简拼尾的结构优先同样走 tier（见上方 tier 块与
@@ -1657,13 +1660,14 @@ impl crate::engine::Engine {
     /// 计算候选的排序键（键预计算排序）。
     ///
     /// candidate_cmp 的每一层判定（词/字 tier、full-match、音节位置、collocation、
-    /// 强 bigram、打分、常用度、字数、拼音）都是候选自身属性，不依赖被比较的
+    /// 强 bigram、打分、常用度、字数、拼音）都是**候选自身属性**，不依赖被比较的
     /// 另一方。因此可以把 sort_by 的 O(n log n) 次两两比较（每次比较含 collocation
     /// Trie 查询 + user bigram hash 查询，上下文非空时是排序主成本）改为：
     /// 每候选预计算一次键（各查询只做 1 次）+ 元组排序。
-    /// 排序结果与 candidate_cmp 两两比较逐位相同——
+    /// **排序结果与 candidate_cmp 两两比较逐位相同**——
     /// 由 test_candidate_sort_key_matches_cmp 守护等价性。
-    // 参数与 candidate_cmp 同源（键预计算版本的同一组上下文）
+    // 8 个参数与 candidate_cmp 同构（分层判定的上下文），打包成结构体只是
+    // 把参数搬家；保留单函数签名以便与参考实现逐位对拍。
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn candidate_sort_key(
         &self,
@@ -1683,16 +1687,16 @@ impl crate::engine::Engine {
         // tier 编码 candidate_cmp 开头的分层（值小者排前）：
         // 多音节：0=简拼整词 1=完整匹配词 2=全输入覆盖词（含长词补全）
         //        3=部分覆盖词 4=精确单字 5=前缀单字
-        //        （词恒在字前；简拼整词=每字母一字，为最前层；
-        //          全输入覆盖层见 covers_all_input 注释）
+        //        （词恒在字前；简拼整词=每字母一字，最前层；
+        //          全输入覆盖层，见 covers_all_input 注释）
         // 单音节：0=精确单字 1=前缀单字 2=词（字恒在词前）
         //
-        // 简拼/混合输入同样分层（与 candidate_cmp
-        // 同步，test_candidate_sort_key_matches_cmp 守护）：合法简拼（含混合）
+        // 简拼/混合输入同样分层（与 candidate_cmp 同步，
+        // test_candidate_sort_key_matches_cmp 守护）：合法简拼（含混合）
         // 下能匹配上（覆盖全部输入单位）的单个词候选，结构层优先于部分匹配
         // （留尾巴）的词——很多人 > 很多（留 r），与词频无关；词频只在同层内
-        // 排序。此前的多轮频率类补丁（seg_all_complete 门控/撇号例外/freq 资格
-        // 门槛）已全部废弃。
+        // 排序。此前三轮频率类补丁（seg_all_complete 门控/撇号例外/freq 资格
+        // 门槛）全部废弃。
         let tier = if is_multi_syllable {
             // 有效简拼整词才置顶（纯简拼让位，见其函数注释）
             if Self::is_jianpin_whole_word_eligible(input, c, input_first_syl_complete) {
@@ -1743,7 +1747,7 @@ impl crate::engine::Engine {
         //
         // 单字成词抑制：suppress_collocation_after_word=true 时，跳过
         // collocation_freq 查询（no_collocation 恒 true）。详见 context_bonus_with_ctx
-        // 的同源改动与「单字成词抑制状态机」设计。
+        // 同源改动「单字成词抑制状态机」。
         let (no_collocation, no_strong_bigram) = if let Some(prev) = self.context.last() {
             let collocation_hit = if self.suppress_collocation_after_word {
                 false
@@ -1808,9 +1812,8 @@ impl crate::engine::Engine {
 /// 把 (text, ScoreBreakdown) 列表序列化为 JSON（学习型排序器训练数据记录格式）。
 ///
 /// 格式：`[{"text":"...","features":{"base":N,"total_bonus":N,...,"total":N}}, ...]`
-/// 字段名是跨进程契约：宿主前端与引擎服务侧
-/// （selections.rs）都按此格式写 selections.jsonl，离线训练工具
-/// 按名解析——多端共用本实现（杜绝漂移）。
+/// 字段名是**跨进程契约**：各调用方都按此格式写 selections.jsonl
+/// 并按名解析——多端共用本实现（从 ffi/mod.rs 上移为 pub，杜绝漂移）。
 pub fn features_to_json(features: &[(String, super::ScoreBreakdown)]) -> String {
     let mut json = String::from("[");
     for (i, (text, bd)) in features.iter().enumerate() {

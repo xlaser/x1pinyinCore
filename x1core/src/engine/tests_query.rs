@@ -1,6 +1,6 @@
-//! Engine 测试 · 基础查询 / DB / 性能（按主题模块化拆分）。
+//! Engine 测试 · 基础查询 / DB / 性能（从 engine/tests.rs 拆出）。
 //!
-//! 按主题分组：
+//! 本文件由原 `tests.rs` 整体搬出，按主题分组：
 //! - 基础全拼 / 简拼 / 单字 / 音节切分 / 混合 (hybrid) 查询
 //! - DB 引擎加载 / 回退内置词库 / X1Dict 集成
 //! - 性能探针：hybrid 查询、Trie 遍历、process 各长度、ni 映射扫描、累积退化
@@ -17,7 +17,7 @@ fn test_empty_input() {
     assert!(r.is_empty());
 }
 
-/// 回归：candidates_for_syllables 不得返回重复 text。
+/// 回归（源头修复）：candidates_for_syllables 不得返回重复 text。
 ///
 /// 历史 bug：candidates_for_syllables 先调 word_candidates_for_syllables 产出词级候选，
 /// 再 extend(query_single_chars_fuzzy) 补首音节单字。单音节输入时两者都产出单字，
@@ -110,9 +110,9 @@ fn test_jianpin_query() {
     );
 }
 
-/// 长简拼不断词：连输 7+ 个相同首字母时必须有候选。
+/// 长简拼不断词（守护）：连输 7+ 个相同首字母时必须有候选。
 ///
-/// 根因：`is_jianpin` 的 6 字上限让 zzzzzzzz（7）
+/// 根因回顾：`is_jianpin` 曾有 6 字上限——zzzzzz（6）走简拼路径出词，zzzzzzz（7）
 /// 被踢到全拼路径、切不出有效音节 → 候选框完全断词（列表空）。修复 = 移除分类
 /// 上限（元音/相邻音节两条语义判据已足以区分全拼）；算力护栏改放 DP 层
 /// （≤16 字母，超限跳过整句猜测）。
@@ -128,7 +128,7 @@ fn test_long_jianpin_not_cut_off() {
         );
     }
     // 绿词 DP 上限（16）以上：跳过整句猜测但查词/单字照常返回——
-    // 任何长度都不允许出现"候选框全空"的断词悬崖
+    // **任何长度都不允许出现"候选框全空"的断词悬崖**
     // （上限保留但改高；护栏放在 DP 这一算力大头，不是分类层）。
     for n in [17usize, 24, 32] {
         let input = "z".repeat(n);
@@ -264,16 +264,14 @@ fn test_syllable_count_and_prefix_len() {
     assert_eq!(engine.syllable_prefix_len("zizuci", 3), 6); // zizuci
 }
 
-/// 场景：混合输入「pengbfzhan」（蓬勃发展，全拼+简拼）空格
-/// 提交后残留「an」。
+/// 混合输入「pengbfzhan」（蓬勃发展，全拼+简拼）空格提交后残留「an」。
 ///
 /// 根因：显示/计数/消费链（best_segmentation → pick_segmentation）在
 /// `segmentations`（全有效）为空时只拿 `segmentations_prefix_tail` 合成变体
-/// 参选，而该合成把尾部已敲完整的音节 zhan 按声母退化成 zh|a|n（打分 0）；
+/// 参选，而该合成把尾部**已敲完整的音节** zhan 按声母退化成 zh|a|n（打分 0）；
 /// 候选链 token 语义的正确切分 [peng,b,f,zhan]（打分 1000）不在池内 →
-/// 选举数出 6 音节。宿主前端把「4 字候选 < 6 音节」判成自组词
-/// 分步提交，只消费前 4 个「音节」= 8 字节「pengbfzh」→ 剩余 an 重新预输入
-///（用户可见残留，Windows DLL 经 consumed 同链同病）。
+/// 选举数出 6 音节。提交侧「4 字候选 < 6 音节」判成自组词分步提交，
+/// 只消费前 4 个「音节」= 8 字节「pengbfzh」→ 剩余 an 重新预输入（用户可见残留）。
 ///
 /// 守护不变量：4 字候选「蓬勃发展」必须全消费整个输入（prefix_len(4) == len），
 /// 且显示/计数链与候选链对同一输入选出同一切分。
@@ -317,7 +315,7 @@ fn test_hybrid_input_full_consumption_no_residue() {
         "pbfzhan 上选 4 字候选应全消费"
     );
     // 端到端（真实种子库）：「蓬勃发展」经 consumed_lens 必须
-    // 全消费 pengbfzhan——Windows DLL commit 切剩余音节走同一权威值。
+    // 全消费 pengbfzhan——commit 切剩余音节走同一权威值。
     let db = seed_copy("pengbfzhan_residue");
     let engine = Engine::new_with_db(&db).expect("seed db");
     let cands = engine.process("pengbfzhan");
@@ -325,7 +323,7 @@ fn test_hybrid_input_full_consumption_no_residue() {
     let idx = cands
         .iter()
         .position(|c| c.text.as_ref() == "蓬勃发展")
-        .expect("种子库应含「蓬勃发展」");
+        .expect("种子库应含「蓬勃发展」（实报词）");
     assert_eq!(
         consumed[idx],
         "pengbfzhan".len(),
@@ -360,15 +358,15 @@ fn test_syllable_segmentation() {
     assert!(seg("").is_empty());
 }
 
-/// 手动分隔符 ' 的显示切分（回归守护）：
+/// 手动分隔符 ' 的显示切分（修复回归守护）：
 /// ' 是用户显式段界——各段独立自动切分，撇号落回按下位置。
-/// 旧实现：简拼分支把 ' 当独立段（s'h → s'''h 连续撇号）；
+/// 旧实现：简拼分支把 ' 当独立段（s'h → s'''h 撇号爆炸）；
 /// token 分支吞掉 '（wenm'in → wen'm'i'n，用户边界消失）。
 #[test]
 fn test_syllable_segmentation_manual_apostrophe() {
     let engine = Engine::new();
     let disp = |input: &str| engine.syllable_segmentation(input).join("'");
-    // 场景：sh 自动切 s|h + 用户尾按 ' → s'h'（旧：s'h'' 双撇号）
+    // case：sh 自动切 s|h + 用户尾按 ' → s'h'（旧：s'h'' 双撇号）
     assert_eq!(disp("sh'"), "s'h'");
     // 显式 s|h：s'h → s'h（旧：s'''h 撇号爆炸）
     assert_eq!(disp("s'h"), "s'h");
@@ -490,7 +488,7 @@ fn test_hybrid_zhonggrm() {
     );
 }
 
-/// 回归测试：xiaoguo 的「效果」应是白词（score_for_syllables 打分修复）。
+/// 回归测试：xiaoguo 的「效果」应是白词（score_for_syllables 打分 bug 修复）。
 /// 原版 [xiao,gu,o] 切分靠前缀词「小姑」(xiao gu, 字数2 < 音节数3) 高 freq 压过
 /// [xiao,guo] 的精确匹配「效果」，导致「效果」成橙词补充。修复：打分只计精确匹配词。
 #[test]
@@ -513,7 +511,7 @@ fn test_xiaoguo_xiaoguo_is_white_word() {
 }
 
 /// 回归测试：zhgrm 应命中「中国人民」（修复 max_tokens 排序 bug）。
-/// process_hybrid_shengmu_inner 旧版用全 Initial 退化切分的 token 数（5）做完全匹配判据，
+/// process_hybrid_shengmu_inner 曾用全 Initial 退化切分的 token 数（5）做完全匹配判据，
 /// 导致「中国人民」（4字）被判非完全匹配，被高频 2 字词挤出。修复改用含 Shengmu 切分的
 /// token 数（4）做判据。
 #[test]
@@ -534,8 +532,8 @@ fn test_zhgrm_ranks_zhongguorenmin_first() {
 /// 回归测试：zhmz 应让「中华民族」进第 1 页（完全匹配判据歧义修复）。
 /// zhmz 有两种等价的输入完全覆盖：声母切分 [zh,m,z]（这么着，3 token）与
 /// 全首字母切分 [z,h,m,z]（中华民族，4 token）。旧判据只认含 Shengmu 切分的
-/// token 数（3），4 字词被单字补充/二字前缀词压到第 95 位——与 zhgrm
-/// 修复（反向只认全首字母切分数）互为另一面。修复后
+/// token 数（3），4 字词被单字补充/二字前缀词压到第 95 位——与
+/// zhgrm 修复（当时反向只认全首字母切分数）是同一段历史的另一面。修复后
 /// 字数命中任一切分方案的 token 数即第 1 层，层内由 candidate_score 分胜负。
 /// 用真实词库（用户 DB → 种子 DB）：内置小词库无「中华民族」，无 DB 时跳过。
 #[test]
@@ -546,7 +544,7 @@ fn test_zhmz_zhonghuaminzu_full_match_ambiguity() {
     let rank = rank.expect("zhmz 应查出「中华民族」（全首字母切分 z,h,m,z）") + 1;
     assert!(
         rank <= 10,
-        "「中华民族」应进前 10（第 1 层完全匹配；旧实现第 95 位），实际第 {} 位，前10: {:?}",
+        "「中华民族」应进前 10（第 1 层完全匹配；修复前第 95 位），实际第 {} 位，前10: {:?}",
         rank,
         cands.iter().take(10).map(|c| &c.text).collect::<Vec<_>>()
     );
@@ -554,11 +552,11 @@ fn test_zhmz_zhonghuaminzu_full_match_ambiguity() {
 
 /// 守护：用户词"字数==音节数"不变量——learn 入口拒绝错位拼音。
 ///
-/// 背景（Windows 微信"习惯惯"重复上屏根因）：learn("习惯惯","xi guan") 这类
+/// 背景（微信"习惯惯"重复上屏根因）：learn("习惯惯","xi guan") 这类
 /// 3 字词带 2 音节拼音的错位条目会直入 user_words + Trie，之后输入 "xiguan"
 /// 就把"习惯惯"当整词候选顶到最前（实测排名 #1，与合法"习惯"竞争排名 =
-/// "偶尔出现"），一次空格整体上屏 = 末字重复。组合学习（Windows editor
-/// comboPinyin_ 拼接）步骤拼音缺失时即产出该形态。
+/// "偶尔出现"），一次空格整体上屏 = 末字重复。组合学习拼接
+/// 步骤拼音缺失时即产出该形态。
 #[test]
 fn test_learn_rejects_pinyin_syllable_mismatch() {
     let mut e = Engine::new();
@@ -591,7 +589,7 @@ fn test_commit_solidify_rejects_pinyin_syllable_mismatch() {
 }
 
 /// 守护：同词多读音共存——zhujiao→主角 造词后，
-/// 再用 zhujue→主角 造词不能冲掉前者。用户输入不精确是常态
+/// 再用 zhujue→主角 造词**不能冲掉前者**。用户输入不精确是常态
 /// （zhujiao/zhujue 都指主角），两种读音必须共存：两种查询都要能出该词，
 /// 重启（DB round-trip）后也都还在。
 #[test]
@@ -760,12 +758,11 @@ fn test_shuru_first_is_shuru() {
     );
 }
 
-/// 回归测试矩阵：用真实用户 DB 跑全量边界 case，守护切分/排序不回归。
+/// 回归测试矩阵：用真实用户 DB 跑全量边界 case，守护切分/排序不回归（系统审查）。
 /// 每个案例对应一个历史 bug，统一守护 is_hybrid + score_for_syllables + candidate_cmp。
 #[test]
 fn diag_matrix_real_db() {
-    // 用户 DB 路径：新直路径优先，旧容器路径兜底。
-    // 注意：硬编码用户名仅在本机有效——两路径都不可用时静默回退种子 DB，
+    // 真实库经 X1_REAL_DB_DIR 注入（见 real_engine 注释）；不可用时静默回退种子副本，
     // 矩阵仍然跑（守护逻辑回归），只是不覆盖用户真实数据。
     let engine = real_engine();
     // (输入, 期望首候选包含, 描述) —— 用"包含"而非"等于"避免过度耦合 DB freq
@@ -823,7 +820,7 @@ fn test_prefix_guess_marked_for_complete_syllable() {
         .collect();
     assert!(exact.len() > 5, "ji 精确字应有一批");
     assert!(exact.iter().all(|c| !c.is_guess), "精确音节候选不染紫");
-    // 前缀延伸（间/接类）：染紫且 ≤3 条（紫词上限）
+    // 前缀延伸（间/接类）：染紫且 ≤3 条（上限）
     let prefix: Vec<_> = cands
         .iter()
         .filter(|c| c.pinyin.split_whitespace().last() != Some("ji"))
@@ -1048,7 +1045,7 @@ fn diag_shuangpin_green_jianpin() {
     );
 }
 
-/// 守护：green_memo 恢复上限截断——
+/// 守护：green_memo 恢复上限截断（真实 bug 修复）——
 /// input_mappings 无上限增长（固化只清 user_words/user_blacklist 不清
 /// input_mappings），恢复的 green_memo 远超 GREEN_MEMO_MAX_ENTRIES(200) 时，
 /// 首次 commit 写入即超限 → 整体 clear → 历史绿词 + 新学绿词全丢。
@@ -1094,7 +1091,7 @@ fn test_green_memo_recovery_capped() {
     e.commit("uihglgni", "我好困急你", Some("wo hao kun ji ni"), false);
     assert!(
         e.green_memo.contains_key("uihglgni"),
-        "commit 新绿词后 key 必须存在（不得触发整体 clear）"
+        "commit 新绿词后 key 必须存在（修复前恢复即超限 → 首次 commit 全清）"
     );
 
     let _ = fs::remove_dir_all(&dir);
@@ -1149,7 +1146,7 @@ fn test_user_word_overrides_system_word_on_import() {
     let _ = fs::remove_dir_all(&dir);
 }
 
-/// 守护：发布链路端到端明文——
+/// 守护：发布链路端到端明文（加密移除后）——
 /// 种子 DB 明文 → 用户 DB 复制 → 引擎加载出词 + 词库管理器读路径
 /// （list_x1dict_words）+ 导出路径 freq 均为明文原值。
 #[test]
@@ -1246,8 +1243,8 @@ fn diag_green_memo_cross_mode() {
     // 这里验证 green_memo 数据结构本身有全拼 key 即可（查询路径已有 seg_pinyin 回退）
 }
 
-/// 回归测试：tingshuo 不应被误判为混合简拼。
-/// tingshuo 是全拼（ting+shuo），旧版被 is_hybrid 误判走 query_tokens，
+/// 回归测试：tingshuo 不应被误判为混合简拼（修复 bug）。
+/// tingshuo 是全拼（ting+shuo），曾被 is_hybrid 误判走 query_tokens，
 /// 导致 ting→s+h+u+o 拆分后「体内」「体能」等 ti 开头词污染首候选。
 /// 修复：is_hybrid 加「Initial 段拼起来是有效音节则不算混合」反拆分判据。
 #[test]
@@ -1319,7 +1316,7 @@ fn test_hybrid_chgrm() {
     );
 }
 
-/// 性能探针：混合查询的耗时（阈值：短输入 <10ms，长输入 <50ms）
+/// 性能探针：混合查询的耗时（红线：短输入 <10ms，长输入 <50ms）
 #[test]
 fn bench_hybrid_queries() {
     use std::time::Instant;
@@ -1351,17 +1348,17 @@ fn bench_hybrid_queries() {
             10_000.0
         };
         println!(
-            "BENCH {:<14} → {:.2} μs/query (阈值 {:.0}ms)",
+            "BENCH {:<14} → {:.2} μs/query (预算 {:.0}ms)",
             input,
             per_us,
             threshold / 1000.0
         );
-        // 性能阈值只在 release 模式断言——debug 无优化可慢 5-10 倍，
-        // debug 下只打印供参考。
+        // 性能红线只在 release 模式断言——debug 无优化可慢 5-10 倍
+        // （"性能红线，debug 模式会超时不算"），debug 下只打印供参考。
         if !cfg!(debug_assertions) {
             assert!(
                 per_us < threshold,
-                "{} 单次查询 {:.1}ms 超过阈值",
+                "{} 单次查询 {:.1}ms 超过预算",
                 input,
                 per_us / 1000.0
             );
@@ -1385,8 +1382,8 @@ fn test_db_engine_fallback_to_builtin() {
 
 /// 性能探针：Trie + word_index + seed_bigram 内存构成统计。
 /// 确定性计算节点/Arc/Vec 的理论内存，指导紧凑化优先级。
-/// 内存紧凑化修订：拼音 Arc 按节点共享、word_index 复用
-/// Trie Arc 分配、seed_bigram CSR 平铺——三项与旧结构对照一并输出。
+/// 内存优化后修订：拼音 Arc 按节点共享、word_index 复用
+/// Trie Arc 分配、seed_bigram CSR 平铺——三项与优化前对照一并输出。
 /// 用 --nocapture 看输出。
 #[test]
 fn bench_trie_memory_profile() {
@@ -1416,17 +1413,17 @@ fn bench_trie_memory_profile() {
 
     // word_index：(Arc<str>, u32, Arc<str>) = 40B/条（对齐后），零独立堆分配
     let wi_new = p.word_index_len * 40;
-    // 旧结构：(String, u32, String) = 56B/条 + 每条 2 次 String 堆分配（头 24B
+    // 优化前：(String, u32, String) = 56B/条 + 每条 2 次 String 堆分配（头 24B
     // 在结构体内已计，堆内容 + malloc 头 ~16B，短词按 32B/次估）
     let wi_old = p.word_index_len * 56 + p.word_index_len * 2 * 32;
 
     let sb = &engine.freq.seed_bigram;
     let sb_new = sb.estimated_bytes();
-    // 旧结构：嵌套 BTreeMap + totals BTreeMap 估算 ~140B/条
+    // 优化前：嵌套 BTreeMap + totals BTreeMap 估算 ~140B/条
     let sb_old = sb.len() * 140;
 
     eprintln!("=== 内存构成（187k 词种子，seed_bigram blob 化后）===");
-    // arena 化后的真实基底（节点 Trie 是构建期结构，
+    // 补印 arena 化后的真实基底（节点 Trie 是构建期结构，
     // finish_load 后整体丢弃——node_count 只剩 overlay 增量，不是主存储）。
     eprintln!(
         "[arena] 基底: ~{} MB（节点: {}  候选: {}）  word_index span: ~{} MB（{} 条）  overlay: 节点 {} 候选 {}",
@@ -1451,19 +1448,19 @@ fn bench_trie_memory_profile() {
     );
     eprintln!("[Trie] 小计: ~{} MB", trie_total / 1048576);
     eprintln!(
-        "[word_index] 现结构 ~{} MB（Arc 复用，0 堆分配） vs 旧结构 ~{} MB",
+        "[word_index] 优化后 ~{} MB（Arc 复用，0 堆分配） vs 优化前 ~{} MB",
         wi_new / 1048576,
         wi_old / 1048576
     );
     eprintln!(
-        "[seed_bigram] CSR {} 条/{} 组: ~{} MB vs 旧结构 BTreeMap ~{} MB",
+        "[seed_bigram] CSR {} 条/{} 组: ~{} MB vs 优化前 BTreeMap ~{} MB",
         sb.len(),
         sb.prev_len(),
         sb_new / 1048576,
         sb_old / 1048576
     );
     eprintln!(
-        "[合计] 当前 ~{} MB，旧结构 ~{} MB，估算节省 ~{} MB",
+        "[合计] 当前 ~{} MB，优化前 ~{} MB，估算节省 ~{} MB",
         (trie_total + wi_new + sb_new) / 1048576,
         (trie_total + wi_old + sb_old) / 1048576,
         (wi_old - wi_new + sb_old - sb_new) / 1048576
@@ -1490,9 +1487,9 @@ fn release_allocator_slack_keeps_engine_intact() {
 /// 只测不断言。用 --nocapture 看输出。
 #[test]
 fn bench_startup_breakdown() {
-    // seed_copy 临时副本：Storage::open(仓库种子) 就地转 WAL 写 db_meta +
-    // bigram 缓存写回 assets——交付种子被改写，且与其他测试的 fs::copy
-    // 并行竞争（readonly panic，套件偶发红）。
+    // seed_copy 临时副本：Storage::open(仓库种子)
+    // 就地转 WAL 写 db_meta + bigram 缓存写回 assets——交付种子被改写，且与
+    // 其他测试的 fs::copy 并行竞争（readonly panic，套件偶发红的最后一处）。
     let seed = seed_copy("bench");
 
     let t0 = std::time::Instant::now();
@@ -1559,7 +1556,7 @@ fn bench_startup_breakdown() {
     drop(engine);
 }
 
-/// 启动分解·编译缓存对照（独立测试：带 hash 副本才能走编译缓存；seed_copy
+/// 启动分解·缓存对照（独立测试：带 hash 副本才能走编译缓存；seed_copy
 /// 无 hash 的分解主体展示的是构建路径）。用 --nocapture 看输出。
 #[test]
 fn bench_startup_cache_hit() {
@@ -1776,7 +1773,7 @@ fn test_db_engine_with_x1dict() {
     );
 }
 
-/// 键预计算排序与 candidate_cmp 两两比较的等价性守护。
+/// 键预计算排序与 candidate_cmp 两两比较的等价性守护（重构）。
 /// 主排序从 sort_by(candidate_cmp) 改为预计算 CandidateSortKey + 元组排序，
 /// 要求对所有参数组合（单/多音节、best_score 0/>0、有无上下文）结果逐位相同。
 #[test]
@@ -1863,7 +1860,7 @@ fn test_candidate_sort_key_matches_cmp() {
     }
 }
 
-/// 纯简拼让位（yem 案例）：输入首音节能成完整音节时，
+/// 纯简拼让位（yem 输入）：输入首音节能成完整音节时，
 /// 「每字母一字」的纯简拼词退出 tier 0，让位于「完整音节+简拼」读法；
 /// 首音节不能成音节时（ssef）简拼整词保持置顶（不回归）。
 #[test]
@@ -1902,7 +1899,7 @@ fn test_jianpin_whole_word_yields_to_complete_first_syllable() {
         &texts[..texts.len().min(6)]
     );
 
-    // ③ ssef：似是而非（简拼整词）保持第一，不回退到让位之前的处境
+    // ③ ssef：似是而非（简拼整词）保持第一，不回退到旧行为
     let ssef = engine.process("ssef");
     assert_eq!(
         ssef.first().map(|c| c.text.as_ref()),
@@ -1915,7 +1912,7 @@ fn test_jianpin_whole_word_yields_to_complete_first_syllable() {
     );
 }
 
-/// 回归测试：zpiny 不产「拍扁噪音」候选（混合简拼回退修复）。
+/// 回归测试：zpiny 不产「拍扁噪音」候选（修复混合简拼回退 bug）。
 ///
 /// 原 bug：混合简拼回退把 [z,pin,y] 全部拍扁成 zpy 查简拼，捞出第二音节与
 /// 用户明确输入的 pin 完全对不上的词（装配员 zhuang pei yuan、
@@ -1944,12 +1941,12 @@ fn test_zpiny_no_flatten_noise() {
     );
 }
 
-/// 回归测试：末尾完整音节仍允许拍扁回退（保留面）。
+/// 回归测试：末尾完整音节仍允许拍扁回退（守卫的保留面）。
 ///
 /// zpin → [z,pin]：pin 在末尾，可能是"只打了前几个字母"的半截（如想打
 /// 照片 zhao pian 只打了 zpin）→ 拍扁 zp 补查合理，照片/作品应出现。
-/// zpyou → [z,p,you]：完整音节 you 在末尾，回退保留
-/// （zpyou 是正常可达方案，找朋友必须能出）。
+/// zpyou → [z,p,you]：完整音节 you 在末尾，回退保留（zpyou 是用户验证过
+/// 的正常方案，找朋友必须能出）。
 #[test]
 fn test_trailing_complete_syllable_flatten_preserved() {
     let seed = seed_copy("q");
@@ -1974,11 +1971,11 @@ fn test_trailing_complete_syllable_flatten_preserved() {
     );
 }
 
-/// 回归测试：首简拼 + 尾全拼时，尾部全拼必须精确约束候选。
+/// 回归测试：首简拼 + 尾全拼时，尾部全拼必须**精确**约束候选。
 ///
 /// hdong = [h, dong]：dong 是用户明确打完的完整音节，候选第二音节必须匹配
 /// dong——「回答(hui da)/海底(hai di)/很多(hen duo)」第二音节只共首字母 d，
-/// 是拍扁回退把 dong 降级成首字母后捞出的噪音。
+/// 是拍扁回退把 dong 降级成首字母后捞出的噪音（曾霸屏第 1、2、4 位）。
 /// 期望：h*+dong 精确词（活动/寒冬/华东/滑动/轰动）出现，h*+d* 噪音不出现。
 #[test]
 fn test_hdong_trailing_full_syllable_precise() {
@@ -2007,7 +2004,7 @@ fn test_hdong_trailing_full_syllable_precise() {
 
 /// 回归测试：尾部全拼的「续打半截」保留面（精确约束的边界）。
 ///
-/// bydi = [b, y, di]：di 是 ding/dian/die… 的前缀，用户可能还在续打
+/// bydi = [b, y, di]：di 是 ding/dian/die… 的**前缀**，用户可能还在续打
 /// （bu yi ding → byding）——同位音节以 di 开头的候选（不一定）必须保留。
 /// 精确约束的口径是「候选同位音节以输入完整音节开头」，不是死等全等，
 /// 这样 dong 位置的噪音（da/duo/di）被过滤、di 位置的续打（ding）保留。
@@ -2024,7 +2021,7 @@ fn test_bydi_trailing_prefix_continuation_preserved() {
     );
 }
 
-/// 回归测试：mo 不出「无」（种子 DB 已删除 无|mo 罕见古音单字条目）。
+/// 回归测试：mo 不出「无」（删除种子 DB 的 无|mo 罕见古音条目）。
 ///
 /// 「无」现代汉语只有 wu 一个读音（mo 仅存于佛经词「南无 nāmó」），
 /// 单字条目 无|mo 让「无」出现在 mo 输入的候选里，是词库脏数据。
@@ -2064,7 +2061,7 @@ fn test_mo_no_wu_candidate() {
 
 /// 回归测试：灭绝/词绑读音单字清理。
 ///
-/// 用户原则：「读音只在特定词汇中出现，就不要让它出现在单字候选里」。
+/// 原则：「读音只在特定词汇中出现，就不要让它出现在单字候选里」。
 /// 清理了 50 个单字条目（万|mo/佛|fu/南|na/会|kuai/提|di 等），
 /// 词级条目不受影响（仿佛/会计/南无/般若/参差/游说 等词里的读音是对的）。
 #[test]
@@ -2175,12 +2172,17 @@ fn test_extinct_readings_removed() {
     }
 }
 
-/// 真实数据引擎（布局感知）：环境变量 `X1_USER_DB_DIR` 指向本机输入法数据目录时，
-/// 分离布局 = open_split(dict.db, user.db)，旧单库 = new_with_db(x1pinyin.db)。
-/// 不能用 new_with_db 开 user.db——它只有用户表，合并模式打开等于空系统词典。
-/// 未设置或打开失败时回退种子副本。
-fn real_engine() -> Engine {
-    if let Ok(dir) = std::env::var("X1_USER_DB_DIR") {
+/// 真实数据引擎（布局感知）：分离布局 = open_split(dict.db, user.db)；旧单库 =
+/// new_with_db(x1pinyin.db)。**不能用 new_with_db 开 user.db**——它只有用户表，
+/// 合并模式打开等于空系统词典（实测 5 测试连挂的根因）。打不开时回退种子副本。
+///
+/// 真实库位置经 `X1_REAL_DB_DIR` 环境变量注入（指向数据目录，内含 dict.db /
+/// user.db 或旧 x1pinyin.db；对齐 `X1_EVAL_DB`/`X1_REPLAY_DB` 命名惯例）。
+/// 未设置或目录不可用时静默回退种子副本——守护逻辑回归仍跑，只是不覆盖
+/// 真实数据。开发机想走真实库加速，在 shell 配置固定：
+/// `export X1_REAL_DB_DIR="/path/to/data"`。
+pub(crate) fn real_engine() -> Engine {
+    if let Ok(dir) = std::env::var("X1_REAL_DB_DIR") {
         let dict = format!("{}/dict.db", dir);
         let user = format!("{}/user.db", dir);
         if std::path::Path::new(&dict).exists() {
@@ -2195,7 +2197,9 @@ fn real_engine() -> Engine {
             }
         }
     }
+    let seed = concat!(env!("CARGO_MANIFEST_DIR"), "/assets/x1pinyin.db");
     let db = seed_copy("re");
+    std::fs::copy(seed, &db).expect("copy seed");
     Engine::new_with_db(&db).expect("seed db")
 }
 
@@ -2207,8 +2211,8 @@ fn real_engine() -> Engine {
 fn test_fullpinyin_continuation_guess() {
     let db = seed_copy("cont");
     let engine = super::Engine::new_with_db(&db).expect("seed db");
-    // hu|peng 等长精确词在种子中不存在（pinyin like 'hu peng%'
-    // 只有 3-4 音节延展词）——该输入原本候选全空。
+    // hu|peng 等长精确词在种子中不存在（实查：pinyin like 'hu peng%'
+    // 只有 3-4 音节延展词）——此前该输入候选全空。
     let cands = engine.process("hupeng");
     let pos = cands.iter().position(|c| c.text.as_ref() == "狐朋狗友");
     assert!(
@@ -2234,7 +2238,7 @@ fn test_fullpinyin_continuation_guess() {
 }
 
 /// 紫词喧宾夺主回归（打 buyao 候选框被「不要X」刷屏）：
-/// 精确命中等长词时零猜测（buyao→不要、yonghu→用户），零精确命中
+/// 精确命中等长词时**零猜测**（buyao→不要、yonghu→用户），零精确命中
 /// （hupeng）的猜测 ≤3 条。真实种子库守护。
 #[test]
 fn test_guess_suppressed_on_exact_match_seed() {
@@ -2269,14 +2273,14 @@ fn test_guess_suppressed_on_exact_match_seed() {
     );
     assert!(
         single_guesses <= 3,
-        "单字延伸猜测 ≤3 条（紫词上限），实际 {}",
+        "单字延伸猜测 ≤3 条（上限），实际 {}",
         single_guesses
     );
     seed_copy_cleanup(&db);
 }
 
 /// 英文精确命中登顶（happy 排「哈珀培养/哈珀」后，
-/// 与英文匹配度最高的 happy 落在第三位不合理）：拼音覆盖不了整个输入的
+/// 「与英文匹配度最高的 happy 应在更前」）：拼音覆盖不了整个输入的
 /// 白词（哈珀 "hapo" vs "happy"）与绿词一律让位——happy 必须第 1 位。
 /// 真实种子库守护。
 #[test]
@@ -2302,19 +2306,21 @@ fn test_exact_english_tops_partial_match_seed() {
 }
 
 /// 种子库 → 唯一临时副本路径（返回路径字符串；用后由调用方清理）。
-/// 测试禁止直接读写仓库种子（相对路径 + cwd 依赖 + new_with_db 的维护性
-/// 写入会改动种子；种子内容还随部署脚本合并开发数据漂移，是单跑失败/
-/// 全量绿不稳定的来源）。引用既有 tests_dict.rs 的副本范式。
-/// 兄弟测试文件不得各自 `Engine::new_with_db(仓库种子)` 直接开种子——并行
-/// 互踩（readonly 恢复竞争 → 套件偶发红）+ Storage::open 就地转 WAL + 种子带
-/// sync_hash 时 bigram 缓存写回 assets（交付种子每轮测试被改写）。统一改走
+/// 测试**禁止直接读写仓库种子**（相对路径 + cwd 依赖 + new_with_db 的维护性
+/// 写入会改动种子；种子内容还随构建流程合并开发数据漂移——实测单跑
+/// 失败/全量绿的不稳定来源）。引用既有 tests_dict.rs 的副本范式。
+/// pub(super)：tests_context 等 6 个兄弟测试文件此前各自
+/// `Engine::new_with_db(仓库种子)` 直接开种子——并行互踩（readonly 恢复竞争
+/// → 套件偶发 12-14 红）+ Storage::open 就地转 WAL + 种子带 sync_hash 时
+/// bigram 缓存写回 assets（交付种子每轮测试被改写）。统一改走
 /// 本 helper 的临时副本。
 pub(crate) fn seed_copy(tag: &str) -> String {
+    // 缺种子时先给出获取指引（而非晦涩的 copy NotFound）
     crate::test_tmp::require_seed_db();
     let seed = concat!(env!("CARGO_MANIFEST_DIR"), "/assets/x1pinyin.db");
-    // 进程内序号：纳秒时钟在并行测试里可能同值（时钟精度不足），
-    // 只靠 pid+nanos 会让两个测试复制到同一路径互相截断（偶发
-    // 「no such table: db_meta」红）。tag+pid+nanos+seq 才唯一。
+    // 进程内序号：纳秒时钟在并行测试里可能同值（macOS 时钟精度不足），
+    // 只靠 pid+nanos 会让两个测试复制到同一路径互相截断（实测
+    // 「no such table: db_meta」偶发红）。tag+pid+nanos+seq 才唯一。
     static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
     let seq = SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let tmp = crate::test_tmp::dir().join(format!(
@@ -2328,10 +2334,10 @@ pub(crate) fn seed_copy(tag: &str) -> String {
         seq
     ));
     std::fs::copy(seed, &tmp).expect("copy seed db");
-    // 禁用共享 bigram 缓存：seed_bigram_cache.bin
-    // 用 with_file_name 落在 test-tmp 共享路径，缓存键 x1dict_sync_hash
+    // 禁用共享 bigram 缓存（测试隔离修复）：seed_bigram_cache.bin
+    // 用 with_file_name 落在 test-tmp **共享路径**，缓存键 x1dict_sync_hash
     // 又不感知裸 SQL 改表——并行测试互写共享缓存互相污染（bigram 类测试偶发
-    // 红），副本上 scrub 过的表也会被别的副本写下的全量缓存顶掉（是
+    // 红），副本上 scrub 过的表也会被别的副本写下的全量缓存顶掉（实测
     // test_context_phonetic_rescue 教学前断言恒红的根因）。置空 sync_hash
     // （非 16 字符 → load_seed_bigram_table_cached 跳过缓存），每个副本读
     // 自己的表，行为确定。
@@ -2354,9 +2360,9 @@ pub(crate) fn seed_copy_cleanup(path: &str) {
     let _ = std::fs::remove_file(p.with_extension("db-shm"));
 }
 
-/// 种子副本（保留 x1dict_sync_hash）——词典编译缓存测试专用。
-/// seed_copy 会把 hash 置空来禁共享 bigram 缓存，而编译缓存的失效键依赖
-/// hash；本变体在独立子目录里保留 hash（编译缓存与 DB 同伴落
+/// 种子副本（**保留 x1dict_sync_hash**）——词典编译缓存测试专用。
+/// seed_copy 会把 hash 置空来禁共享 bigram 缓存，而编译缓存的
+/// 失效键依赖 hash；本变体在**独立子目录**里保留 hash（编译缓存与 DB 同伴落
 /// 该子目录——不能落 test-tmp 顶层：`with_file_name` 会掉到共享路径，多测试
 /// 并行互写竞态）。
 pub(crate) fn seed_copy_keephash(tag: &str) -> String {
@@ -2514,7 +2520,7 @@ fn test_consumed_lens_prefix_extension_and_residual() {
     seed_copy_cleanup(&db);
 }
 
-/// 输入长度护栏。
+/// 输入长度护栏（安全修复）。
 ///
 /// 切分 DFS 按字节递归（深度=输入字节数）+ memo O(N²) 物化，实测 ~2KB 输入
 /// 即耗尽 1MB 线程栈（栈溢出 = SIGSEGV，catch_unwind 拦不住）。护栏在
@@ -2543,7 +2549,7 @@ fn test_input_length_guard() {
 }
 
 /// 守护：多字节输入进 is_hybrid_shengmu_input 不得 panic
-///（&input[..2] 字节切片遇非 char boundary 会直接 panic——每次按键级路径）。
+///（&input[..2] 字节切片遇非 char boundary 曾直接 panic——每次按键级路径）。
 #[test]
 fn test_hybrid_shengmu_multibyte_no_panic() {
     // 中文/emoji/混合输入：返回 false 但绝不 panic
@@ -2583,8 +2589,8 @@ fn test_flush_skips_snapshot_when_load_incomplete() {
 
 /// 多音字次音 freq 语料定标守护。
 ///
-/// 病灶：compute_freq 按字不按音，多音字所有读音行共享同一 freq（的/di=9999），
-/// 次音在对应音节冷启动虚高（的 压过 低/底/滴，与「呢 ni」同类）。
+/// 病灶：compute_freq 按字不按音，多音字所有读音行曾共享同一 freq（的/di=9999），
+/// 次音在对应音节冷启动虚高（的 压过 低/底/滴，「呢 ni」案例的推广）。
 /// 定标后次音 freq = 主音 freq × 自有分词语料占比（三路归因：POS 读音标注 /
 /// 多字词反查 / 单字回退主音）。数据守护 + 行为守护双锁。
 #[test]
@@ -2653,7 +2659,7 @@ fn test_polyphone_secondary_freq_calibrated() {
     );
 }
 
-/// 守护：di 选「的」后，de 读音的「的」不得获得任何加成。
+/// 守护：**di 选「的」后，de 读音的「的」不得获得任何加成**。
 ///
 /// 三项统计（rank_boost/count/recent）按音隔离是既有设计；本测试额外锁住
 /// user_modulator 豁免缝隙——counts 是不分音的文本级表，di 选择会写入 counts[的]，
@@ -2760,7 +2766,7 @@ fn test_word_freq_calibrated() {
     );
 }
 
-/// 【诊断】候选序实测（真实使用反馈的三项问题）。
+/// 【诊断】三项反馈问题的候选序实测。
 /// X1_DIAG_DB 环境变量指定 DB（默认 repo 种子；对比定标前后用备份路径）。
 /// print-only，无断言——分析用，勿在 CI 依赖其输出。
 #[test]
@@ -2810,7 +2816,7 @@ fn test_diag_user_feedback() {
             "woaizongguo pre-teach has 我爱中国 sentence: {}",
             cands.iter().any(|c| c.text.as_ref() == "我爱中国")
         );
-        // 教学 + 复查（诊断：区分引擎逻辑 vs 服务层）
+        // 教学 + 复查（诊断：区分引擎逻辑 vs 调用方）
         engine.commit("woaizhongguo", "我爱中国", Some("wo ai zhong guo"), true);
         engine.clear_context();
         println!(
@@ -2937,16 +2943,16 @@ fn test_diag_user_feedback() {
     }
 }
 
-/// 简拼与纠错三项守护：
-/// 1. 双字母声母简拼：sh 下「是」必须前排（旧实现排第 101 位——简拼单字附录在
+/// 三项反馈修复守护：
+/// 1. 双字母声母简拼：sh 下「是」必须前排（曾排第 101 位——简拼单字附录在
 ///    排序后裸 append 不参与加分，且完全匹配加分只认 字数==字母数）；
-/// 2. 简拼/混合的整词优先层级：合法简拼
+/// 2. 简拼/混合的**整词优先层级**：合法简拼
 ///    （含混合）下能匹配上（覆盖全部输入单位）的单个词候选，结构层优先
 ///    于部分匹配（留尾巴）的词，与词频无关——jiegw→结果为（3单位全匹配）
 ///    优先于 结果（留 w），hendr/hen'd'r→很多人 优先于 很多；词频只在
-///    同层内排序。
-/// 3. 双写字母折叠纠错：shenng 前 3 含橙标「生」（合法简拼解析吞掉纠错
-///    触发时，用户拿到的是 神女/神农 系错误解读）。
+///    同层内排序（曾按频率门控走了三轮弯路，全部废弃）。
+/// 3. 双写字母折叠纠错：shenng 前 3 含橙标「生」（合法简拼解析曾吞掉纠错
+///    触发，用户拿到的是 神女/神农 系错误解读）。
 #[test]
 fn test_user_feedback_jianpin_and_correction() {
     let seed = seed_copy("q");
@@ -3030,7 +3036,7 @@ fn test_user_feedback_jianpin_and_correction() {
     );
 
     // 3. 双写折叠纠错：shenng 前 3 含橙标「生」，且插在最佳自然候选之后
-    //（折叠让位给最强自然解读——yingg→应该#1、应[纠]#2）
+    //（yingg 修正：折叠让位给最强自然解读——yingg→应该#1、应[纠]#2）
     let cands = engine.process("shenng");
     let top3: Vec<&crate::dict::Candidate> = cands.iter().take(3).collect();
     assert!(
@@ -3070,7 +3076,7 @@ fn test_user_feedback_jianpin_and_correction() {
         top6j.iter().map(|c| c.text.to_string()).collect::<Vec<_>>()
     );
     // 纯简拼三字词：zgr 双向定标后中国人第一
-    //（虚高的 这个人 2678→1177、自个儿 2271→380 向语料值收敛）
+    //（遗留虚高的 这个人 2678→1177、自个儿 2271→380 向语料值收敛）
     let zgr = engine.process("zgr");
     let top_zgr = zgr.first().map(|c| c.text.to_string());
     assert_eq!(
@@ -3151,11 +3157,11 @@ fn test_double_fault_timing_gate() {
 /// 无证据 → 严格按模糊音设置（不出现变体）；模糊音已开对子 → 跳过（不重复）。
 #[test]
 fn test_context_phonetic_rescue() {
-    // fixture = 种子副本 + 清链证据：
+    // fixture = 种子副本 + 清链证据（数据演化修复）：
     // ① 测试禁直开仓库种子——new_with_db 维护性写入 + 本测试教学
     //    commit 会把学习结果写回种子文件，多轮后「教学前无证据」前提被自己
-    //    上一轮的教学数据破坏。
-    // ② 语料反哺把 ('我爱','中国') 计数写进种子 bigram 后，3c 案例的
+    //    上一轮的教学数据破坏（实测仓库种子已被写入 ('我爱','中国') 35）。
+    // ② 语料反哺把 ('我爱','中国') 计数写进种子 bigram 后，3c 旗舰案例的
     //    「教学前无 (爱→中国) 证据」前提失效 → 恒红。副本上清掉该链证据，
     //    恢复测试自带前提（教学前严格模式不出「我爱中国」纠错）。
     let seed = seed_copy("phonrescue");
@@ -3218,7 +3224,7 @@ fn test_context_phonetic_rescue() {
     }
 
     // 3. 既有词证据（无上文也成立）：孤立 zongguo 字面无整词（宗国不是词）
-    //    vs 变体命中 中国 → 中国[纠] 出现（用户原话"bigram 数据或者既有词"）
+    //    vs 变体命中 中国 → 中国[纠] 出现（既有词证据）
     {
         let engine = Engine::new_with_db(seed).unwrap();
         let cands = engine.process("zongguo");
@@ -3256,7 +3262,7 @@ fn test_context_phonetic_rescue() {
         );
     }
 
-    // 3c. 教学闭环（数据自愈）：种子无 (爱→中国)（语料切分不含），
+    // 3c. 教学闭环（旗舰案例数据自愈）：种子无 (爱→中国)（语料切分不含），
     //     正确打一遍 woaizhongguo 并 commit → 拆词学习记 (爱→中国)+3 →
     //     此后 woaizongguo 句级营救生效（我爱中国[纠]）
     {
@@ -3310,10 +3316,10 @@ fn test_context_phonetic_rescue() {
     seed_copy_cleanup(&seed_db);
 }
 
-/// FFI 级端到端守护：完全模拟宿主前端的调用形态
+/// FFI 级端到端守护：完全模拟调用方的逐键形态
 /// ——x1_engine_new_with_db + 双击 setter 注入 + x1_engine_process_timed 逐键
 /// （首键 u32::MAX 哨兵 = keyDeltaMs 无前键），验证折叠候选经 FFI 边界（C 字符串
-/// JSON）完整返回。防宿主前端时序传递回归（keyDeltaMs 丢失 → 恒 MAX → 恒旧行为，
+/// JSON）完整返回。防时序传递回归（keyDeltaMs 丢失 → 恒 MAX → 恒旧行为，
 /// 症状即"双击纠错不触发"）。
 #[test]
 fn test_double_fault_via_ffi_swift_shape() {
@@ -3330,8 +3336,8 @@ fn test_double_fault_via_ffi_swift_shape() {
     assert!(!ptr.is_null(), "引擎创建失败");
 
     unsafe {
-        // 偏好注入（与宿主前端应用纠错配置同款，无条件调用）。
-        // enabled 开关已摘除（与防抖双绑会让引擎折叠恒失效），
+        // 偏好注入（无条件调用）。
+        // enabled 开关已摘除（与防抖双绑致引擎折叠恒死），
         // 时序门控恒活——本测试即「无 enabled 注入也能折叠」的回归守护。
         crate::ffi::config::x1_engine_set_double_fault_threshold_ms(ptr, 100);
 
@@ -3344,7 +3350,7 @@ fn test_double_fault_via_ffi_swift_shape() {
             s
         };
 
-        // 快双击序列（宿主前端形态：首键 MAX 哨兵，n 双写间隔 30ms < 100）
+        // 快双击序列（首键 MAX 哨兵，n 双写间隔 30ms < 100）
         query("s", u32::MAX);
         query("sh", 120);
         query("she", 110);
@@ -3427,9 +3433,9 @@ fn test_jishufanganwendang_prefers_fang_an() {
     );
 }
 
-/// 回归守护：平分歧义下显示/消费链与候选链必须选同一切分
-/// （场景：输入 wangou 显示 wang'ou、候选全是 wan 音字、选『弯』后残留
-/// ou、g 被吞）。根因：pick_segmentation 同分「保留先枚举到的」（DFS 长
+/// 回归守护：平分歧义下显示/消费链与候选链必须选**同一切分**
+/// （wangou 显示 wang'ou、候选全是 wan 音字、选『弯』后残留 ou、g 被吞）。
+/// 根因：pick_segmentation 同分「保留先枚举到的」（DFS 长
 /// 音节优先 → wang|ou），候选链 process_inner 却按精细裁决选 wan|gou——
 /// 显示 wang'ou 与候选（wan 音字）自相矛盾；consumed 按显示切分的前 n 音节
 /// 偏移算，选「弯」消费 4 字节吞掉 g。修复：两边同源 seg_order_cmp。
@@ -3490,7 +3496,7 @@ fn memory_profile_seed_db() {
 
     println!("== 词典存储（arena 化：基底 + 运行时 overlay）==");
     println!(
-        "arena 基底：节点 {} / 候选 {}，紧凑平行数组 + blob = {:.1}MB（精确预留，零增长碎片）",
+        "arena 基底：节点 {} / 候选 {}，紧凑平行数组 + blob = **{:.1}MB**（精确预留，零增长碎片）",
         p.arena_nodes,
         p.arena_candidates,
         p.arena_bytes as f64 / 1048576.0
@@ -3513,7 +3519,7 @@ fn memory_profile_seed_db() {
     );
     let dict_total = p.arena_bytes + p.wi_span_bytes + overlay_bytes;
     println!(
-        "词典估算合计 {:.1}MB（不含 SQLite 页缓存/统计库/fx/运行时）",
+        "**词典估算合计 {:.1}MB**（不含 SQLite 页缓存/统计库/fx/运行时）",
         dict_total as f64 / 1048576.0
     );
 
@@ -3638,7 +3644,7 @@ fn engine_live_bytes() {
     let a1 = live();
     println!("== Rust 侧存活字节（计数分配器，种子 DB）==");
     println!(
-        "加载前 {:.1}MB → 加载后 {:.1}MB：引擎 Rust 结构存活 {:.1}MB（{} 笔分配）",
+        "加载前 {:.1}MB → 加载后 {:.1}MB：**引擎 Rust 结构存活 {:.1}MB**（{} 笔分配）",
         a0,
         a1,
         a1 - a0,
@@ -3667,7 +3673,7 @@ fn engine_live_bytes() {
             let b0 = live();
             let uengine = Engine::new_with_db(udb.to_str().unwrap()).unwrap();
             let b1 = live();
-            println!("== 用户 DB ==\n加载后 {:.1}MB：用户引擎 Rust 存活 {:.1}MB（种子 {:.1}MB → 用户数据增 {:.1}MB，142k 条 n-gram 条目）",
+            println!("== 用户 DB ==\n加载后 {:.1}MB：**用户引擎 Rust 存活 {:.1}MB**（种子 {:.1}MB → 用户数据增 {:.1}MB，142k 条 n-gram 条目）",
                 b1, b1 - b0, a1 - a0, (b1 - b0) - (a1 - a0));
             drop(uengine);
         }
@@ -3677,8 +3683,8 @@ fn engine_live_bytes() {
 
 /// 守护：角色 juese + jiaose 双读音共存行为——
 /// 系统读音（jue se）按设计不进 user_words（两表去重），走系统词库；
-/// 变体读音（jiao se）进自造词；功能判据 = 两种拼法都能打出「角色」。
-/// 同时守护 Windows 侧 pending_reading_prune 修复不误删学习来的读音
+/// 变体读音（jiao se）进自造词；**功能判据 = 两种拼法都能打出「角色」**。
+/// 同时守护 pending_reading_prune 修复不误删学习来的读音
 ///（该清理只在词库管理器显式编辑拼音时置位，见 dict_admin.rs）。
 #[test]
 fn verify_juese_jiaose_coexist() {
@@ -3724,7 +3730,7 @@ fn verify_juese_jiaose_coexist() {
         .query_for_test(&["jiao", "se"])
         .iter()
         .any(|c| c.text.as_ref() == "角色"));
-    eprintln!("[verify] juese 与 jiaose 都能打出「角色」");
+    eprintln!("[verify] juese 与 jiaose 都能打出「角色」✓");
     fs::remove_dir_all(&dir).ok();
 }
 
@@ -3811,14 +3817,15 @@ fn expand_syllables_cartesian_cap_falls_back() {
 fn test_naera_composed_green_memo_recall() {
     let db = seed_copy("naera");
     let mut engine = super::Engine::new_with_db(&db).expect("seed db");
-    // 前置：裸尾零声母音节的
-    // 「词+语气词」读法冷引擎即可组出（语气词第二路 DP 共存）——
-    // 未学过时「哪儿啊」允许在列；本测试的核心守护（学习后前 5 召回）不变。
+    // 前置更新（zhenbena 案例）：裸尾零声母音节的
+    // 「词+语气词」读法现在冷引擎就该能组出（语气词第二路 DP 共存）——
+    // 未学过时「哪儿啊」**允许**在列。原「不应有」断言随旧裁决作废；
+    // 本测试的核心守护（学习后前 5 召回）不变。
     let _before = engine.process("naera");
     // 收尾提交（组合场景：text=累计组合、pinyin=完整拼音、input=原始输入）
     engine.commit("naera", "哪儿啊", Some("na er a"), true);
-    // 下次输入应召回，且必须在第一页可见（前 5）——用户只见前 9 候选，
-    // 排到末尾等于没召回。
+    // 下次输入应召回，且必须在**第一页可见**（前 5）——用户只见前 9 候选，
+    // 排到末尾等于没召回（二修：首版只断言"列表里有"漏了排位）。
     let after = engine.process("naera");
     let texts: Vec<&str> = after.iter().map(|c| c.text.as_ref()).collect();
     let pos = texts.iter().position(|t| *t == "哪儿啊");
@@ -3831,7 +3838,7 @@ fn test_naera_composed_green_memo_recall() {
     seed_copy_cleanup(&db);
 }
 
-/// Windows 组合路径的真实序列：输 naera 依次选
+/// 组合路径的真实序列（复现）：输 naera 依次选
 /// 「哪儿」（首步：input=完整 buffer）+「啊」（续步：input=完整 buffer、text=
 /// 累计组合）→ 两笔 commit。第二笔写 green_memo["naera"]，下次输 naera 必须
 /// 在前 5 召回「哪儿啊」。
@@ -3852,8 +3859,8 @@ fn test_naera_combo_two_commit_recall() {
         pos,
         &texts[..texts.len().min(8)]
     );
-    // 重启后仍须召回：green_memo 是缓存（恢复限 100 条），
-    // 持久兜底走 input_mappings——重开引擎等价于服务重启，教过一次就该在。
+    // 重启后仍须召回（三修守护）：green_memo 是缓存（恢复限 100 条），
+    // 持久兜底走 input_mappings——重开引擎等价于重启，教过一次就该在。
     //（flush = 真实服务的周期落盘等价物，不 flush 则映射只在内存。）
     engine.flush().expect("flush 学习数据");
     drop(engine);
@@ -3870,7 +3877,7 @@ fn test_naera_combo_two_commit_recall() {
     seed_copy_cleanup(&db);
 }
 
-/// 模糊音开启时简拼候选不消失（双 bug 之一）：
+/// 模糊音开启时简拼候选不消失（守护，双 bug 之一）：
 ///
 /// 根因：`query_single_chars_fuzzy` / `query_prefix_filtered_fuzzy` 的前缀参数是
 /// 裸声母（"z"/"w"）或半截音节，而 `expand_syllable` 末尾的「仅保留有效音节」
@@ -3889,7 +3896,7 @@ fn test_fuzzy_enabled_jianpin_single_chars_survive() {
         let r = engine.process(input);
         assert!(
             !r.is_empty(),
-            "开模糊音后 {input} 不应消失（旧实现 zzzzzzzzz 为空列表）"
+            "开模糊音后 {input} 不应消失（修复前 zzzzzzzzz 为空列表）"
         );
         let has_single = r.iter().any(|c| c.text.chars().count() == 1);
         assert!(
@@ -3929,7 +3936,7 @@ fn test_jianpin_dict_word_beats_green() {
     seed_copy_cleanup(&db);
 }
 
-/// 绿词例外通道：绿词有显著上下文证据时允许排在
+/// 绿词例外通道：绿词有**显著上下文证据**时允许排在
 /// 词库整词之前——本测试用「上文=昨天 + bigram(昨天→一一对应)」构造证据，
 /// 验证 yydy 下绿词回到整词之前（与 test_jianpin_dict_word_beats_green
 /// 的无证据默认让位互为对照）。残片段清理后素材更换：
@@ -4016,7 +4023,7 @@ fn test_ambig_split_position5() {
     seed_copy_cleanup(&db);
 }
 
-/// 用户点名案例族：tuan→图案、mian→蜜胺、yue→余额、xian→西安。
+/// 点名案例族：tuan→图案、mian→蜜胺、yue→余额、xian→西安。
 #[test]
 fn test_ambig_split_word_family() {
     let db = seed_copy("ambig4");
@@ -4072,7 +4079,7 @@ fn test_ambig_split_nonsplittable_unchanged() {
 
 /// 诊断工具：切分选举快照——显示/计数/消费链（best_segmentation）
 /// vs 候选链 token 语义（best_token_segmentation）对同一输入的切分、打分与
-/// 前缀消费长度。改切分/消费链相关逻辑时先跑本快照对照前后差异。
+/// 前缀消费长度。改切分/消费链时先跑本快照对照前后差异。
 /// 输出格式：input | cnt | seg(分) | tok(分) | preLens
 #[test]
 #[ignore = "诊断工具：cargo test -p x1core --lib diag_seg_chain_snapshot -- --ignored --nocapture"]
@@ -4197,7 +4204,7 @@ fn query_fingerprint(e: &Engine) -> String {
 
 /// 词典编译缓存守护。
 ///
-/// ① 首跑（含用户词）构建 + 回写缓存；② 二次装载命中（缓存文件 mtime 不变
+/// ① 首跑（含用户词）构建 + 回写缓存；② 二次装载**命中**（缓存文件 mtime 不变
 /// ——走构建路径必然重写：tmp+删+改名）；③ 两次装载查询面逐字节等价
 /// （覆盖用户词 overlay 化后的 arena+overlay 合成）；④ rev 失效：行数不变的
 /// freq 编辑（管理器口）→ 缓存失配重建、查询反映新值；⑤ 损坏缓存自愈。

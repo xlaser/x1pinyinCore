@@ -44,7 +44,7 @@ fn test_shuangpin_merge_falls_back_path() {
 
 #[test]
 fn test_shuangpin_sorting_matches_fullpinyin() {
-    // 双拼与全拼候选排序一致性守护：
+    // 双拼与全拼候选排序一致性（守护）：
     // 双拼排序接入 candidate_sort_key 分层后，同一词的双拼输入（vsgo）
     // 与全拼输入（zhongguo）首候选应一致（都是「中国」）。
     let mut engine = Engine::new();
@@ -92,7 +92,7 @@ fn test_shuangpin_xiaohe_process() {
 #[test]
 fn test_shuangpin_commit_learns_full_pinyin() {
     // 双拼 commit vsgo→中国 后，切到全拼应能查到（学习数据是全拼）
-    // 这是 commit 展开垫片的端到端验证：双拼 pinyin 必须展开成全拼再记学习，
+    // 这是 commit 展开的端到端验证：双拼 pinyin 必须展开成全拼再记学习，
     // 否则学习数据被双拼编码污染，全拼用户无法共享。
     let mut engine = Engine::new();
     let scheme = crate::shuangpin::ShuangpinScheme::builtin_by_id("xiaohe")
@@ -149,11 +149,12 @@ fn test_custom_invalid_json_does_not_break() {
 
 #[test]
 fn test_shuangpin_green_memo_lift() {
-    // 双拼 commit 绿词 → 双拼查询命中并提升到首位。
-    // green_memo 查询与 lift 都必须以双拼原文为 key（is_full_segment =
-    // seg.concat()==input，"zhongguohao" != "vsgohc"），且双拼路径同样要有
-    // lift 块（首次即记忆 + 优先提升），否则 commit 写入的
-    // "vsgohc" key 是死数据。因此在排序后加 lift（key=双拼原文对齐）。
+    // 双拼 commit 绿词 → 双拼查询命中并提升到首位（修复）。
+    // 原实现：decode_sentence 内部对双拼原文 input 的 green_memo 查询恒失效
+    // （is_full_segment = seg.concat()==input，"zhongguohao" != "vsgohc"），
+    // 且 process_shuangpin_inner 没有全拼路径的 lift 块 → 「首次即记忆 +
+    // 优先提升」在双拼模式完全不生效，commit 写入的
+    // "vsgohc" key 是死数据。修复后在排序后加 lift（key=双拼原文对齐）。
     let mut engine = Engine::new();
     let scheme = crate::shuangpin::ShuangpinScheme::builtin_by_id("xiaohe")
         .unwrap()
@@ -179,9 +180,9 @@ fn test_shuangpin_green_memo_lift() {
 #[test]
 fn test_shuangpin_no_duplicate_candidates() {
     // 回归：搜狗/微软双拼输入 vi（之）候选框出现重复字。
-    // 根因：candidates_for_syllables 内部 extend(query_single_chars_fuzzy)
+    // 根因（源头修复）：candidates_for_syllables 内部 extend(query_single_chars_fuzzy)
     // 与 word_candidates_for_syllables 的产出跨列表重复（单音节输入时两者都产出单字）。
-    // 处理：candidates_for_syllables 合并时去重，让所有调用方自动受益。
+    // 修复：candidates_for_syllables 合并时去重，让所有调用方自动受益。
     // 此测试守护：任意双拼输入的候选不得有重复 text。
     let mut engine = Engine::new();
     let sogou = crate::shuangpin::ShuangpinScheme::builtin_by_id("sogou")
@@ -212,10 +213,10 @@ fn test_shuangpin_no_duplicate_candidates() {
 
 #[test]
 fn test_shuangpin_multisyllable_no_panic() {
-    // 回归：双拼模式 + ≥3 音节输入会触发 duan 保护指针越界 panic。
+    // 回归：双拼模式 + ≥3 音节输入曾触发 duan 保护指针越界 panic。
     // 根因：word_candidates_for_syllables 的 duan 保护用 syllable.as_ptr() - input.as_ptr()
     // 算偏移，假设音节是 input 的子切片。双拼路径的音节是 decode_buffer 产出的 owned
-    // String，与 input 无关 → UB → 越界 panic。处理：指针范围检查，不在范围内跳过保护。
+    // String，与 input 无关 → UB → 越界 panic。修复：指针范围检查，不在范围内跳过保护。
     let mut engine = Engine::new();
     let scheme = crate::shuangpin::ShuangpinScheme::builtin_by_id("xiaohe")
         .unwrap()
@@ -310,7 +311,7 @@ fn test_force_fullpinyin_display_layer_uses_fullpinyin() {
     );
 }
 
-// ── 单键不完整声母回归 ──
+// ── 单键不完整声母回归（双拼小鹤输入 d 找不到「的」）──
 
 /// 种子库 → 临时副本（tests_query.rs seed_copy 同范式：不直接读写仓库种子）。
 fn seed_copy_sp(tag: &str) -> String {
@@ -334,13 +335,13 @@ fn test_shuangpin_single_initial_matches_fullpinyin() {
     // 回归：双拼（小鹤）单键 d = 不完整声母，候选应与全拼 d 同源
     // ——「的」必须出现且排首位。
     //
-    // 缺陷：process_shuangpin_inner 把「整个输入只有 1 个不完整声母」也当成
+    // 原缺陷：process_shuangpin_inner 把「整个输入只有 1 个不完整声母」也当成
     // 「多音节末尾不完整」送 query_tokens 纯 Initial 子树洪泛——收集按 Trie
     // 存储序进行且带 2000 上限，de 节点（的/得/德，全语料最高频音节之一）
     // 从未被访问 →「的」完全消失；幸存的 ~1999 个候选再被截成 300 个按
     // 音节存储序排列的列表（对/多/度/读…），频次序全毁。
     //
-    // 现在：单声母退化（normalized 恰 1 项且非有效音节）改走
+    // 修复：单声母退化（normalized 恰 1 项且非有效音节）改走
     // candidates_for_syllables——与「v」→zh（2 字符声母，原本就正确）及
     // 全拼用户输入 "d"（segmentations_with_partial → candidates_for_syllables）
     // 完全同一条查询路径，天然获得频次序单字 + 前缀词。
@@ -370,7 +371,7 @@ fn test_shuangpin_single_initial_matches_fullpinyin() {
         fpn.iter().map(|c| &c.text).take(5).collect::<Vec<_>>()
     );
 
-    // 不回归：重映射键 v→zh 原本就正确（走着同一条路径）
+    // 不回归：重映射键 v→zh 原本就正确（走着同一条修复后路径）
     engine.set_shuangpin_scheme(Some(xiaohe));
     let spv = engine.process("v");
     assert!(
@@ -389,7 +390,7 @@ fn test_shuangpin_single_initial_matches_fullpinyin() {
     let _ = std::fs::remove_file(&db);
 }
 
-/// 双拼模式 + 手动 ' 分段的显示切分（交互守护）：
+/// 双拼模式 + 手动 ' 分段的显示切分（修复交互守护）：
 /// syllable_segmentation 的手动 ' 分段分支位于双拼分支之前——双拼用户按 '
 /// 也是显式段界：各段按双拼 2 键分组，撇号落回按下位置，不爆炸不吞没。
 #[test]
@@ -408,4 +409,42 @@ fn test_shuangpin_segmentation_manual_apostrophe() {
     assert_eq!(disp("vsgo"), "vs'go");
     // 奇数尾段（半音节）如实呈现
     assert_eq!(disp("vs'g"), "vs'g");
+}
+
+/// 双拼模式下 consumed_lens 不被简拼判定劫持（守护：
+/// 小鹤 bn 选「表」上屏后残留 n——键序 bn 恰好构成全拼简拼形态 b+n，简拼
+/// 候选级消费按声母对齐只算 1 键；正确 = 双拼两键一音节，biao 全消费 2）。
+#[test]
+fn test_shuangpin_consumed_lens_not_hijacked_by_jianpin() {
+    let mut engine = Engine::new();
+    let scheme = crate::shuangpin::ShuangpinScheme::builtin_by_id("xiaohe")
+        .unwrap()
+        .clone();
+    engine.set_shuangpin_scheme(Some(scheme));
+
+    // bn（小鹤 = biao）→ 「表」consumed = 2（全消费，键序 2 键恰好一音节）
+    let cands = engine.process("bn");
+    let biao = cands
+        .iter()
+        .find(|c| c.text.as_ref() == "表")
+        .expect("bn 应出「表」");
+    let lens = engine.consumed_lens("bn", std::slice::from_ref(biao));
+    assert_eq!(lens[0], 2, "双拼 bn=biao 一音节 = 2 键全消费（修复残留 n）");
+
+    // 对照：全拼模式同输入仍是简拼口径（表按声母 b 对齐 1 字母）
+    let fp = Engine::new();
+    let fp_cands = fp.process("bn");
+    let fp_biao = fp_cands
+        .iter()
+        .find(|c| c.text.as_ref() == "表")
+        .expect("全拼简拼 bn 也应出「表」（b 声母）");
+    let fp_lens = fp.consumed_lens("bn", std::slice::from_ref(fp_biao));
+    assert_eq!(fp_lens[0], 1, "全拼简拼口径不变：表对齐声母 b = 1 字母");
+
+    // 长键序回归：bndr（biao+duan）「标段」= 4 键全消费
+    let cands4 = engine.process("bndr");
+    if let Some(biaoduan) = cands4.iter().find(|c| c.text.as_ref() == "标段") {
+        let lens4 = engine.consumed_lens("bndr", std::slice::from_ref(biaoduan));
+        assert_eq!(lens4[0], 4, "双拼 bndr=biao duan = 4 键全消费");
+    }
 }

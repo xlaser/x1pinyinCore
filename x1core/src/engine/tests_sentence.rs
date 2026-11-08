@@ -1,4 +1,13 @@
-//! Engine 测试 · 整句解码 / 切分 / 学习基础。
+//! Engine 测试 · 整句解码 / 切分 / 学习基础（从 engine/tests.rs 拆出）。
+//!
+//! 本文件由原 `tests.rs` 整体搬出，按主题分组：
+//! - 整句解码边界：单词不重复、单音节 no-op、删词不拼回、黑名单、字母拒绝
+//! - 切分歧义回归：nengjiejuewenti、fanghu 全匹配优先、同类歧义矩阵
+//! - 自动固化阈值：默认禁用、可配置、短词组仍记 freq.counts、长输入稳定性
+//! - 删词同步清理 input_mappings
+//!
+//! mod.rs 用 `#[cfg(test)] mod tests_sentence;` 加载（分号形式从文件加载）。
+//! `use super::*` 仍指向 engine mod，测试访问 engine 的 pub 项不变。
 
 use super::*;
 
@@ -94,7 +103,7 @@ fn test_segmentation_ambiguity_cases() {
                 freq: 5000,
                 ..Default::default()
             },
-            // 要/需要 是 case 2/3 的依赖词，必须保留
+            // 要/需要 曾在整理时被误删（case 2/3 依赖），已补回
             X1DictWord {
                 simplified: "要".into(),
                 pinyin: "yao".into(),
@@ -297,7 +306,7 @@ fn test_learn_rejects_letter_text() {
 
 #[test]
 fn test_commit_sentence_not_stored_as_word() {
-    // 设计：整句默认不固化，只拆词+bigram 学习。
+    // 设计演进：整句默认**不固化**，只拆词+bigram 学习。
     // 绿词保持绿词身份，靠 bigram 越用越准，不污染白词排序。
     // 用户想固化时用 Shift+数字键（force_solidify=true）手动触发。
     //
@@ -375,7 +384,7 @@ fn test_auto_solidify_threshold_configurable() {
 
 #[test]
 fn test_commit_short_phrase_still_stored() {
-    // 系统词不写 user_words（避免两表重复），但 freq.counts 应记录选择。
+    // 系统词去重后系统词不写 user_words（避免两表重复），但 freq.counts 应记录选择。
     let mut engine = Engine::new();
     engine.commit("buzhidao", "不知道", Some("bu zhi dao"), true);
     assert!(
@@ -386,8 +395,8 @@ fn test_commit_short_phrase_still_stored() {
 
 #[test]
 fn test_long_input_stability() {
-    // xiwangnih（末尾 h 不完整）时首候选不得退化为「希望」（丢失「你」）：
-    // 整句候选应保持「希望」开头的多字结果，不回退到单词
+    // 修复前：xiwangnih（末尾 h 不完整）→ 首候选退化为「希望」（丢失「你」）
+    // 修复后：整句候选应保持「希望」开头的多字结果，不回退到单词
     let engine = Engine::new();
     let cases = &[
         // (输入, 期望首候选以该前缀开头——证明整句候选没整体消失)
@@ -447,7 +456,8 @@ fn test_remove_word() {
         .any(|c| c.text.as_ref() == "来说"));
 }
 
-/// 删词必须同步清理 input_mappings，否则被删的词通过 mapping_bonus 重新冒头。
+/// 删词必须同步清理 input_mappings，否则被删的词通过 mapping_bonus 重新冒头
+///（panduan→判读安 bug：删词后 mapping 残留）。
 #[test]
 fn test_remove_clears_input_mappings() {
     let mut engine = Engine::new();
@@ -471,7 +481,7 @@ fn test_remove_clears_input_mappings() {
 
 /// 验证 lm_prior_score（插值 LM，替代旧 context_bonus_dp）的 trigram 用户硬覆盖生效。
 ///
-/// 构造 [我, 知道] 上下文，用户 trigram(我, 知道, 你)=5 → trigram 层按 1.0 满档计。
+/// 构造 [我, 知道] 上下文，用户 trigram(我, 知道, 你)=5 → P3 按 1.0 满档计。
 /// 「你」的 LM 先验分应 > 无关词「苹果」。同时验证 (prev2, prev1) 双状态在 ctx
 /// 切片中正确传递：栈尾=知道=prev1，倒数第二=我=prev2。
 #[test]
@@ -495,9 +505,9 @@ fn test_lm_prior_trigram_user_override() {
     assert!(score_ni <= 32, "lm_prior_score 上界 32，实际 {}", score_ni);
 }
 
-/// 验证 DP 句首段在简拼模式（is_initial_mode）下完全不读 context。
+/// 验证 DP 句首段在简拼模式（is_initial_mode）下完全不读 context（红线保留）。
 ///
-/// 空 ctx → bigram/trigram 落 ε 地板，只剩 unigram 先验；有上下文（用户 bigram 硬覆盖）
+/// 空 ctx → P2/P3 落 ε 地板，只剩 unigram 先验；有上下文（用户 bigram 硬覆盖）
 /// 时分数应显著更高。
 #[test]
 fn test_lm_prior_empty_ctx_unigram_only() {
@@ -521,11 +531,11 @@ fn test_lm_prior_empty_ctx_unigram_only() {
 /// wohaoxiangchifan 冷启动整句回归：
 /// 种子 bigram 未覆盖「我|好|想|吃饭」的句式时，bigram_support 恒 0 →
 /// multi(1) < single(3) 门槛全杀 → 整句缺席、前缀词（我好/我好想/我好像）霸屏。
-/// 门槛证据源补「相邻段边界字对成词」（我好/好想/想吃，freq≥500 计 1）。
+/// 修复：门槛证据源补「相邻段边界字对成词」（我好/好想/想吃，freq≥500 计 1）。
 ///
 /// 构造式 DB（词频镜像真实种子形态：好香2326 > 好像1936 > 好想781，
 /// DP 的 [hao,xiang] 段 pick 是好香——正确句由单字路径拼接而成），避免与
-/// 种子词库内容耦合。
+/// 种子词库内容耦合（seed-db-maintenance 测试选词教训）。
 #[test]
 fn test_wohaoxiangchifan_cold_start_sentence_top1() {
     use crate::storage::{Storage, X1DictWord};
@@ -636,11 +646,12 @@ fn test_wohaoxiangchifan_cold_start_sentence_top1() {
     engine.set_second_green_enabled(true);
     let cands = engine.process("wohaoxiangchifan");
     let first = cands.first().expect("应有候选");
-    // 词图多候选边后的行为：Top1 为「我好像吃饭」——[hao,xiang] 段的
-    // 「好想」(781) 与「好像」(1936) 都进入词图后靠词频竞争，好像胜出
-    //（种子词频有语料偏差，不作为局部决定性证据）。本测试核心意图保持：
-    // ①整句绿词占首位（前缀词「我好/我好想」不霸屏）；②正确答案
-    //「我好想吃饭」作为第二绿词在前 4 候选可达——用户选一次即由行为数据翻转。
+    // 词图多候选边后的行为更新：Top1 由「我好想吃饭」变为
+    // 「我好像吃饭」——[hao,xiang] 段的「好想」(781) 与「好像」(1936) 都进入
+    // 词图后靠词频竞争，好像胜出（种子词频本身有语料偏差，不作为局部决定性
+    // 证据）。本测试的核心意图保持：①整句绿词占首位
+    //（前缀词「我好/我好想」不霸屏）；②正确答案「我好想吃饭」作为第二绿词在
+    // 前 4 候选可达——用户选一次即由行为数据翻转（用户词库高价值）。
     assert!(
         first.is_sentence,
         "首候选应为绿词整句（防前缀词霸屏），实际前4: {:?}",
@@ -665,11 +676,11 @@ fn test_wohaoxiangchifan_cold_start_sentence_top1() {
     let _ = std::fs::remove_file(&tmp);
 }
 
-/// 「首字母串 + 全拼尾」长混合守护（打到南京前不应回退成单字）：
+/// 「首字母串 + 全拼尾」长混合守护（「打到南京前又回退成单字」案例）：
 /// 简拼长串后切全拼（zgrmjfj + nan → 中国人民解放军南）。
 /// 旧行为：word_candidates 的 is_hybrid 上限（MAX_INITIAL_SEG_LEN=4）与全拼
 /// 路径「句首单字母停止收集」双拦截 → 整条塌成单字（知/在/这…）。
-/// 现路由到 token 混合路径（query_tokens + 绿词 DP）+ DP 末位全拼单字边。
+/// 修复：路由到 token 混合路径（query_tokens + 绿词 DP）+ DP 末位全拼单字边。
 #[test]
 fn test_jianpin_full_tail_mix_produces_sentence() {
     let seed = concat!(env!("CARGO_MANIFEST_DIR"), "/assets/x1pinyin.db");
@@ -684,7 +695,7 @@ fn test_jianpin_full_tail_mix_produces_sentence() {
     let _ = std::fs::copy(seed, &tmp);
     let engine = Engine::new_with_db(tmp.to_str().unwrap()).unwrap();
 
-    // ① 用户现场输入（打进「南京」的中间态）：#0 应为 8 字全覆盖整句
+    // ① 中间态输入（打进「南京」）：#0 应为 8 字全覆盖整句
     let cands = engine.process("z'g'r'm'j'f'j'nan");
     let first = &cands[0];
     assert!(
@@ -720,15 +731,15 @@ fn test_jianpin_full_tail_mix_produces_sentence() {
     let _ = std::fs::remove_file(&tmp);
 }
 
-/// 「简拼+全拼不规律混合」中途绿词防消失：`z'g'ren'm'j`（= 中-国-人-民-解
-/// 的混合输入）句首简拼字母被 valid_syl 收集循环拒收（jianpin_single 要求
-///「前面已有入表段」）→ 循环在句首 break → valid_count=0 → 整句解码（≥3
-/// 门槛）整体跳过，绿词回退成单词（实际现象：z'g'ren'm'j 时只剩 这个/中国/
-/// 照顾…，前一键 z'guo'r'm 还有「中国人民」、后一键 z'g'ren'm'j'f'j 又回来
-///「中国人民解放军」）。纯简拼（zgrmj）走 process_jianpin_inner 自建音节表
-/// 不受影响（不对称根因）。机制：句首简拼字母同「中置简拼」入表（后随内容
-/// 即视为简拼意图——句首单字母后接全拼音节的形态不可能是「半截声母续打」，
-/// 续打会先补本音节字母）。
+/// 「简拼+全拼不规律混合」中途绿词防消失（第三形态，姊妹案）：
+/// `z'g'ren'm'j`（= 中-国-人-民-解 的混合输入）句首简拼
+/// 字母被 valid_syl 收集循环拒收（jianpin_single 要求「前面已有入表段」）
+/// → 循环在句首 break → valid_count=0 → 整句解码（≥3 门槛）整体跳过，
+/// 绿词回退成单词（z'g'ren'm'j 时只剩 这个/中国/照顾…，前一键
+/// z'guo'r'm 还有「中国人民」、后一键 z'g'ren'm'j'f'j 又回来「中国人民解放军」）。
+/// 纯简拼（zgrmj）走 process_jianpin_inner 自建音节表不受影响（不对称根因）。
+/// 修复：句首简拼字母同「中置简拼」入表（后随内容即视为简拼意图——句首单
+/// 字母后接全拼音节的形态不可能是「半截声母续打」，续打会先补本音节字母）。
 #[test]
 fn test_green_no_disappear_irregular_jianpin_full_mix() {
     let seed = concat!(env!("CARGO_MANIFEST_DIR"), "/assets/x1pinyin.db");
@@ -743,8 +754,8 @@ fn test_green_no_disappear_irregular_jianpin_full_mix() {
     let _ = std::fs::copy(seed, &tmp);
     let engine = Engine::new_with_db(tmp.to_str().unwrap()).unwrap();
 
-    // 回归键：句首简拼 z/g + 中段全拼 ren + 尾简拼 m/j 的不规律混合——
-    // 应有整句候选（5 音节全覆盖）
+    // 病灶键：句首简拼 z/g + 中段全拼 ren + 尾简拼 m/j 的不规律混合——
+    // 修复前整句解码不跑、绿词消失；修复后应有整句候选（5 音节全覆盖）
     // 且锚定「中国人民」（与完成态 中国人民解放军 连续，不回退）。
     let cands = engine.process("zgrenmj");
     assert!(
@@ -938,7 +949,7 @@ fn test_second_green_default_off_switch_restores() {
 }
 
 /// 绿词防截断。
-/// 键窗：…chai'f（悬尾补字，正常）→ …chai'fe（尾部 f,e 成简拼段，整句解码入
+/// 病灶键窗：…chai'f（悬尾补字，正常）→ …chai'fe（尾部 f,e 成简拼段，整句解码入
 /// initial 模式后 DP 可达表全 0，绿词整体消失）→ …chaifen（回归）。前缀回退解码让
 /// 三键绿词逐字一致，杜绝「长句突然消失再重组」的跳变。
 #[test]
@@ -1014,7 +1025,7 @@ fn test_green_no_disappear_mid_syllable_typing() {
     let done = first_sentence("jiangdantiyingyongchaifen").expect("chaifen 应有绿词");
     assert_eq!(done, "将单体应用拆分");
 
-    // 回归键：chai'fe 应有前缀回退补「分」，与完成态逐字一致
+    // 病灶键：chai'fe（修复前绿词整体消失；修复后前缀回退补「分」，与完成态逐字一致）
     let mid =
         first_sentence("jiangdantiyingyongchaife").expect("chaife 绿词不应消失（前缀回退解码）");
     assert_eq!(mid, done, "chaife 绿词应与 chaifen 完成态逐字一致");
@@ -1027,13 +1038,13 @@ fn test_green_no_disappear_mid_syllable_typing() {
 }
 
 /// 绿词防消失·下一句首字母形态（前缀回退解码的姊妹案）。
-/// 场景：dang…zhineng 绿词「当你使用人工智能」在位，继续输入下一句首字母 d 后
-/// 绿词整体消失只剩单词。根因与 chaife 案不同：切分选举层面丢变体——
+/// 病灶：dang…zhineng 绿词「当你使用人工智能」在位，继续输入下一句首字母 d 后
+/// 绿词**整体消失**只剩单词。根因与 chaife 案不同：切分选举层面丢变体——
 /// `segmentations()`（全有效语义）对含不完整尾的输入整体返回空，含尾枚举的
 /// DFS 名额又被贪长退化子树（reng|o|n|g 一族，reng 误并 + 单字符续命）挤满，
 /// 正解 `ren|gong`（分数更高）落在 cap 之外从未被枚举 → best_syllables 取到
 /// 垃圾切分 → 整句 DP 无法组句（人/工 需要 ren|gong 而非 reng|o|n|g）。
-/// 解法：「完整音节前缀 + 尾部未拼完字母」保底切分（pinyin::segmentations_prefix_tail）
+/// 修法：「完整音节前缀 + 尾部未拼完字母」保底切分（pinyin::segmentations_prefix_tail）
 /// 恒在候选切分里，打分自然选回正解。本测试锁两件事：
 /// ① 绿词不消失（带 d 尾的输入仍有整句候选，且以完成态绿词为前缀）；
 /// ② 显示链切分不崩（预编辑仍是 ren'gong 而非 reng'o'n'g）。
@@ -1140,7 +1151,7 @@ fn test_green_no_disappear_next_word_initial() {
     let done = first_sentence("dangnishiyongrengongzhineng").expect("完成态应有绿词");
     assert_eq!(done, "当你使用人工智能");
 
-    // 回归键：多打一个下一句首字母 d——绿词应仍在且以
+    // 病灶键：多打一个下一句首字母 d——修复前绿词整体消失，修复后仍在且以
     // 完成态绿词为前缀（d 尾按悬尾语义可补 1 个猜测字，允许文本变长不允许消失）。
     let mid = first_sentence("dangnishiyongrengongzhinengd")
         .expect("d 尾一键绿词不应消失（完整音节前缀+悬尾保底切分）");
@@ -1161,10 +1172,10 @@ fn test_green_no_disappear_next_word_initial() {
     let _ = std::fs::remove_file(&tmp);
 }
 
-/// 同字数整词读法（紫/橙）在场时，拼凑绿词不得占首位——只降位不隐藏
-///（两个假设都保留可见，整词读法在前）。
-/// 锚点：aizengfenmin（min→ming 尾音节截断）不应让「爱憎分民[句]」压住
-///「爱憎分明[紫]」——整词读法须 #0。正常整句绿词行为不变。
+/// 同字数整词读法（紫/橙）在场时，拼凑绿词
+/// 不得占首位——只降位不隐藏（两个假设都保留可见，整词读法在前）。
+/// 实证锚点：aizengfenmin（min→ming 尾音节截断）此前「爱憎分民[句]」
+/// 压住「爱憎分明[紫]」；修复后整词读法 #0。旗舰整句绿词行为不变。
 #[test]
 fn test_word_reading_outranks_fragment_green() {
     use super::tests_query::{seed_copy, seed_copy_cleanup};
@@ -1195,14 +1206,15 @@ fn test_word_reading_outranks_fragment_green() {
     seed_copy_cleanup(&db);
 }
 
-/// 语气词尾精确读法回归（haibucuoa）：尾 a 是有效单字母音节且无延长词
-/// 证据 → 语气词语义，精确读法「还不错啊」（尾音节 a 精确匹配）必须压过
-/// 补字猜测「还不错爱」（a 仅是 ai 的前缀，爱字频 6120 > 啊 5000 曾靠
-/// 裸字频胜出）。词频镜像真实种子形态：还不错 8770 / 爱 6120 / 啊 5000 /
-/// 错爱 253（< 组合词门槛 500，守护「错爱」不因 collocation 层劫持补字）。
-/// 修复位：best_char_for_initial 精确音节层——补字直接选精确的 啊，与
-/// 全消费句同文本去重合一（爱不再出现）。曾试「全消费句硬排补字句前」的
-/// 族级兜底，实测翻转 nixiangganm（你想干吗→你想干姆）且与「用户
+/// haibucuoa 语气词尾精确读法回归：
+/// 尾 a 是有效单字母音节且无延长词证据 → 语气词语义（三分法②），精确读法
+/// 「还不错啊」（尾音节 a 精确匹配）必须压过补字猜测「还不错爱」（a 仅是
+/// ai 的前缀，爱字频 6120 > 啊 5000 曾靠裸字频胜出）。
+/// 词频镜像真实种子形态：还不错 8770 / 爱 6120 / 啊 5000 / 错爱 253
+/// （< 组合词门槛 500，守护「错爱」不因 collocation 层劫持补字）。
+/// 修复位：best_char_for_initial 精确音节层——补字直接选精确的 啊，
+/// 与全消费句同文本去重合一（爱不再出现）。曾试过「全消费句硬排补字句前」
+/// 的族级兜底，实测翻转 nixiangganm（你想干吗→你想干姆）且与「用户
 /// bigram > 精确」层级自相矛盾，已弃。
 #[test]
 fn test_particle_tail_exact_reading_beats_prefix_guess() {
@@ -1300,14 +1312,14 @@ fn test_particle_tail_exact_reading_beats_prefix_guess() {
     let _ = std::fs::remove_file(&tmp);
 }
 
-/// 记忆召回强度序回归（haibucuoa）：用户在同一 input 上教过两个读法
-/// （还不错爱×2 误触 / 还不错啊×4 真实选择）时，召回排序必须让 count 强的
-/// 还不错啊 占 #0——旧「升序头插 + 同名在场即跳过」让 啊×4 的召回被 DP
-/// 产出的同名候选顶替、爱×2 独自头插霸屏。修复：降序迭代 + 插入位锚定
-///（在场条目不移动——fangqi 上下文裁决语义保留——但为更弱缺席条目锚定
-/// 插入位）。两个召回分支（green_memo 命中 / input_mappings 兜底）同语义；
-/// 守护 test_adjacent_strong_bigram_dominates_stale_history（fangqi 在场
-/// 不霸位）与本测（强度序）双侧。
+/// haibucuoa 记忆召回强度序回归（第二层）：用户在同一
+/// input 上教过两个读法（还不错爱×2 误触 / 还不错啊×4 真实选择）时，召回
+/// 排序必须让 count 强的 还不错啊 占 #0——旧「升序头插 + 同名在场即跳过」
+/// 让 啊×4 的召回被 DP 产出的同名候选顶替、爱×2 独自头插霸屏。修复：降序
+/// 迭代 + 插入位锚定（在场条目不移动——fangqi 上下文裁决语义保留——但为
+/// 更弱缺席条目锚定插入位）。两个召回分支（green_memo 命中 / input_mappings
+/// 兜底）同语义；守护 test_adjacent_strong_bigram_dominates_stale_history
+///（fangqi 在场不霸位）与本测（haibucuoa 强度序）双侧。
 #[test]
 fn test_mapping_recall_strength_order() {
     use crate::storage::{Storage, X1DictWord};
@@ -1389,4 +1401,38 @@ fn test_mapping_recall_strength_order() {
         assert!(a < ai, "还不错啊(#{a}) 必须排在 还不错爱(#{ai}) 之前");
     }
     let _ = std::fs::remove_file(&tmp);
+}
+
+/// 次音单字段过滤冷启动守护（双重实证）：ranked 补位池的
+/// `>=2 || is_primary` 过滤放开实验（全放开 / 仅补位池）pristine eval 均
+/// 135→133 回退——还(huan, freq 375, 次音) 进边后靠上下文证据
+/// 抢赢主音 换(6585)：「坏了就换」→「坏了就还」、「换条路走」→「还条路走」。
+/// 次音单字类修复（的/地/都…）必须走词性/语法先验路线（x1func_ctx GrammarModel
+/// lift，「不能靠删边」），再有人提议删此过滤时本测试即反例。
+#[test]
+fn test_secondary_reading_edge_filter_protects_cold_start() {
+    let seed = super::tests_query::seed_copy("sec");
+    let engine = Engine::new_with_db(&seed).unwrap();
+    let cands = engine.process("huailejiuhuan");
+    let greens: Vec<&str> = cands
+        .iter()
+        .filter(|c| c.is_sentence)
+        .map(|c| c.text.as_ref())
+        .collect();
+    assert!(
+        greens.first() == Some(&"坏了就换"),
+        "还(huan) 次音不得抢赢主音 换：实际首绿 {:?}",
+        greens
+    );
+    let cands2 = engine.process("huantiaoluzou");
+    let greens2: Vec<&str> = cands2
+        .iter()
+        .filter(|c| c.is_sentence)
+        .map(|c| c.text.as_ref())
+        .collect();
+    assert!(
+        greens2.first() == Some(&"换条路走"),
+        "还(huan) 次音不得抢赢主音 换：实际首绿 {:?}",
+        greens2
+    );
 }

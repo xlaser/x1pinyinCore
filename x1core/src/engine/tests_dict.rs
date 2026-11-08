@@ -14,7 +14,7 @@ use super::*;
 
 #[test]
 fn test_commit_normalizes_unspaced_pinyin() {
-    // 8feb0ea 后「通知」是系统词不写 user_words，但 process 应能命中系统词。
+    // 系统词去重后「通知」是系统词不写 user_words，但 process 应能命中系统词。
     let mut engine = Engine::new();
     engine.commit("tongzhi", "通知", Some("tongzhi"), true);
     assert!(
@@ -508,7 +508,7 @@ fn test_commit_system_word_stores_pinyin() {
         engine.flush().unwrap();
     }
 
-    // 8feb0ea 后系统词不写 user_words，但 user_counts 表应持久化累计选择次数。
+    // 系统词去重后系统词不写 user_words，但 user_counts 表应持久化累计选择次数。
     let engine2 = Engine::new_with_db(db_path.to_str().unwrap()).unwrap();
     let count = engine2.freq_count_for_test("你好");
     assert!(

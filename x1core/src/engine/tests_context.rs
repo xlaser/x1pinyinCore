@@ -56,7 +56,7 @@ fn test_recompute_never_decays_counts() {
             .unwrap_or(0)
     };
     assert_eq!(count_of(&engine, "测"), 8, "前置：count=8");
-    // 连续多次 recompute（模拟 IMK 失活抖动下 flush 前置高频跑）：counts 一位不动
+    // 连续多次 recompute（模拟宿主失活抖动下 flush 前置高频跑）：counts 一位不动
     engine.recompute_modulators();
     engine.recompute_modulators();
     engine.recompute_modulators();

@@ -3,11 +3,11 @@
 // 设计原则：
 // 1. 热路径低分配：查询/切分以借用切片为主，仅在候选物化与 JSON 序列化时分配
 //    （候选数、绿词、缓存均有硬上限）
-// 2. 纯本地：无网络、无云、无 AI
+// 2. 纯本地：无网络、无云；AI 候选走独立本地推理服务（本 crate 不含推理）
 // 3. 可预测的性能：O(n) 或 O(log n) 查询；输入长度有硬护栏（pinyin::MAX_INPUT_BYTES）
 
 // === clippy 许可清单（存量警告清零以启用 CI -D warnings）===
-// 下列 lint 是有意识的设计取舍，逐条说明理由后许可（其余警告已全部修掉）：
+// 下列 lint 是**有意识的设计取舍**，逐条说明理由后许可（其余警告已全部修掉）：
 //
 // - type_complexity：引擎内部大量使用多元素元组做临时返回/缓存结构
 //   （如 `Vec<(Vec<String>, Vec<String>, usize, u32, i32)>` 路径 N-best、
@@ -25,15 +25,15 @@
 extern crate alloc;
 
 /// 测试/评测临时产物目录：一律落 `<workspace>/target/test-tmp/`，
-/// 绝不落系统临时目录（系统临时盘可能被种子副本撑满，见模块文档）。
+/// 绝不落系统临时目录（避免大量种子副本撑满系统临时盘，详见模块文档）。
 pub mod test_tmp;
 
 pub mod char_freq; // 公开供 freq_rebuild 等维护工具使用
 /// 竞争频率存储（「退化」通道）：同音/组词/整句三层竞争的
 /// 选择分布，供词频进化+退化。
 pub mod competition;
-/// Trie 词库 + 单字表（Windows 引擎服务 crate 直连所需；
-/// x1core 作为跨平台引擎库被宿主前端/引擎服务侧直接 crate 引用）
+/// Trie 词库 + 单字表（引擎服务 crate 直连所需；x1core 作为跨平台引擎库
+/// 被上层服务/前端 crate 直接 crate 引用，故 pub）
 pub mod dict;
 mod dict_data;
 pub mod engine;
@@ -57,14 +57,14 @@ mod freq;
 pub mod freq_promote;
 /// 模糊音配置（from_csv 供引擎服务配置总线复刻门控逻辑）。
 pub mod fuzzy;
-/// 中文词性/语法模型（第一版消费面 = 的/地/得）。
+/// 中文词性/语法模型（PFR 挖掘；第一版消费面 = 的/地/得）。
 mod grammar;
-/// 微型词性搭配模型：`assets/x1grammar.bin` 的解码与查询。
-/// pub 是因为 `GrammarMicroInfo` 等类型经 `Engine::grammar_micro_info`
-/// 做只读观测暴露。
+/// 微型词性搭配模型：`assets/x1grammar.bin` 的解码
+/// 与查询。pub 是因为调试 CLI 经 `Engine::grammar_micro_info` 消费
+/// `GrammarMicroInfo`（跨 crate 可达）。
 pub mod grammar_micro;
 mod lm;
-/// 只读文件映射（mmap，零依赖平台 FFI；词典缓存零拷贝装载用）。
+/// 只读文件映射（mmap，零依赖平台 FFI；词典编译缓存零拷贝装载用）。
 mod mmap_file;
 mod pinyin;
 /// 平台差异垫片：唯一允许出现平台分支的位置——引擎与算法层
@@ -87,9 +87,9 @@ pub mod stats;
 pub mod storage;
 /// 快捷输入（符号表 + 日期时间生成，/date /fh 等前缀触发的候选）。
 mod symbols;
-/// Trie arena 紧凑基底（Dict 内部使用）。
+/// Trie arena 紧凑基底（内存优化，Dict 内部使用）。
 mod trie_arena;
-/// 三阶上下文模型（trigram）。
+/// 三阶上下文模型（trigram，上下文引擎 v2）。
 mod trigram;
 #[cfg(test)]
 mod verify_sentence_learning;
@@ -105,7 +105,7 @@ pub use pinyin::{
 
 /// 核心引擎版本（构建期从 Cargo.toml 固化，运行时暴露）。
 ///
-/// 版本分层：引擎版本是 x1core/Cargo.toml 的单一来源，
+/// 版本分层治理：引擎版本是 x1core/Cargo.toml 的单一来源，
 /// 供 mac/win 前端在日志/关于页显示引擎层版本，与前端产品版本独立演进。
 pub fn engine_version() -> &'static str {
     env!("CARGO_PKG_VERSION")

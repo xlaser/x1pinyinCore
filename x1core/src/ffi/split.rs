@@ -1,7 +1,7 @@
 //! 双库分离 FFI。
 //!
-//! **职责**：把引擎服务的分离引导链（X1_DB_SPLIT 分支）封装给无服务进程的
-//! 宿主——引导与打开都在输入法进程内一次完成：
+//! **职责**：把分离引导链（`X1_DB_SPLIT` 分支）原样封装给 mac 的 IMK 进程——
+//! 引导与打开都在输入法进程内一次完成：
 //!
 //! ```text
 //! x1_engine_new_split(data_dir, seed_path)
@@ -15,11 +15,12 @@
 //! **失败语义**：任一步失败返回 NULL——调用方**回退合并模式**
 //! （`x1_engine_new_with_db` 旧行为）。分离是增强不是依赖，回退路径永远可用。
 //!
-//! **逃生口**：`X1_DB_SPLIT=0` 显式关闭（默认开启）。
+//! **逃生口**：`X1_DB_SPLIT=0` 显式关闭（与 Windows 侧开关同名——那边 =1 开，
+//! 这边 =0 关；mac 默认开启）。
 //!
-//! **约束**：种子 DB（签名 bundle 内）**只读打开**（`read_meta` 已是
-//! READ_ONLY，ensure_dict_db 的复制源也只读）——绝不产生 WAL/-shm
-//! 破坏签名密封。
+//! **只读约束**：种子 DB（mac 在签名 bundle 内）**只读打开**（`read_meta` 已是
+//! READ_ONLY，ensure_dict_db 的复制源也只读）——绝不产生 WAL/-shm 破坏签名密封
+//! （可写 ATTACH 曾在 bundle 旁落 wal 导致系统拒载）。
 
 use core::ffi::c_char;
 
@@ -87,7 +88,7 @@ pub unsafe extern "C" fn x1_engine_new_split(
                 let _ = std::fs::copy(&src, &dst);
             }
         }
-        // ② b x1grammar.bin 微型语法模型预置（2026-11-01 方案 B Task 6）：与
+        // ② b x1grammar.bin 微型语法模型预置：与
         // dict.db 同目录（引擎发现逻辑 = dict_path().parent()/x1grammar.bin）。
         // model_hash 门控（种子未换代零复制）+ 临时文件原子替换（读者永见完整
         // 文件）。失败无害：源缺失/损坏、复制失败一律跳过，不阻塞引导、不写
@@ -134,7 +135,7 @@ pub unsafe extern "C" fn x1_engine_new_split(
             Err(e) => {
                 // 自愈：残留 WAL/SHM（换代替换的遗留）会让 dict.db
                 // 报 "database disk image is malformed" → 分离静默退化合并模式。
-                // 挪开边车重试一次（挪动非删除，数据可人工恢复）。正常换代
+                // 挪开边车重试一次（挪动非删除，数据可人工恢复）。真实空间差异
                 // 场景已由 ensure_dict_db 的替换前清理根治，这里是二层兜底。
                 eprintln!("[split] open_split 失败，尝试清理边车后重试: {}", e);
                 if crate::storage::split::quarantine_db_sidecars(&dict_db) {
@@ -312,7 +313,7 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 
-    /// x1grammar.bin 预置（2026-11-01 方案 B Task 6）：首次复制 + 引擎端到端
+    /// x1grammar.bin 预置：首次复制 + 引擎端到端
     /// 发现、哈希一致零复制（mtime 钉住验证）、种子换代原子更新、源损坏不
     /// 覆盖既有模型、无源不产文件且引导照常成功。
     #[test]

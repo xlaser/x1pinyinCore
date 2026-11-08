@@ -1,4 +1,4 @@
-# 同音绿词评测集（2026-10-31 G1）
+# 同音绿词评测集
 # subset	input	positive	negatives	source
 single	haodeya	好的呀	号的呀|好德呀	colloquial
 single	haohaohao	好好好	号好好|好号好	colloquial

@@ -1,9 +1,18 @@
-//! Engine 测试 · 紫词（前缀补全猜测词：末音节已完整时对后续输入的预测候选）。
+//! Engine 测试 · 紫词（前缀补全猜测词）。
+//!
+//! 触发场景：用户输入末音节完整，但精确匹配结果 < 3，引擎把末音节当前缀扫子节点
+//! 拉来"末音节更长"的候选（如 yonghu 拉来 yong huai 的「用坏」）。这类候选是
+//! "对用户后续输入的猜测"，染紫色让用户视觉区分。
+//!
+//! 判据：候选 pinyin 的末音节 ≠ 用户输入的末音节 → is_guess=true。
+//!
+//! mod.rs 用 `#[cfg(test)] mod tests_guess;` 加载（分号形式从文件加载）。
+//! `use super::*` 仍指向 engine mod，测试访问 engine 的 pub 项不变。
 
 use super::*;
 
 /// 构造式测试 DB：保证 yong 节点下挂 hu（精确匹配）和 huai（前缀补全才拉到）。
-/// 避免依赖种子 DB 的真实数据状态。
+/// 沿用 tests_green.rs:60-80 的构造式风格（避免依赖种子 DB 的真实数据状态）。
 fn make_guess_test_db() -> std::path::PathBuf {
     use crate::storage::{Storage, X1DictWord};
     let tmp = crate::test_tmp::dir().join(format!(
@@ -50,9 +59,10 @@ fn make_guess_test_db() -> std::path::PathBuf {
     tmp
 }
 
-/// 精确命中即不出猜测：输入已精确命中等长词（用户/拥护）时，一切猜测
-/// （末音节延伸 用坏/用谎 + 长词延展）一律不出——紫词不给确定让位
-/// （否则精确命中会被十几条「不要X」/「用户X」类紫词刷屏）。
+/// 精确命中即不出猜测（「精确命中即完全不出」规则）：
+/// 输入已精确命中等长词（用户/拥护）时，一切猜测（末音节延伸 用坏/用谎 +
+/// 长词延展）一律不出——紫词不给确定让位（治理前 buyao 被十几条「不要X」
+/// 紫词刷屏、yonghu 被十几条「用户X」刷屏）。
 #[test]
 fn test_exact_match_silences_guesses() {
     let db = make_guess_test_db();
@@ -239,8 +249,8 @@ fn test_single_char_guess_capped() {
     let _ = std::fs::remove_file(&tmp);
 }
 
-/// 精确匹配充足时不应触发猜测（门槛为「精确命中即不出」，3 条精确的
-/// 场景顺带覆盖）。
+/// 精确匹配充足时不应触发猜测（门槛收紧为「精确命中即不出」，
+/// 3 条精确的旧场景顺带覆盖）。
 #[test]
 fn test_no_guess_when_exact_match_enough() {
     use crate::storage::{Storage, X1DictWord};
@@ -314,7 +324,7 @@ fn test_no_guess_for_partial_last_syllable() {
     }
 }
 
-/// 构造「长词 + 组成单字」DB：用于延长预测的逐键稳定性守护。
+/// 构造「长词 + 组成单字」DB：用于延长预测的**逐键稳定性**守护。
 fn make_extension_test_db(tag: &str) -> std::path::PathBuf {
     use crate::storage::{Storage, X1DictWord};
     let tmp = crate::test_tmp::dir().join(format!(
@@ -365,9 +375,10 @@ fn make_extension_test_db(tag: &str) -> std::path::PathBuf {
     tmp
 }
 
-/// 逐键稳定性：luanqi → luanqib → luanqiba 全程「乱七八糟」必须可见，
-/// 且中途态必须是紫词（对未敲完输入的预测）。否则 luanqib（混合简拼分支）
-/// 无猜测通道 → 紫词消失、候选回退到单字「乱」→ 再打一个字母又出现（闪烁）。
+/// **逐键稳定性**（「明明很接近却回退闪烁」案例）：
+/// luanqi → luanqib → luanqiba 全程「乱七八糟」必须可见，且中途态必须是
+/// **紫词**（对未敲完输入的预测）。修复前 luanqib（混合简拼分支）没有猜测
+/// 通道 → 紫词消失、候选回退到单字「乱」→ 再打一个字母又出现。
 #[test]
 fn test_extension_prediction_stable_across_every_key() {
     let db = make_extension_test_db("stable");
@@ -402,14 +413,15 @@ fn test_extension_prediction_stable_across_every_key() {
     assert!(!full[0].is_guess, "精确命中不再是紫词");
 }
 
-/// 碎片绿词让位延长预测：luanqiba 时 DP 会拼出碎片绿词「乱七八」（is_sentence）
-/// 并因 is_full_match 抢 pos 0，把真正的延长预测挤到 #2——用户每多打一个
-/// 音节就「回退」一次。规则：绿词文本是紫词延长预测的严格前缀时，排到该
-/// 紫词之后（只降位不隐藏）。
+/// **碎片绿词让位延长预测**（第二个抖动点）：
+/// luanqiba 时 DP 会拼出碎片绿词「乱七八」（is_sentence）并因 is_full_match
+/// 抢 pos 0，把真正的延长预测挤到 #2——用户每多打一个音节就「回退」一次。
+/// 规则：绿词文本是紫词延长预测的**严格前缀**时，排到该紫词之后（只降位不隐藏）。
 ///
-/// 用真实种子副本（seed_copy 复制到 test-tmp 再开）：碎片绿词由 DP + 字符
-/// 频率共同产生，构造式小库（仅 5 个词）产不出来——本测试的前提（绿词在场）
-/// 必须实证，不能靠假定。
+/// 用真实种子副本（seed_copy 复制到 test-tmp 再开）：碎片绿词由
+/// DP + 字符频率共同产生，构造式小库（仅 5 个词）产不出来——本测试的前提
+/// （绿词在场）必须实证，不能靠假定（首版用构造库，绿词根本没生成，测试
+/// 空转通过；有牙验证时才发现）。
 #[test]
 fn test_fragment_green_yields_to_prefix_extension() {
     let seed = super::tests_query::seed_copy("green_ext");
@@ -510,12 +522,12 @@ fn test_covers_all_input_semantics() {
     ));
 }
 
-/// **长词补全压过部分覆盖词**（逐键回退家族）：输入是词库长词的严格前缀时
-/// （缺末音节），长词覆盖整条输入，结构层必须优先于「中国」这类只覆盖前
-/// 几位的词频短词——此前长词掉进前缀层，被 中国(8534) 按词频压到深位，
-/// 逐键输入时表现为「无限接近却回退」。
+/// **长词补全压过部分覆盖词**（逐键回退家族）：
+/// 输入是词库长词的严格前缀时（缺末音节），长词覆盖整条输入，结构层必须
+/// 优先于「中国」这类只覆盖前几位的词频短词——此前长词掉进前缀层，被
+/// 中国(8534) 按词频压到 #4/#11，用户逐键读作「无限接近却回退」。
 ///
-/// 三条覆盖形态：全拼前缀（zhongguorenminjiefang）、简拼+全拼混合
+/// 三条报障形态：全拼前缀（zhongguorenminjiefang）、简拼+全拼混合
 /// （zgrmjief）、显式撇号形态（z'g'r'm'jie'f）。补上末音节 jun 后
 /// 精确命中转白词仍居首；有等长精确词时补全不抢位（中国人民）。
 #[test]
@@ -548,7 +560,7 @@ fn test_long_word_completion_outranks_partial_words() {
             .position(|c| c.text.as_ref() == "中国")
             .expect("中国应在列");
         assert!(cn > 0, "{}：「中国」（覆盖 2/6）必须在长词之后", input);
-        // 碎片绿词（中国人民解放）仍排在长词之后（只降位不隐藏）
+        // R2 不变：碎片绿词（中国人民解放）仍排在长词之后（只降位不隐藏）
         let green = cands
             .iter()
             .position(|c| c.is_sentence && c.text.as_ref() == "中国人民解放")

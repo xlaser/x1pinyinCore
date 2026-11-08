@@ -1,6 +1,6 @@
 //! Engine 测试 · x1grammar.bin 微型词性搭配模型接入 A/B。
 //!
-//! 覆盖三点（模型信息存在 / 微型打分路径确实执行）：
+//! 覆盖三点（「模型信息存在 / 微型打分路径确实执行」要求）：
 //! 1. 发现：资产随词库 DB 同目录分发 → `grammar_micro_info()` 有值（版本/行数）；
 //! 2. 降级：资产缺失 → 空模型（info None），开启开关不 panic、增量恒 0；
 //! 3. A/B：同一输入开/关微型模型，候选数量不变（候选生成不受影响），且开启后
@@ -92,7 +92,7 @@ fn legacy_pos_delta(engine: &Engine, ws: &[String]) -> i32 {
 }
 
 /// 模型发现：同目录伴随资产必须被 `Engine::from_storage` 加载，元信息可用，
-/// 且微型语法生产默认**开**（扩展口语语料 + 正分融合口径）。
+/// 且微型语法生产默认**开**（扩展口语语料 + 正分融合后验收通过）。
 #[test]
 fn grammar_micro_engine_discovers_model_beside_db() {
     if crate::test_tmp::skip_without_grammar_model() {
@@ -117,9 +117,9 @@ fn grammar_micro_engine_discovers_model_beside_db() {
 }
 
 /// 降级：资产缺失（老部署 / 只拷了 DB）→ 空模型（info None），开启开关也不
-/// panic、正常出候选——加载失败绝不能阻塞启动。
-/// 评审修复：开关开 + 模型未加载时 A/B 出口必须
-/// **回退 legacy 三项**（不是 0）——不静默丢掉整层词性信号、不污染处理臂。
+/// panic、正常出候选——加载失败绝不能阻塞启动（启动秒开约束）。
+/// 开关开 + 模型未加载时 A/B 出口必须
+/// **回退 legacy 三项**（不是 0）——不静默丢掉整层词性信号、不污染对照臂。
 #[test]
 fn grammar_micro_engine_degrades_to_empty_when_asset_missing() {
     let db = seed_copy_without_model("degrade");
@@ -155,7 +155,7 @@ fn grammar_micro_engine_degrades_to_empty_when_asset_missing() {
     cleanup_copy(&db);
 }
 
-/// A/B（同一输入开/关微型模型 + 候选生成不变断言）：
+/// A/B（候选生成不变断言）：同一输入开/关微型模型，
 /// 候选数量必须一致——语法 A/B 只允许改绿词内部排序，不允许产生/消灭候选。
 #[test]
 fn grammar_micro_engine_ab_preserves_candidate_count() {
@@ -183,7 +183,7 @@ fn grammar_micro_engine_ab_preserves_candidate_count() {
         after.len(),
         "开/关微型模型不得改变候选生成数量"
     );
-    // 模型信息在 A/B 两侧都存在。
+    // 同断言：模型信息在 A/B 两侧都存在。
     assert!(engine.grammar_micro_info().is_some());
     cleanup_copy(&db);
 }
@@ -224,7 +224,7 @@ fn grammar_micro_engine_delta_executes_model_scoring() {
     cleanup_copy(&db);
 }
 
-/// 臂选择（评审聚焦测试）：模型已加载时，开 = legacy 三项 + 正向微型分
+/// 臂选择（评审修复聚焦测试）：模型已加载时，开 = legacy 三项 + 正向微型分
 /// 的四分之一，关 = legacy 三项（逐字节）；「开 + 已加载」必须真的走微型评分
 /// 路径（A/B 处理臂未被降级回退劫走）。
 #[test]
@@ -281,7 +281,7 @@ fn grammar_micro_path_components_diagnosis_matches_scoring() {
     let mut engine = Engine::new_with_db(&db).expect("seed db with model");
     let probes = probe_paths();
 
-    // 观测不受总闸影响：开关关也必须能拿到分量（「关闭（仅观测）」行）。
+    // 观测不受总闸影响：开关关也必须能拿到分量（调试 CLI「关闭（仅观测）」行）。
     engine.set_grammar_micro_enabled(false);
     let mut any_nonzero = false;
     for ws in &probes {

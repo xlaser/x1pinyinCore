@@ -39,11 +39,11 @@ impl crate::engine::Engine {
 
     /// 橙词纠错候选的提交。
     ///
-    /// 与 `commit_with_solidify` 的唯一区别：is_correction=true → 不写
-    /// 错串→词的 input_mapping。错串映射会让 nihso 这类拼错串下次白词
+    /// 与 `commit_with_solidify` 的唯一区别：is_correction=true → **不写
+    /// 错串→词的 input_mapping**。错串映射会让 nihso 这类拼错串下次白词
     /// 直达，与纠错「纯只读」哲学矛盾，且误选一次永久留痕（纠错撤销不回滚
     /// mapping）；纠错路径本身已能稳定复纠，错串直达属冗余。freq/bigram/
-    /// 竞争事件照常学习——那些学的是正确词，正是用户意图。
+    /// 竞争事件照常学习——那些学的是**正确词**，正是用户意图。
     pub fn commit_correction(
         &mut self,
         input: &str,
@@ -68,8 +68,8 @@ impl crate::engine::Engine {
         // 含 ASCII 字母的 text 一律跳过 freq/input_mappings/user_words/green_memo/
         // 搭配上下文，防污染中文排序与 Ranker 训练数据。
         //
-        // 英文词频动态调整（开了英文补全则英文词频随使用调整，
-        // 中/英文模式皆然）：英文词自身的使用计数在此记录（独立通道，不碰
+        // 词频动态调整（开了英文补全则英文词频随使用调整，
+        // 中/英文模式皆然）：英文词**自身的使用计数**在此记录（独立通道，不碰
         // 中文任何表）。词形约束复用 is_word_shape（ASCII 字母 2..=24，允许
         // 规范大小写；计数键归一小写）；门控 =
         // smartWordZh/En 任一开（补全都关 = 无消费面，不学）。归一小写：中文
@@ -86,10 +86,10 @@ impl crate::engine::Engine {
             }
             return;
         }
-        // 双拼展开：双拼模式下宿主前端传入的 pinyin 是双拼编码，
+        // 双拼展开：双拼模式下传入的 pinyin 是双拼编码，
         // 必须 expand 成全拼再记学习，否则学习数据被污染（与全拼用户不互通）。
         // scheme=None 时 no-op：decode_to_pinyin_string 不调用，pinyin_owned 持原值副本。
-        // 见 spec §4.4。commit / commit_with_solidify 都走本函数，统一在此展开。
+        // commit / commit_with_solidify 都走本函数，统一在此展开。
         let pinyin_owned: Option<String> = if let Some(scheme) = &self.shuangpin {
             pinyin.map(|p| {
                 crate::shuangpin::decode_to_pinyin_string(scheme, p)
@@ -103,7 +103,7 @@ impl crate::engine::Engine {
 
         self.freq.record(text);
 
-        // 用户主动选字上屏 = 改主意了。若该词在黑名单（remove 所删），复活它：
+        // 用户主动选字上屏 = 改主意了。若该词在黑名单（曾被 remove），复活它：
         // 人的想法会变，主动选择说明又想要这个词，不应再屏蔽整句解码。
         // 同时清除持久化黑名单（user_blacklist 表），让下次部署不再清理该词。
         self.removed_texts.remove(text);
@@ -116,8 +116,8 @@ impl crate::engine::Engine {
         // 只累加 (地, de)，不影响 di 查询的「地」。
         //
         // 只对单字记录：多音字权重仅在单字排序（primary_reading_bonus）中生效，
-        // 多字词的主音恒为 true，记录它们是纯冗余（会让 user_pinyin_counts 表
-        // 充斥多字词，清理时需一次性删上千条）。
+        // 多字词的主音恒为 true，记录它们是纯冗余（曾导致 user_pinyin_counts 表
+        // 充斥多字词，清理时一次性删了上千条）。
         // 若调用方未传 pinyin，从 input 推断首音节（兼容旧接口）。
         if text.chars().count() == 1 {
             let pinyin_for_record = pinyin
@@ -141,12 +141,12 @@ impl crate::engine::Engine {
         }
 
         // 竞争事件（「退化」通道）：
-        // 被选词记一次「选中」——按输入形态分两层写：
+        // 被选词记一次「选中」——**按输入形态分两层写**：
         //   全拼/双拼 → 同音层（word 的完整拼音 ctx；同音竞争的本来语义）；
         //   简拼/混拼（输入 token 非完整音节）→ 整句层（原始输入串 ctx，
         //   与 scoring.rs 的 jianpin 分支 key 对齐——sh 下 是/说/上/社会
-        //   同场；绝不把单字错切进它自己的音节语境——test_user_feedback 的
-        //   sh 案例守护此点）。
+        //   同场；**绝不把单字错切进它自己的音节语境**，test_user_feedback
+        //   的 sh 案例即此教训）。
         // 组词层（Bigram）写侧复用 user_bigram_counts（advance_context 段），
         // 不在此重复记。Input 的 \u{1} 前缀是简拼整句层 key 的命名空间约定
         // （与拼音形态的全拼 key 隔开，先验计算据此分流，见 pin_priors_full）。
@@ -179,7 +179,7 @@ impl crate::engine::Engine {
                     .or_else(|| self.dict.find_pinyin(text));
                 if let Some(py) = pinyin_full {
                     // 上下文同音证据：记住「在 prev 之后，
-                    // 该拼音槽用户选了 text」。只记录词库整词 + 真同音歧义组
+                    // 该拼音槽用户选了 text」。只记录**词库整词 + 真同音歧义组**
                     // （≥2 词、gap≤5×），整句提交由 commit_sentence_split 按子词
                     // 记录（避免把整句拼音当槽键）。
                     let syls: Vec<&str> = py.split_whitespace().collect();
@@ -246,16 +246,16 @@ impl crate::engine::Engine {
 
             // 整句学习策略（选择性固化 + 拆词学习双保险）：
             //
-            // 设计原则：拆词学习 + bigram 关联是始终执行的（让连续输入越用越准）。
-            // 整句固化（≤8字进 user_words 成为白词）只在用户明确要求时才发生：
+            // 设计原则：拆词学习 + bigram 关联是**始终执行**的（让连续输入越用越准）。
+            // 整句固化（≤8字进 user_words 成为白词）只在用户**明确要求**时才发生：
             // - Shift+数字键选词（force_solidify=true）：用户明确想"固定"这个绿词成白词
             // - 普通数字键选词（force_solidify=false）：只拆词+bigram，绿词保持绿词身份，
             //   靠 bigram 积累自然提升，不污染白词排序
             //
             // 双轨学习：
-            // 1. 拆词学习（commit_sentence_split）：子词间 bigram 加权学习(+3)，
+            // 1. **拆词学习**（commit_sentence_split）：子词间 bigram 加权学习(+3)，
             //    让连续输入的上下文关联越用越准。这是绿词"智能"的来源。
-            // 2. 整句固化（≤8 字 + force_solidify）：整句进 user_words + dict，
+            // 2. **整句固化**（≤8 字 + force_solidify）：整句进 user_words + dict，
             //    下次同输入作为白词精确命中排首位。
             //
             // 字数限制（膨胀控制）：
@@ -264,15 +264,15 @@ impl crate::engine::Engine {
             let is_sentence = self.is_sentence_input(text, pinyin_to_store.as_deref());
             if is_sentence {
                 // 绿词采纳率数据采集：
-                // - total_green_picks：用户 commit 的 text 走绿词路径（is_sentence=true）
-                //   → 选中了一个绿词候选，累加采集总数。
-                // - second_green_picks：text 命中 process(input) 绿词显示序的第 2 位
+                // - total_green_picks：选中任一绿词即累加（原有语义）。
+                // - second_green_picks：text 命中 process(input) 绿词显示序的**第 2 位**
                 //   （第一绿词被跳过的情形）才累加。采集方式为 commit 时重算一次
-                //   process(input) 取整句候选序——process 是 &self，此处 &mut self
-                //   重借用合法；仅整句 commit 触发，单次选择多一次查询可接受。
-                //   重算发生在本次学习写入之后（freq.record 已 +1、green_memo/context
-                //   尚未动），与用户所见列表可能有轻微分差——统计口径是按样本的比率，
-                //   可容忍。
+                //   process(input) 取 is_sentence 候选序——process 是 &self，此处
+                //   &mut self 重借用合法；仅整句 commit 触发，单次选择多一次查询
+                //   （种子库典型 <3ms）可接受。重算发生在本次学习写入之后
+                //   （freq.record 已 +1、green_memo/context 尚未动），与用户所见
+                //   列表可能有轻微分差——统计口径是 ≥20 样本的比率，可容忍。
+                // 采纳率微调自此有真实分子，不再恒走「收紧」单向棘轮。
                 let is_second_green = {
                     let cands = self.process(input);
                     let greens: Vec<&str> = cands
@@ -322,7 +322,7 @@ impl crate::engine::Engine {
                     // 双拼模式下额外用全拼拼音存一份（跨模式共享）：
                     // green_memo 记录的是"拼音组合→整句"语言层面的关联，与按键方式无关。
                     // 双拼用户和全拼用户选的是同一个词，绿词记忆应跨模式共享。
-                    // 查询端整句查询已有 seg_pinyin 回退查询（.or_else 查 seg.join(" ")），
+                    // 查询端 sentence.rs:275 已有 seg_pinyin 回退查询（.or_else 查 seg.join(" ")），
                     // 此处用全拼 pinyin_to_store 存一份后，双拼/全拼查询都能命中。
                     if let Some(full_pinyin) = &pinyin_to_store {
                         // 全拼 input 本身就等于拼音前缀（去空格），避免重复存储
@@ -386,7 +386,7 @@ impl crate::engine::Engine {
                         }
                     } else if force_solidify {
                         // 可观测性：用户明确要求固化（Shift+数字）却拿不到
-                        // 拼音 → 静默跳过会让空拼音问题隐身（「程序基础」
+                        // 拼音 → 静默跳过曾让空拼音 bug 隐身（「程序基础」
                         // 无法固化绿词的根因）。大声报出来。
                         eprintln!(
                             "[solidify] force_solidify 但无拼音可用，跳过固化：{}（调用方需传候选拼音）",
@@ -403,7 +403,7 @@ impl crate::engine::Engine {
                 // 如果 dict 里"浅表"只有 jian biao，用户输入 qian biao，find_freq 返回 None
                 // → 不是"该音的系统词" → 写入 user_words 用正确拼音。
                 //
-                // 字数==音节数守卫：错位拼音不入
+                // 字数==音节数守卫（重复上屏修复）：错位拼音不入
                 // user_words/Trie（同上方 solidify 分支）。
                 let is_system_word = self.dict.find_freq(p.as_str(), text).is_some();
                 if !is_system_word && super::user_word_pinyin_matches(text, &p) {
@@ -450,7 +450,7 @@ impl crate::engine::Engine {
                     trigram: None,
                 };
                 // 词级 bigram（字+字提交对——如连续打 de 选 的/地——被
-                // Freq choke point 过滤不记）。
+                // Freq choke point 过滤不记：字+字不记）。
                 // record_* 返回实际写入量（会话上限可能截断），用于撤销快照。
                 if let Some(prev1) = self.context.last().cloned() {
                     let w = self.record_word_bigram_weighted(&prev1, text, 1);
@@ -517,21 +517,22 @@ impl crate::engine::Engine {
 
     /// 判断是否为多词组合（应拆词学习，而非存为单个长词）。
     ///
-    /// 核心判据：文本能被切成 ≥ 2 个子词。
+    /// 核心判据：**文本能被切成 ≥ 2 个子词**。
     ///
     /// 这能精确区分：
     /// - 「我在家」→ 切成 [我, 在家]（2 段）→ 多词组合 → 拆词
     /// - 「不知道」→ 切成 [不知道]（1 段）→ 单个词 → 整体学习
     /// - 「我不知道」→ 切成 [我, 不知道] 或 [我, 不知, 到]（≥2 段）→ 拆词
     ///
-    /// 不要求 recon 对齐：split 切分可能选错字（如「不知道」
+    /// **不要求 recon 对齐**（曾导致 bug）：split 切分可能选错字（如「不知道」
     /// 被切成「不知」+「到」），recon≠原文，但对齐检查会因此误判为"非多词组合"，
     /// 导致整句被存为整体。「能切成 ≥2 段」这个事实本身就说明是多词组合，
     /// 即使切分不完美，也应走拆词学习（学习的是子词 + bigram 关联，切错字影响小）。
     ///
-    /// 不用 find_pinyin 判定：历史 user_words 渗透进 Trie，
+    /// **不用 find_pinyin 判定**（曾导致 bug）：历史 user_words 渗透进 Trie，
     /// 「我在家」等被存为整词，find_pinyin 返回 Some 误判为真词。
-    /// （统一查 dict。当前靠音节数≥3 + 拆词
+    /// （注：base_dict 已移除，统一查 dict。用户词渗透问题在 base_dict
+    /// 方案下也存在——new_with_db 的 base_dict 含用户词。当前靠音节数≥3 + 拆词
     /// 策略兜底，用户学过的整句不拆词是可接受的行为，符合"学过即真词"语义。）
     pub(crate) fn is_sentence_input(&self, text: &str, pinyin: Option<&str>) -> bool {
         let pinyin = match pinyin {
@@ -548,8 +549,10 @@ impl crate::engine::Engine {
         // 它是单个词不拆（如「不知道」bu zhi dao 是词库真词）。
         // 「我在家」wo zai jia 在词库查不到（不是词库词）→ 可拆。
         //
-        // 统一查 dict：绿词不进 dict（见 commit_internal 绿词只进 green_memo），
-        // 无污染前提；dict 含启动时加载的用户词，精确匹配到的按真词处理。
+        // 原版查 base_dict（声称"不含会话级绿词 insert"），但绿词根本
+        // 不进 dict（见 commit_internal 绿词只进 green_memo），所以该污染前提不存在。
+        // 加上 base_dict 在 new_with_db 启动时也含用户词（clone 时机问题），其"纯净"
+        // 保证本就不严格。去掉 base_dict 后统一查 dict，功能不比现状差。
         let exact = self.dict.query(&syllables);
         if exact.iter().any(|c| c.text.as_ref() == text) {
             return false; // 精确匹配到的真词，不拆
@@ -561,9 +564,8 @@ impl crate::engine::Engine {
         //
         // 历史 bug：之前 3 音节也走 split 拆词，导致「不知道」被切成「不+知道」拆词学习，
         // 测试期望它整体存为 user_word。修复：3 音节门槛整体存储。
-        // 3 音节策略：3 音节不再整体存储为白词，
-        // 走拆词+bigram 学习。只有 2 音节及以下整体存储（2 字词组合固化可接受）。
-        // 原则：「不要自动固化白词，两个字可以固化成白词即可」。
+        // 3 音节修订：3 音节不再整体存储为白词，改为走拆词+bigram 学习。
+        // 只有 2 音节及以下整体存储（两个字可以固化成白词）。
         // 3 字以上的组合（如 不知道/工程师）靠 bigram 举一反三，不固化。
         //
         // 核心条件：切分子词数 ≥ 2（能拆就是多词组合）
@@ -577,7 +579,7 @@ impl crate::engine::Engine {
     /// - 「你说你知不知道」→ 拆成「你说」「你」「知道」等子词
     /// - 每个子词 learn（进 user_words，单字除外）
     /// - 子词间记 bigram（你说→你、你→知道...），让下次连续输入更顺
-    /// - 整句本身绝不进 user_words（句子无限，记不完；且整句候选会污染查询）
+    /// - 整句本身**绝不**进 user_words（句子无限，记不完；且整句候选会污染查询）
     ///
     /// `advance_context`：与 commit 一致，推进整句首词的上下文（句首衔接上文）。
     pub(crate) fn commit_sentence_split(
@@ -591,8 +593,8 @@ impl crate::engine::Engine {
             _ => return,
         };
         let syllables: Vec<&str> = pinyin.split_whitespace().collect();
-        // 用用户传入的 text 作为切分锚定（关键）：
-        // 完全靠 decode_sentence 重新猜切分会因词频失真选错字
+        // **用用户传入的 text 作为切分锚定**（关键修复）：
+        // 此前 split_into_words 完全靠 decode_sentence 重新猜切分，会因词频失真选错字
         // （如 shu ru fa xiang mu 切成 [输入法, 香木] 而非用户明确传入的 [输入法, 项目]）。
         // 用户 commit 时传入的 text 是「正确答案」，应直接用它对齐音节切分。
         // 这尊重用户的明确教学，避免词库词频失真污染学习。
@@ -604,11 +606,11 @@ impl crate::engine::Engine {
 
         // 逐词记录 bigram（词间搭配关系），但不再 learn_single_word 子词入 user_words。
         //
-        // 拆词学习不把子词 learn_single_word 进 user_words，
-        // 否则恶性循环——用户选了错误绿词（如「输入发想目」），拆词把错误子词「发想」
+        // 关键修复：此前拆词学习会把子词 learn_single_word 进 user_words，
+        // 导致恶性循环——用户选了错误绿词（如「输入发想目」），拆词把错误子词「发想」
         // 学进 user_words 并 +50 加权，下次 DP 看到高频「发想」又切错，又学一次。
         //
-        // 设计：拆词只记 bigram（子词间共现关系），不污染 user_words。
+        // 新设计：拆词只记 bigram（子词间共现关系），不污染 user_words。
         // 子词学习交给用户单独输入时的 commit（那时用户意图明确）。
         // 整句本身通过 ≤8 字固化进 user_words（commit 路径已处理）。
         //
@@ -617,7 +619,7 @@ impl crate::engine::Engine {
         // 几次即超过种子）。这对 N-best DP 纠正切分至关重要——如用户 commit「坐飞机出行」，
         // (坐,飞)(飞,机)(机,出)(出,行) 各 +3，下次同输入 DP 能靠 bigram 选对切分。
         // 上下文同音证据：整句提交时，各歧义子词按
-        // 句子上屏前的上文词记录（跨输入语境学习——如「机场 → 马上出发」
+        // **句子上屏前的上文词**记录（跨输入语境学习——如「机场 → 马上出发」
         // 记住 (chu fa, 机场)→出发，下次同语境 chufa 直接受益）。capture 必须在
         // 推进上下文（下方 push 末子词）之前。
         let outer_prev = self.context.last().cloned();
@@ -628,7 +630,7 @@ impl crate::engine::Engine {
             // bigram 不污染 user_words，只是候选打分时的上下文加分
             // 字+字不记（过滤在 Freq::record_word_bigram_weighted
             // choke point 统一执行）：两个单字高频相邻应固化成词，字↔字统计只有
-            // 噪声价值（连续测试输入会借本路径 +3 积累 (的→地) 噪声对）。
+            // 噪声价值（ddddd 连续测试曾借本路径 +3 积累 (的→地)=107 噪声对）。
             // 字+词 / 词+字 照常（如 [我,去,吃饭] 只记 (去→吃饭)）。
             if let Some(prev) = &prev_word {
                 self.record_word_bigram_weighted(prev, word_text, 3);
@@ -676,7 +678,7 @@ impl crate::engine::Engine {
 
     /// 用用户传入的整句文本作为锚定，把音节序列切成 (子词文本, 子词拼音) 列表。
     ///
-    /// 核心思想：用户 commit 时传入的 text 是「正确答案」（如「输入法项目」），
+    /// **核心思想**：用户 commit 时传入的 text 是「正确答案」（如「输入法项目」），
     /// 直接用它对齐音节切分，不依赖 decode_sentence 的词频选择（会因词库 freq 失真
     /// 把「项目」猜成「香木」）。
     ///
@@ -704,12 +706,12 @@ impl crate::engine::Engine {
             // 从长到短尝试（贪心最长匹配，让多字词优先成段）
             for k in (1..=max_k).rev() {
                 let seg = &syllables[syl_pos..syl_pos + k];
-                // 纯首字母段（简拼/混合尾）：
-                // 单字母段不是有效音节，若整段跳过 → 简拼上屏的整句（AI 红词
+                // 纯首字母段（简拼/混合尾，AI 红词学习链修复）：
+                // 单字母段不是有效音节，旧逻辑整段跳过 → 简拼上屏的整句（AI 红词
                 // 尤其典型——其 commit 拼音就是单字母串）退化成「1 音节 1 字」逐字
                 // 学习，子词级 freq.record 全部丢失 → 下次同输入 DP 的 cand_order
-                // 拿不到证据、整句构造不出来（「得先用全拼教一遍」问题的根因）。
-                // 现在：全单字母段改走首字母查询（query_tokens）——与 DP 简拼
+                // 拿不到证据、整句构造不出来。
+                // 现在：全单字母段改走 **首字母查询**（query_tokens）——与 DP 简拼
                 // 路径同一查询口径——再用 text 对应位置锚定筛选（用户 text 是正确答案，
                 // 尊重教学）。char 数 == 段长约束与 query_seg 的全消费守卫同口径。
                 let all_single = seg.iter().all(|s| s.len() == 1);
@@ -760,8 +762,8 @@ impl crate::engine::Engine {
 
     /// 用整句解码的 DP 把音节序列切成 (词文本, 词拼音) 列表。
     ///
-    /// 复用 decode_sentence 的切分结果（关键）：
-    /// 独立维护 DP 会与 decode_sentence 不一致——缺失
+    /// **复用 decode_sentence 的切分结果**（关键修复）：
+    /// 此前 split_into_words 维护着独立的 DP，与 decode_sentence 不一致——缺失
     /// freq_score +6 floor、path_single_penalty、bigram 双轨修正三层防御，导致
     /// `shu ru fa xiang mu` 错切成 [输入, 发想, 目] 而非 [输入法, 项目]，
     /// 让用户的拆词学习（commit_sentence_split）记错子词，整句学习链路彻底失灵。
@@ -786,7 +788,7 @@ impl crate::engine::Engine {
             // 注意：decode_sentence 内部 DP 的切分粒度（k=1..4）保留在 best_len 里，
             // 但 Candidate 不暴露。这里我们用「按拼音段查询」反推：
             // pinyin_parts 是 "shu ru|fa|xiang mu" 这种用空格分隔音节、无分段标记的字符串。
-            // 但 decode_sentence 的 pinyin 是各段拼音用空格 join，段内音节也用空格分隔，
+            // 但 decode_sentence 的 pinyin 是各段拼音用空格 join，**段内音节也用空格分隔**，
             // 无法从 join 后的字符串区分段边界。
             //
             // 因此最稳的做法是：重新跑一次 decode_sentence 的 DP（但暴露切分点）。
@@ -923,13 +925,13 @@ impl crate::engine::Engine {
 
     /// 从词库中删除一个词（用户不喜欢的候选）
     ///
-    /// 彻底删除策略：
-    /// Command+Backspace 删除时，从所有数据源清除该词：
-    /// 1. 内存 dict Trie（候选查询用的主 Trie，唯一 Trie）
+    /// **彻底删除策略**：
+    /// 整词删除手势触发时，从所有数据源清除该词：
+    /// 1. 内存 dict Trie（候选查询用的主 Trie，base_dict 已移除，唯一 Trie）
     /// 2. user_words 内存 + DB（用户自造词）
     /// 3. x1dict_words DB（系统词库真词，如「发想」是早期词表收录词条）
     /// 5. 频率模型（freq counts / recent_score / bigram）
-    /// 6. 持久化黑名单 user_blacklist（跨部署保留删除意图，部署脚本据此清理种子 DB）
+    /// 6. 持久化黑名单 user_blacklist（跨部署保留删除意图，部署合并用户数据时据此清理种子 DB）
     ///
     /// 这样 DP 查 dict 根本查不到该词，不会再被选来拼绿词。
     /// 黑名单仍保留作为额外保险（万一 DB 删除未持久化，黑名单兜底）。
@@ -949,7 +951,7 @@ impl crate::engine::Engine {
         // 3. 会话级黑名单（绿词降级 + DP pick filter）
         self.removed_texts.insert(text.to_string());
 
-        // 4. input_mappings 清理：
+        // 4. input_mappings 清理（修复数据残留 bug）：
         // 用户删词后，关联的 (input, text) 输入习惯映射必须同步清理，
         // 否则被删的词会通过 mapping_bonus 重新排到前面。
         // （如 panduan→判读安 删词后，mapping 残留让判读安仍出现）
@@ -957,8 +959,8 @@ impl crate::engine::Engine {
         self.input_mappings_by_text.remove(text);
 
         if let Some(storage) = &mut self.storage {
-            // 5. 持久化黑名单（跨部署保留，部署脚本据此清理种子 DB）。
-            // 落盘失败不吞错（黑名单是删词防复活
+            // 5. 持久化黑名单（跨部署保留，部署合并用户数据时据此清理种子 DB）。
+            // 落盘失败不再吞错（黑名单是删词防复活
             // 的唯一持久化通道，失败即失效）——进 pending 由 flush 重试。
             if storage.insert_blacklist(text).is_err() {
                 self.pending_blacklist.push(text.to_string());
@@ -985,7 +987,7 @@ impl crate::engine::Engine {
     /// 手动造词（字+字组合成词的备用接口）
     ///
     /// 整体固化到 user_words，不做拆词判定。
-    /// 当前宿主前端自组词已统一走 commit（拆词学习），learn 保留供：
+    /// 当前调用方自组词已统一走 commit（拆词学习），learn 保留供：
     /// - 外部工具/脚本主动造词
     /// - 未来词库管理器的"强制固化某词"功能
     /// - 特定长词整体固化（如用户指定的成语/诗句）
@@ -1010,12 +1012,12 @@ impl crate::engine::Engine {
         }
 
         // 规范化输入：把多个连续空格压缩成一个，保留显式音节分隔。
-        // 这样无论调用方传 "lai shuo" 还是 "laishuo"，引擎都得到一致的 pinyin。
+        // 这样调用方无论传 "lai shuo" 还是 "laishuo"，Rust 都得到一致的 pinyin。
         let pinyin = normalize_pinyin_for_storage(input);
         if pinyin.is_empty() || pinyin.split_whitespace().next().is_none() {
             return;
         }
-        // 字数==音节数守卫：拒绝错位拼音（如
+        // 字数==音节数守卫（重复上屏修复）：拒绝错位拼音（如
         // learn("习惯惯","xi guan")——组合学习步骤拼音缺失的产物）。错位词入
         // Trie 后挂在短音节键下，输入 "xiguan" 会把 3 字"习惯惯"当整词候选顶到
         // 最前，一次空格整体上屏 = 微信"习惯惯"末字重复上屏的根因。
@@ -1030,7 +1032,7 @@ impl crate::engine::Engine {
         }
 
         // 更新内存用户词库和 Trie；频率 +1 表示用户主动学过/用过。
-        // 多读音共存：新读音追加，全部读音重建（不冲掉旧读音）。
+        // 多读音共存：新读音追加，全部读音重建（不再冲掉旧读音）。
         self.record_user_word_pronunciation(text, &pinyin);
         self.freq.record(text);
         self.pending_deletions.remove(text);
@@ -1055,7 +1057,7 @@ impl crate::engine::Engine {
         }
     }
 
-    /// 记录一条带权重的词级 bigram 共现（FFI 暴露，供宿主前端分词后调用）。
+    /// 记录一条带权重的词级 bigram 共现（FFI 暴露，供调用方切词后逐对调用）。
     pub fn record_word_bigram_weighted(&mut self, prev: &str, text: &str, weight: u32) -> u32 {
         let applied = self.freq.record_word_bigram_weighted(prev, text, weight);
         if self.learning_stats_enabled {
@@ -1093,18 +1095,16 @@ impl crate::engine::Engine {
         applied
     }
 
-    /// 把上屏文本按词库做正向最大匹配（FMM）
-    /// 切词，相邻词对写入带权 bigram——宿主前端（mac 侧）用系统分词器切词后
-    /// 逐对调 `record_word_bigram_weighted`，
-    /// 引擎服务侧在完整提交（!solidify）且多字时调用本方法。
+    /// 把上屏文本按词库做正向最大匹配（FMM）切词，相邻词对写入带权 bigram
+    /// ——完整提交（!solidify）且多字时调用本方法（调用方用系统切词器
+    /// 逐对调 `record_word_bigram_weighted` 的路径与此等价）。
     ///
     /// 切词查内存 `long_word_freq`（text_freq_map：词库 + 用户词合一，零新依赖、
     /// 零 SQL）；未匹配段退化为单字；非基本区汉字（标点/西文/数字）是断点，
-    /// 跨断点不配对（同系统分词器词边界语义）。
+    /// **跨断点不配对**（同系统分词器的词边界语义）。
     ///
-    /// 粒度约束沿用挖掘规范：只记
-    /// 词+词 / 词+字 / 字+词，字+字不记——未收录新词会碎成单字，跳过防噪声
-    /// （新词进词库后自动被切出，自愈）。
+    /// 粒度规则：只记词+词 / 词+字 / 字+词，**字+字不记**——未收录新词会
+    /// 碎成单字，跳过防噪声（新词进词库后自动被切出，自愈）。
     ///
     /// 两段式（每游程先切后写）：切词只借 `&self.dict`、写入走 `&mut self`——
     /// 同一函数内先后进行，无借用冲突；Commit 低频路径，FMM 成本 O(长度×12) 查表。
@@ -1150,26 +1150,28 @@ impl crate::engine::Engine {
             for pair in tokens.windows(2) {
                 let (a, b) = (&pair[0], &pair[1]);
                 if a.chars().count() == 1 && b.chars().count() == 1 {
-                    continue; // 字+字不记（粒度约束）
+                    continue; // 字+字不记（粒度规则）
                 }
                 self.record_word_bigram_weighted(a, b, weight);
             }
         }
     }
 
-    /// 注入学习型排序器权重（离线训练后调用，运行时生效）。
-    /// 6 维权重（candidate_score 共 6 分量），
+    /// 注入学习型排序器权重（训练后调用，运行时生效）。
+    /// 6 维权重（semantic_bonus/embedding_bonus 移除，后台 embedding 架构
+    /// 彻底删除，candidate_score 真正回到 6 分量），
     /// 顺序与 ScoreBreakdown 对齐：base/total_bonus/recent/mapping_bonus/bigram_bonus/long_word_bonus。
     /// 全 0 视为未训练，回退手调公式。
     pub fn set_ranker_weights(&mut self, weights: [f64; 6]) {
         self.ranker_weights = Some(weights);
     }
 
-    // 注：set_semantic_bonuses 方法不存在——无 semantic_bonuses 注入通道。
+    // 注：set_semantic_bonuses 方法已移除。
+    // 神经重排序（embedding）完全移除，不再有 semantic_bonuses 注入。
 
     /// 仅重算 dyn_cap_cache（不衰减），用于启动初始化。
     ///
-    /// 与 recompute_modulators 分开：recompute_modulators 既算 dyn_cap 又做
+    /// **从 recompute_modulators 拆出**：原 recompute_modulators 既算 dyn_cap 又做
     /// 周期衰减，new_with_db 启动时调用会让刚从 DB 加载的低频词（如 count=2）立即被
     /// 衰减，违背"持久化的累计次数应保留"语义（test_commit_system_word_stores_pinyin
     /// 守护）。启动只需用加载的 bigram 数据初始化 dyn_cap，衰减是运行时 60s 周期行为。
@@ -1188,33 +1190,31 @@ impl crate::engine::Engine {
         self.dyn_cap_cache =
             Self::BIGRAM_CAP_BASE + (max_count + 1).ilog2().saturating_mul(Self::BIGRAM_CAP_K);
 
-        // 时间衰减已废除（时间不进权重公式）：decay_counts /
+        // 时间衰减已废除：原「每 60s 全表 ×7/8」的 decay_counts /
         // decay_input_mappings 调用整体移除——真实时间不该进权重公式。
-        // 退化（「选得少则衰、选得多则提」）
-        // 由 competition.rs 的同音零和归一承担：commit 时 total(ctx)+1、
-        // selects(ctx,chosen)+1，未选中者分子不动被分母稀释（无时间参数，
-        // 不用电脑期间权重逐位冻结——competition.rs 头注）。时间衰减还会把
-        // engine 自弄脏（decay 无条件 dirty=true）绕过 FlushScheduler 的
-        // is_dirty 短路，致输入法失活抖动下每次失活全量落盘（同秒连发
-        // "user freq flushed"）。
+        // 退化（选得少则衰、选得多则提）由 competition.rs 的**同音零和归一**
+        // 承担：commit 时 total(ctx)+1、selects(ctx,chosen)+1，未选中者分子
+        // 不动被分母稀释（无时间参数，不用电脑期间权重逐位冻结——competition.rs
+        // 头注）。时间衰减还会把 engine 自弄脏（decay 无条件 dirty=true），
+        // 绕过 is_dirty 短路，失活时被误判为脏而全量落盘。
     }
 
     /// 同音层先验（懒缓存）：`prior(w) = base_freq(w) / Σ_w' base_freq(w')`，
     /// 分母 = 该拼音（单字 = 首音节、多字 = 词完整拼音，与 CtxKey::Pin 同口径）
     /// 下 dict 精确命中的全部候选的 base_freq 和。只在读取平滑频率时按需计算
     ///（dict.query 一次，热路径复用——不得在 candidate_score 内重复现算）。
-    /// priors_full：竞争 boost 的「先验份额项」需要每个候选的精确先验
+    /// **priors_full**：竞争 boost 的「先验份额项」需要每个候选的精确先验
     ///（含零——无份额者动态项可从零起涨，见 scoring.rs rank_boost 注释）。
     ///
-    /// `pin_key` 首字符为 `\u{1}` 时是简拼整句层 key（scoring.rs 的
-    /// jianpin 分支约定）：先验取该输入 token 映射的全集（简拼按首字母
+    /// `pin_key` 首字符为 `\u{1}` 时是**简拼整句层 key**（scoring.rs 的
+    /// jianpin 分支约定）：先验取**该输入 token 映射的全集**（简拼按首字母
     /// 展开的近似映射——单字母/双字声母输入取 query_single_char_by_initial
     /// 的单字全集归一；长串简拼按 query_jianpin 的近似集合归一）。
     pub(crate) fn pin_priors_full(&self, pin_key: &str) -> Vec<(String, f32)> {
         let mut cache = self.competition_priors.borrow_mut();
         let entries = cache.entry(pin_key.to_string()).or_insert_with(|| {
             if let Some(jp) = pin_key.strip_prefix('\u{1}') {
-                // 简拼整句层先验：输入 token 映射全集按词长分层
+                // 简拼整句层先验：输入 token 映射全集按**词长分层**
                 // 归一（单字桶/多字桶各自一份——单字候选与词级候选的竞争是两类
                 // 不同的实体，共一份先验会被巨大多字桶稀释掉单字的份额；
                 // 单字桶=「是」这类简拼单字竞争的主战场，它必须占有足量先验）。

@@ -6,7 +6,8 @@
 //! 内存布局优化：
 //! - Trie 节点用 Vec 存储子节点，按音节首字母排序，支持二分查找
 //! - 候选词列表在叶节点存储
-//! - 基础词库编译进二进制（include_bytes!），启动时反序列化
+//! - 内置回退小词库以 include_str! 文本编译进二进制（Engine::new() 兼容路径）；
+//!   主路径词库来自种子 SQLite（storage 装载）
 
 use crate::pinyin::Token;
 use alloc::string::String;
@@ -129,11 +130,11 @@ pub struct Candidate {
     /// 是否为智能组合候选（整句解码/多词拼接产生，非词库整词）。
     ///
     /// 由 `decode_sentence` 把多个词拼成完整句子（如「我喜欢吃饭」)时标记。
-    /// 这类候选不是词库里的单个词条，而是算法智能组合的，候选框用绿色显示，
+    /// 这类候选不是词库里的单个词条，而是算法智能组合的，候选框用**绿色**显示，
     /// 让用户一眼区分：词库词（默认色）、纠错词（橙色）、智能组合词（绿色）。
     /// 词库精确匹配的候选恒为 `false`。
     pub is_sentence: bool,
-    /// 是否为「前缀补全猜测」候选（末音节更长，染紫色）。
+    /// 是否为「前缀补全猜测」候选（末音节更长，染**紫色**）。
     ///
     /// 触发：用户输入末音节完整但精确匹配结果 < 3（如 yonghu 末音节 hu 完整），
     /// 引擎把末音节当前缀扫子节点（`query_prefix_filtered`）拉来「末音节更长」的
@@ -151,8 +152,8 @@ pub struct Candidate {
     /// 是否为快捷输入候选（/date /fh 等前缀触发的符号/日期/时间）。
     ///
     /// 触发：用户输入 `/` 引导的前缀（如 `/fh`、`/date`），引擎 `try_quick_input`
-    /// 拦截后从符号表产生候选，或宿主端生成日期时间。
-    /// 候选框用蓝色显示，让用户区分词库精确词（白）与快捷候选（蓝）。
+    /// 拦截后从符号表产生候选，或 Swift 端 Date+DateFormatter 生成日期时间。
+    /// 候选框用**蓝色**显示，让用户区分词库精确词（白）与快捷候选（蓝）。
     ///
     /// 快捷候选的 pinyin 字段为空（符号/日期没有拼音），base_freq 设高值（确保排前）。
     /// 不持久化、不影响排序打分（查询期临时标记）。
@@ -162,15 +163,15 @@ pub struct Candidate {
     /// 两种来源共用此标记：中文模式（拼音输入命中英文词表，`inject_english_candidates`）
     /// 与英文模式前缀补全（服务 EnglishComplete 查询后前端自行组织）。
     /// 候选特征：text 为纯小写英文单词、pinyin 恒空、base_freq 为英文侧词频
-    /// （仅英文候选间定序，不与中文 freq 谱混用）、选中后全消费输入且
-    /// 不进中文学习面（commit 对含 ASCII 字母 text 直接跳过）。
-    /// 优先级链（drawItem if 顺序）：橙 > 绿 > 紫 > 蓝 > 英文 > 白。
+    /// （仅英文候选间定序，不与中文 freq 谱混用）、选中后**全消费输入**且
+    /// **不进中文学习面**（commit 对含 ASCII 字母 text 直接跳过）。
+    /// 优先级链（drawItem if 顺序）：橙 > 绿 > 紫 > 蓝 > **英文** > 白。
     /// 不持久化、不影响中文排序打分（排序后定点插入，不动 candidate_sort_key）。
     pub is_english: bool,
     /// 绿词 DP 路径分：`decode_sentence` 的 N-best
     /// 路径分（`is_sentence` 时 >0/<0 都可能），非绿词恒 0。
     ///
-    /// 用途：candidate_sort_key 的同分 tie 层——绿词候选的
+    /// 用途：candidate_cmp / candidate_sort_key 的同分 tie 层——绿词候选的
     /// `base_freq` 取切分最高词频（共享前缀的同构绿词恒同分）、pinyin 是同一串
     /// 简拼字母（恒相同），旧 tie-break 落到 text 字典序（汉字 Unicode 序无语义，
     /// 「性爱」U+6027 会压「西安」U+897F）——DP 认为更优的切分反而排后。本字段
@@ -223,8 +224,9 @@ impl TrieNode {
     }
 }
 
-/// Trie 内存构成统计结果（仅测试构建使用；节点 Trie 字段只计运行时
-/// overlay 增量，词典主存储的规模/字节看 arena_* 与 wi_span_* 字段）。
+/// Trie 内存构成统计结果（仅测试构建使用；pinyin 按节点共享计数 +
+/// word_index 纳入；arena 化后节点 Trie 字段只计**运行时 overlay 增量**，
+/// 词典主存储的规模/字节看 arena_* 与 wi_span_* 字段）。
 #[cfg(test)]
 #[derive(Default, Debug)]
 pub(crate) struct TrieMemoryProfile {
@@ -242,15 +244,15 @@ pub(crate) struct TrieMemoryProfile {
     pub pinyin_alloc_count: usize,
     /// 统一词索引条目数（text→freq/pinyin 侧索引）
     pub word_index_len: usize,
-    /// 全部 children Vec 的容量（元素个数，×24B = 实际占用）
+    /// 全部 children Vec 的**容量**（元素个数，×24B = 实际占用）
     pub children_capacity: usize,
-    /// 全部 candidates Vec 的容量（元素个数，×TrieNode 大小 = 实际占用）
+    /// 全部 candidates Vec 的**容量**（元素个数，×TrieNode 大小 = 实际占用）
     pub candidates_capacity: usize,
     /// 单字表桶数（音节数）
     pub sc_buckets: usize,
     /// 单字表候选总数
     pub sc_candidates: usize,
-    /// arena 基底估算堆字节（紧凑数组 + blob，
+    /// arena 基底估算堆字节（arena 化：紧凑数组 + blob，
     /// 精确预留容量；finish_load 前为 0）
     pub arena_bytes: usize,
     /// arena 基底节点数 / 候选数（词典主存储规模）
@@ -263,14 +265,15 @@ pub(crate) struct TrieMemoryProfile {
     pub wi_span_len: usize,
 }
 
-/// 词索引 span 基底。
+/// 词索引 span 基底（arena 化；字节段化）。
 ///
-/// 为什么必须 span 化（而不是继续持 Arc）：arena 化后 finish_load 会整体
+/// **为什么必须 span 化**（而不是继续持 Arc）：arena 化后 finish_load 会整体
 /// 丢弃节点 Trie——word_index 若保留 187k × 2 个旧 Arc 引用，会把旧内存区
 /// 几乎每一页都钉死（小分配与 Trie 节点交错分配），碎片一分收不回。
 /// 查询走 blob 切片（`find_word_entry` 统一入口，语义同旧 binary_search）。
 ///
-/// 字节段化（与 TrieArena 同款）：磁盘格式 = 内存格式（3 段：text_blob / py_blob / entries(16B 定长)），自有构建/缓存
+/// **字节段化**：与 TrieArena 同款——磁盘格式 =
+/// 内存格式（3 段：text_blob / py_blob / entries(16B 定长)），自有构建/缓存
 /// 装载/映射装载共用同一套段读取；校验通过（段界+UTF-8+text 严格升序）是
 /// 直接索引的安全前提。
 #[derive(Clone)]
@@ -507,33 +510,38 @@ pub struct Dict {
     word_index_sorted: bool,
     /// 词索引基底（span 版，finish_load 转储；运行时不可变）
     wi_base: Option<WordIndexSpans>,
-    /// 词索引运行时增量（用户词，条目极少；兼作基底 freq 覆盖的载体——
-    /// 条目存在即代表「该 text 的当前权威 freq/pinyin」）
+    /// 词索引运行时增量（用户词；兼作基底 freq 覆盖的载体——条目存在即代表
+    /// 「该 text 的当前权威 freq/pinyin」。查找/维护走 wi_runtime_index O(1)
+    /// ——线性扫会随用户词量增长退化，且 find_word_entry 在打分热路径被
+    /// 逐候选调用）
     wi_runtime: Vec<(Arc<str>, u32, Arc<str>)>,
+    /// wi_runtime 的 text→下标索引：upsert/查找 O(1)；删除 swap_remove 并
+    /// 同步换位条目下标（wi_runtime 顺序无语义——text 唯一，首匹配即唯一匹配）
+    wi_runtime_index: HashMap<Arc<str>, usize>,
     /// 词索引墓碑（remove_by_text；find_word_entry 过滤）
     wi_removed: std::collections::HashSet<String>,
     /// 节点候选物化缓存：arena 候选 span→Arc 逐候选构造
-    /// 是 bench +50% 回归的根源；本缓存按节点 id 数组槽直索引（O(1)，
+    /// 是 bench +50% 回归的根源；本缓存按节点 id **数组槽直索引**（O(1)，
     /// 零哈希——HashMap 版曾因子树收集单查询访问上万节点 + 容量清空而抖动）
     /// 缓存物化结果（Arc<Vec<Candidate>>，raw 值——不含覆盖/墓碑效果），命中后
     /// `extend(iter().cloned())` 与旧节点 Trie 的候选 clone 同款成本。
     /// 稀疏：空候选节点不占槽（Some 只为有候选的节点而设）； populated 超
     /// 8192 全量扫清（trigram 桶缓存同款「clear 后按需重建」语义）。
-    /// RefCell 单线程安全（引擎只在主线程使用）。
+    /// RefCell 安全：引擎只在主线程访问。
     node_cache: std::cell::RefCell<Vec<Option<Arc<Vec<Candidate>>>>>,
     /// node_cache 占用槽计数（超阈值全量扫清的判据，避免每次 miss 全扫）。
     node_cache_populated: std::cell::Cell<usize>,
-    /// 单字表音节 → 桶下标的侧索引。
+    /// 单字表音节 → 桶下标的侧索引（启动优化）。
     ///
     /// 背景：insert 的单字去重原按音节线性扫描 single_chars（433 桶），
     /// 启动期 1.1 万单字行 × 平均 216 次字符串比较 ≈ 10ms。侧索引把桶定位
-    /// 降到 O(1)。同步约束：single_chars 的一切结构性变更（增/删桶）
+    /// 降到 O(1)。**同步约束**：single_chars 的一切结构性变更（增/删桶）
     /// 必须经 `single_chars_bucket_mut` / remove_by_text 末尾的索引重建，
     /// 桶内候选的 in-place 修改（freq/is_primary）不影响索引。
     single_chars_index: HashMap<Box<str>, usize>,
 }
 
-/// 走树节点句柄：A = arena 基底节点 id，
+/// 走树节点句柄（arena 化）：A = arena 基底节点 id，
 /// L = overlay 节点引用。Copy 传递（u32 / 引用都廉价），统一 8 条查询
 /// 路径的双源遍历。
 #[derive(Clone, Copy)]
@@ -549,7 +557,8 @@ impl Default for Dict {
 }
 
 impl Dict {
-    /// Trie 内存构成统计（仅测试构建；返回 overlay 增量 + arena/wi_span 基底规模）。
+    /// Trie 内存构成统计（仅测试构建；arena 化后：返回 overlay 增量 +
+    /// arena/wi_span 基底规模）。
     ///
     /// 确定性计算（不依赖分配器）：节点数 + String/Vec 的堆字节 +
     /// arena/wi_span 的紧凑数组估算。
@@ -627,6 +636,7 @@ impl Dict {
             word_index_sorted: false,
             wi_base: None,
             wi_runtime: Vec::new(),
+            wi_runtime_index: HashMap::new(),
             wi_removed: std::collections::HashSet::new(),
             node_cache: std::cell::RefCell::new(Vec::new()),
             node_cache_populated: std::cell::Cell::new(0),
@@ -789,7 +799,7 @@ impl Dict {
     }
 
     /// 节点本地词级候选（字数 ≥2 过滤；query_tokens 混合分支与
-    /// collect_prefix_words_tokens 用——两处都是只收当前节点不深入）。
+    /// collect_prefix_words_tokens 用——两处都是**只收当前节点**不深入）。
     fn nr_push_candidates_words<'a>(&'a self, nr: NodeRef<'a>, result: &mut Vec<Candidate>) {
         match nr {
             NodeRef::L(n) => result.extend(
@@ -923,7 +933,7 @@ impl Dict {
     /// 主音标记取「主音优先」（任一为主音则保留主音）。
     pub fn insert(&mut self, pinyin: &str, text: &str, freq: u32, is_primary: bool) {
         // freq 硬上限：任何来源的 freq 都截断到 MAX_FREQ=10000，
-        // 防止虚高频词污染 Trie 排序。
+        // 防止虚高频词（历史 50000 bug 产物）污染 Trie 排序。
         let freq = freq.min(crate::char_freq::MAX_FREQ);
         // arena 模式（finish_load 后）：基底命中 → 覆盖表；未命中 → overlay
         // 插入。构建期（arena None）走下方原路径（行为与旧版逐位一致）。
@@ -931,7 +941,7 @@ impl Dict {
             self.insert_runtime(pinyin, text, freq, is_primary);
             return;
         }
-        // 栈上音节切分：原 `split_whitespace().collect::<Vec>()`
+        // 栈上音节切分（启动优化）：原 `split_whitespace().collect::<Vec>()`
         // 每行 1 次堆分配（启动 18.7 万行 = 18.7 万次）。词拼音音节数 ≤16 全覆盖
         // （词库最长词 8 字），超长按防御回退堆分配（实际不会触发）。
         let mut syl_buf = [""; 16];
@@ -957,7 +967,7 @@ impl Dict {
             return;
         }
 
-        // word_index 复用 Trie 候选的 Arc<str>：
+        // word_index 复用 Trie 候选的 Arc<str>（内存优化）：
         // Trie 插入时捕获 text/pinyin 的 Arc（新建或既有候选 clone），
         // 词索引自身零独立堆分配（省 187k × 2 次 String 分配 + 结构体 56B→24B）。
         // Trie 循环必达末节点（每层二分定位缺失即就位插入），
@@ -969,7 +979,7 @@ impl Dict {
 
         let mut node = &mut self.root;
         for (i, &syllable) in syllables.iter().enumerate() {
-            // 单次二分定位+就位插入：原实现
+            // 单次二分定位+就位插入（启动优化）：原实现
             // find_child_mut（判在）+ insert_child（再二分找插入点）+ find_child_mut
             // （取回）= 每层 3 次二分；合并为 1 次，启动期省 ~190k 节点 × 2 层搜索。
             // insert_child 语义 = 二分找 Err 位 + insert，与此处逐位一致。
@@ -1048,7 +1058,7 @@ impl Dict {
             }
         }
 
-        // 单字表维护：从 Trie 循环之前移到之后，
+        // 单字表维护：从 Trie 循环**之前**移到之后，
         // 候选 text/pinyin 直接 clone Trie 候选已捕获的 Arc（wi_text/wi_pinyin
         // 单字=单音节路径必捕获）——原实现每字各 1-2 次独立堆分配
         // （11k 字 ≈ 0.5MB + 11k 次分配）。桶定位走侧索引（O(1)），
@@ -1289,39 +1299,41 @@ impl Dict {
 
     /// 词索引 runtime 增量 upsert（借用 &str 版）。
     fn wi_runtime_upsert(&mut self, text: &str, freq: u32, pinyin: &str) {
-        if let Some(e) = self
-            .wi_runtime
-            .iter_mut()
-            .find(|(t, _, _)| t.as_ref() == text)
-        {
+        if let Some(&i) = self.wi_runtime_index.get(text) {
+            let e = &mut self.wi_runtime[i];
             if freq > e.1 {
                 e.1 = freq;
                 e.2 = Arc::from(pinyin);
             }
         } else {
-            self.wi_runtime
-                .push((Arc::from(text), freq, Arc::from(pinyin)));
+            let key: Arc<str> = Arc::from(text);
+            self.wi_runtime_index
+                .insert(key.clone(), self.wi_runtime.len());
+            self.wi_runtime.push((key, freq, Arc::from(pinyin)));
         }
     }
 
     /// 词索引 runtime 增量 upsert（Arc 转移版，overlay 插入路径用）。
     fn wi_runtime_upsert_arc(&mut self, text: Arc<str>, freq: u32, pinyin: Arc<str>) {
-        if let Some(e) = self.wi_runtime.iter_mut().find(|(t, _, _)| *t == text) {
+        if let Some(&i) = self.wi_runtime_index.get(text.as_ref()) {
+            let e = &mut self.wi_runtime[i];
             if freq > e.1 {
                 e.1 = freq;
                 e.2 = pinyin;
             }
         } else {
+            self.wi_runtime_index
+                .insert(text.clone(), self.wi_runtime.len());
             self.wi_runtime.push((text, freq, pinyin));
         }
     }
 
     /// 插入用户词（用户词为主语义）：先走 `insert`（max 合并去重），
-    /// 再对同 (text, pinyin) 候选覆盖 freq 为用户词值。
+    /// 再对同 (text, pinyin) 候选**覆盖** freq 为用户词值。
     ///
     /// 背景：rebuild_dict 叠加 user_words 时用 insert 的 max 语义会让系统词 freq
-    /// 压过用户词——导入用户词库与系统词冲突时以用户词为主（系统词库仅编辑
-    /// 不可导出，用户词库导入导出 + 冲突用户词优先）。
+    /// 压过用户词——「导入用户词库与系统词冲突时以用户词为主」的需求
+    /// （系统词库仅编辑不可导出，用户词库导入导出 + 冲突用户词优先）。
     /// 调用点：rebuild_dict 用户词叠加（导入/学习后重建）。
     pub fn insert_user_word(&mut self, pinyin: &str, text: &str, freq: u32, is_primary: bool) {
         let freq = freq.min(crate::char_freq::MAX_FREQ);
@@ -1458,12 +1470,12 @@ impl Dict {
 
     /// 长词延展查询（全拼前缀 → 更长词猜测）。
     ///
-    /// 返回拼音以 `syllables` 为完整音节前缀、且音节数严格更多的词：
-    /// 走到 `syllables` 节点后收集严格后代（跳过本节点——等长精确词
+    /// 返回拼音以 `syllables` 为**完整音节前缀**、且音节数严格更多的词：
+    /// 走到 `syllables` 节点后收集**严格后代**（跳过本节点——等长精确词
     /// 是 query() 的职责，混入会与精确结果重复且被误标猜测）。
     /// 例：["hu","peng"] → 狐朋狗友(hu peng gou you)/呼朋引类(hu peng yin lei)。
     ///
-    /// 与 query_prefix_filtered（末音节字符前缀、只看下一层）互补：
+    /// 与 query_prefix_filtered（末音节**字符**前缀、只看下一层）互补：
     /// 那是「最后一音节没打完」的补全，这是「后面还有音节没打」的猜测——
     /// 纯简拼路径（query_tokens all_initials 子树收集）本就具备后者能力，
     /// 本查询补齐全拼侧的对称性。子树收集带 2000 上限（nr_collect_subtree）。
@@ -1554,8 +1566,8 @@ impl Dict {
     /// "横"（heng）等仅以 he/hen 为前缀的字前面。
     pub fn query_single_chars(&self, prefix: &str) -> Vec<Candidate> {
         // 归一化 prefix（lue→lve, nue→nve 等），与词库存储的标准音节对齐。
-        // 词级 query 有 normalize_syllable，但单字表查询若遗漏归一化，
-        // lueyou 的首音节单字「略」（存在 lve 键下）会查不到。
+        // 词级 query 有 normalize_syllable（dict.rs:255），但单字表查询曾遗漏归一化，
+        // 导致 lueyou 的首音节单字「略」（存在 lve 键下）查不到。
         let normalized_prefix = crate::pinyin::normalize_syllable(prefix);
         let mut exact = Vec::new();
         let mut prefix_matches = Vec::new();
@@ -1574,7 +1586,8 @@ impl Dict {
         // 精确匹配全部保留（确保用户翻页能找到所有同音字，如 li 的 117 个字）。
         // 前缀延伸分两种（「猜测 ≤3 条」统一上限）：
         // - 精确列表非空 → 延伸是「对后续输入的猜测」（ji→间/接 类），染紫且
-        //   ≤3 条（freq 降序取前）——防紫词刷屏；
+        //   **≤3 条**（freq 降序取前）——防紫词刷屏（治理前 hupeng 实测 20 条
+        //   紫单字压在精确字后翻页刷屏）；
         // - 精确列表为空（简拼/单声母，如 j、zh、zgrm 的段）→ 前缀匹配是简拼
         //   本质，不染紫，保持前 20 条上限（原行为，避免 liao/liang 占满名额）。
         if !exact.is_empty() {
@@ -1604,7 +1617,14 @@ impl Dict {
             self.removed_texts.insert(text.to_string());
             self.cand_overrides.remove(text);
             self.wi_removed.insert(text.to_string());
-            self.wi_runtime.retain(|(t, _, _)| t.as_ref() != text);
+            // swap_remove + 换位下标同步（顺序无语义，见 wi_runtime_index 注释）
+            if let Some(i) = self.wi_runtime_index.remove(text) {
+                self.wi_runtime.swap_remove(i);
+                if i < self.wi_runtime.len() {
+                    let moved = self.wi_runtime[i].0.clone();
+                    self.wi_runtime_index.insert(moved, i);
+                }
+            }
         } else if self.word_index_sorted {
             if let Ok(idx) = self.word_index.binary_search_by(|e| e.0.as_ref().cmp(text)) {
                 self.word_index.remove(idx);
@@ -1613,9 +1633,10 @@ impl Dict {
             self.word_index.retain(|(t, _, _)| t.as_ref() != text);
         }
         // 单字表：桶内真实移除匹配候选，空桶移除。
-        // 旧实现克隆过滤后丢弃结果，桶内候选从未被移除，只有「桶内全是
-        // 该词」才整桶移除；现与 Trie 路径（remove_from_node）行为一致
-        // （Shift+Backspace 删单字后简拼单字补全不再残留）。
+        // 原实现 `retain(|..| { let mut kept = candidates.clone(); kept.retain(..);
+        // !kept.is_empty() })` 克隆过滤后**丢弃结果**——桶内候选从未被移除，
+        // 只有「桶内全是该词」才整桶移除。修复后与 Trie 路径（remove_from_node）
+        // 行为一致（Shift+Backspace 删单字后简拼单字补全不再残留）。
         for (_, candidates) in &mut self.single_chars {
             candidates.retain(|c| c.text.as_ref() != text);
         }
@@ -1647,7 +1668,7 @@ impl Dict {
 
     /// 查「上文词 + 候选词」拼成的组合词是否在词库（按需搭配查询）。
     ///
-    /// 按需查询替代全量反推：
+    /// **按需查询替代全量反推**：
     /// 用户 commit「你」后输入 `hao`，查「你好」是否存在 + freq。命中则给「好」加分。
     /// - 零启动开销（不预计算）
     /// - 零内存占用（不建 char_bigram 表）
@@ -1656,7 +1677,7 @@ impl Dict {
     ///
     /// 用于 context_bonus 的字级回退 + DP 搭配判定，替代原 char_bigram_count。
     ///
-    /// 读音校验：`curr_pinyin` 非空时，命中组合词后额外校验组合词
+    /// **读音校验**：`curr_pinyin` 非空时，命中组合词后额外校验组合词
     /// 的最后一个音节是否等于 `curr_pinyin`。不一致则返回 None（读音不匹配不算搭配）。
     /// 解决多音字误匹配：用户打 `ni` 查「呢」(读 ni)，但「你呢」在词库的拼音是 `ni ne`
     ///（呢读 ne）——字形拼接「你+呢」命中，但读音 ni≠ne，不应给「呢」加分。
@@ -1749,16 +1770,15 @@ impl Dict {
         self.find_word_entry(text).map(|(f, _)| f)
     }
 
-    /// 统一词索引 binary_search（所有文本查找的统一入口）。
+    /// 统一词索引查找（所有文本查找的统一入口）。
     /// 返回 (freq, pinyin)；未排序时返回 None（bulk load 阶段调用方不应查询——
-    /// finish_load 前无查询）。arena 模式：runtime 增量（含覆盖权威值）优先 →
-    /// 基底 span 二分（墓碑过滤）。
+    /// finish_load 前无查询）。arena 模式：runtime 增量（含覆盖权威值）优先
+    /// （经 wi_runtime_index O(1) 查）→ 基底 span 二分（墓碑过滤）。
     fn find_word_entry(&self, text: &str) -> Option<(u32, &str)> {
         if let Some(wi) = &self.wi_base {
-            for (t, f, p) in &self.wi_runtime {
-                if t.as_ref() == text {
-                    return Some((*f, p.as_ref()));
-                }
+            if let Some(&i) = self.wi_runtime_index.get(text) {
+                let (_, f, p) = &self.wi_runtime[i];
+                return Some((*f, p.as_ref()));
             }
             if !self.wi_removed.contains(text) {
                 if let Some(i) = wi.find(text) {
@@ -1776,13 +1796,12 @@ impl Dict {
             .map(|i| (self.word_index[i].1, self.word_index[i].2.as_ref()))
     }
 
-    /// bulk load 完成后调用：排序统一词索引 + arena 转储。
-    /// 同 text 多条（不同拼音）时去重保留 freq 最高的（与原
-    /// text_freq_map 语义一致）。
+    /// bulk load 完成后调用：排序统一词索引 + **arena 转储**。同 text 多条
+    /// （不同拼音）时去重保留 freq 最高的（与原 text_freq_map 语义一致）。
     ///
     /// arena 转储链（顺序不可换）：
     /// 1. 节点 Trie → 紧凑数组基底（精确容量，children 原序 = 音节序保持）；
-    /// 2. 词索引 → span 基底（blob+span）——必须先于清空 word_index；
+    /// 2. 词索引 → span 基底（blob+span）——**必须先于清空 word_index**；
     /// 3. 单字表候选的 Arc 刷新为新分配（脱离旧 Trie 的字符串引用）；
     /// 4. 丢弃节点 Trie（root 清空）——旧内存区（~45MB 存活 + 构建期交错垃圾）
     ///    整体归还系统；arena/blob 全在新分配里，零旧引用是前提。
@@ -1814,7 +1833,7 @@ impl Dict {
             alloc::vec![None; self.arena.as_ref().unwrap().node_count()];
         self.node_cache_populated.set(0);
         // 2) 词索引 span 基底（吃掉 187k × 2 个 Arc——旧区零引用的前提；
-        //    字节段格式同 arena：磁盘格式=内存格式）
+        //    字节段与 arena 同款：磁盘格式=内存格式）
         self.wi_base = Some(WordIndexSpans::build(&self.word_index));
         self.word_index = Vec::new();
         // 3) 单字表 Arc 刷新（11k × 2 次新分配 ~0.5MB；数据逐字不变）
@@ -1829,7 +1848,11 @@ impl Dict {
         // 4) 丢弃节点 Trie（此 drop 是整个优化的落点——mass free 让堆段归还）
         self.root = TrieNode::new("");
         debug_assert!(self.removed_texts.is_empty() && self.cand_overrides.is_empty());
-        debug_assert!(self.wi_runtime.is_empty() && self.wi_removed.is_empty());
+        debug_assert!(
+            self.wi_runtime.is_empty()
+                && self.wi_runtime_index.is_empty()
+                && self.wi_removed.is_empty()
+        );
     }
 
     // ---------------- 编译缓存 ----------------
@@ -1842,9 +1865,9 @@ impl Dict {
         Some((a.to_bytes(), w.to_bytes(), self.encode_single_chars()))
     }
 
-    /// single_chars 编码（逐位保真：桶序 = 首次创建序、桶内候选序 = 插入序
+    /// single_chars 编码（**逐位保真**：桶序 = 首次创建序、桶内候选序 = 插入序
     /// ——查询侧 freq 稳定排序的平频 tie 序依赖它，重建（按音节 DFS）会漂移，
-    /// 故直接序列化结构本身）。
+    /// 故直接序列化结构本身，见设计文档 §3）。
     ///
     /// 布局（LE）：`u32 桶数` × { `u16 音节长 + 字节` + `u16 候选数` ×
     /// { `u16 文本长 + 字节` + `u16 拼音长 + 字节` + `u32 freq` + `u8 primary` } }。
@@ -1943,7 +1966,7 @@ impl Dict {
 
     /// 从编译缓存装载：arena + wi 直接来自缓存字节，
     /// single_chars 解码还原——跳过 SQL 全表扫描 / 节点 Trie 构建 / 转储，
-    /// 结果与 `finish_load` 完成态逐位等价。
+    /// 结果与 `finish_load` 完成态**逐位等价**（守护 `test_dict_cached_equivalence`）。
     /// 任何一段解码失败 → None（调用方回退构建路径自愈）。
     pub(crate) fn from_cached(
         arena: crate::trie_arena::TrieArena,
@@ -2011,7 +2034,7 @@ impl Dict {
             return Vec::new();
         }
 
-        // 注意：complete 的下钻不做韵母归一化（与旧版一致——query/query_prefix
+        // 注意：complete 的下钻**不做韵母归一化**（与旧版一致——query/query_prefix
         // 归一而 mixed 不归一，是历史行为，逐位保持）
         let mut nodes = Vec::new();
         for root in self.roots() {
@@ -2089,7 +2112,7 @@ impl Dict {
         result.dedup_by(|a, b| a.text == b.text);
         // 不在 dict 层 truncate（曾 truncate(50) 导致用户高频词被 base_freq 挤出）。
         // 交给调用方（query_jianpin_fuzzy 的 rerank_by_freq_then_truncate）用 freq.counts
-        // 和 recent_score 重排后截断，确保用户选过的词不被丢失。
+        // 和 recent_score 重排后截断，确保用户选过的词不被丢失（js→竞赛 案例）。
         result
     }
 
@@ -2180,13 +2203,13 @@ impl Dict {
         result
     }
 
-    /// tokens 全消费后收集子树（更长的词）——「延长猜测」专用。
+    /// tokens 全消费后**收集子树**（更长的词）——「延长猜测」专用。
     ///
-    /// 与 [`Self::query_tokens`] 的区别：后者在 depth==n 只收等长词
+    /// 与 [`Self::query_tokens`] 的区别：后者在 depth==n 只收**等长**词
     /// （当前节点候选），本方法收该节点整棵子树 = 「输入是某个更长词的前缀」。
-    /// 场景（候选回退闪烁）：luanqib（luan qi b）在
+    /// 场景（「候选回退闪烁」）：luanqib（luan qi b）在
     /// 词库里没有等长词，而 luan qi ba zao →乱七八糟 是它的自然延长——延长词
-    /// 应以紫词给出预测，使候选在逐键输入过程中保持可见（luanqi →
+    /// 应以紫词给出预测，使候选在逐键输入过程中**保持可见**（luanqi →
     /// luanqib → luanqiba 全程同一个词，不再消失又出现）。
     ///
     /// 调用方负责染色（is_guess）、去重与截断（MAX_GUESS_CANDIDATES）。
@@ -2335,6 +2358,63 @@ mod tests {
         assert_eq!(dict.long_word_freq("不存在的词"), None);
     }
 
+    /// wi_runtime 索引化守护（「越用越慢」热点修复）：
+    /// 运行时增量表改 HashMap 索引 + swap_remove 维护，本组测试锁行为语义。
+    /// 关键风险点 = swap_remove 索引维护：删中间条目后，被换位的条目必须仍可查。
+    #[test]
+    fn test_wi_runtime_remove_keeps_swapped_entry_findable() {
+        let mut dict = Dict::new();
+        dict.insert("ci yi", "词一", 5000, true);
+        dict.finish_load();
+        // 三个运行时增量（finish_load 后 insert 走 runtime 路径）
+        dict.insert("ci er", "词二", 5000, true);
+        dict.insert("ci san", "词三", 5000, true);
+        dict.insert("ci si", "词四", 5000, true);
+        assert_eq!(dict.freq_for_text("词一"), Some(5000));
+        assert_eq!(dict.freq_for_text("词二"), Some(5000));
+        assert_eq!(dict.freq_for_text("词三"), Some(5000));
+        assert_eq!(dict.freq_for_text("词四"), Some(5000));
+
+        // 删中间条目（触发 swap_remove）→ 换位条目必须仍可查
+        dict.remove_by_text("词二");
+        assert_eq!(dict.freq_for_text("词二"), None, "删除后应查不到");
+        assert_eq!(dict.freq_for_text("词一"), Some(5000), "基底条目不受影响");
+        assert_eq!(
+            dict.freq_for_text("词三"),
+            Some(5000),
+            "换位条目必须仍可查（swap_remove 索引维护）"
+        );
+        assert_eq!(
+            dict.freq_for_text("词四"),
+            Some(5000),
+            "换位条目必须仍可查（swap_remove 索引维护）"
+        );
+
+        // 删除后重插（墓碑解除 + 索引重建）
+        dict.insert("ci er", "词二", 6000, true);
+        assert_eq!(
+            dict.freq_for_text("词二"),
+            Some(6000),
+            "重插后应可查且 freq 为新值"
+        );
+    }
+
+    /// upsert 语义守护：高频覆盖、低频不覆盖、同 text 不重复条目。
+    #[test]
+    fn test_wi_runtime_upsert_freq_semantics() {
+        let mut dict = Dict::new();
+        dict.insert("ji chu", "基础", 5000, true);
+        dict.finish_load();
+        dict.insert("xin ci", "新词", 1000, true);
+        assert_eq!(dict.freq_for_text("新词"), Some(1000));
+        // 高频覆盖
+        dict.insert("xin ci", "新词", 2000, true);
+        assert_eq!(dict.freq_for_text("新词"), Some(2000));
+        // 低频不覆盖（旧语义：高于现值才更新）
+        dict.insert("xin ci", "新词", 500, true);
+        assert_eq!(dict.freq_for_text("新词"), Some(2000));
+    }
+
     #[test]
     fn test_text_index_remove_sync() {
         let mut dict = Dict::new();
@@ -2349,8 +2429,8 @@ mod tests {
     }
 
     /// 回归：remove_by_text 必须真实移除单字表桶内候选。
-    /// 旧实现克隆过滤后丢弃结果，多候选桶里的单字从未被移除（删「中」后
-    /// query_single_chars("zhong") 仍返回「中」）；现与 Trie 路径一致。
+    /// 原实现克隆过滤后丢弃结果，多候选桶里的单字从未被移除（删「中」后
+    /// query_single_chars("zhong") 仍返回「中」）。修复后与 Trie 路径一致。
     #[test]
     fn test_remove_by_text_removes_single_char_candidate() {
         let mut dict = Dict::new();
@@ -2396,7 +2476,7 @@ mod tests {
         );
     }
 
-    /// 守护：单字表与 Trie 候选共享 Arc——
+    /// 守护：单字表与 Trie 候选共享 Arc（去重优化）——
     /// 同 (音节,字) 的 text/pinyin 在两张表里必须是同一分配。
     #[test]
     fn test_single_chars_share_trie_arcs() {

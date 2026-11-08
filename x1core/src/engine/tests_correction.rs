@@ -50,7 +50,7 @@ fn test_split_text_anchored_respects_user_input() {
     );
 }
 
-/// 回归测试：Command+Backspace 删除绿词不应影响其他绿词生成。
+/// 回归测试：整词删除绿词不应影响其他绿词生成。
 ///
 /// 背景：删除「输入法想目」后无法再用 shurufaxiangmu 组词。
 /// 排查发现 removed_texts 用精确字符串匹配（只拦截完全相同的文本），
@@ -97,7 +97,7 @@ fn test_remove_green_word_doesnt_block_others() {
     let _ = std::fs::remove_file(&tmp);
 }
 
-/// 回归测试：Command+Backspace 删除绿词后，再次输入应能复活（不死循环）。
+/// 回归测试：整词删除绿词后，再次输入应能复活（不死循环）。
 ///
 /// 背景：删除绿词后 removed_texts 命中导致绿词完全不显示，
 /// 用户无法再选到它来触发 commit 复活——死循环。

@@ -1,4 +1,4 @@
-//! 双拼输入编码层。
+//! 双拼输入编码层（声母重映射为多值模型）。
 //!
 //! 双拼是「输入编码层」：每个汉字固定 2 键（声母键 + 韵母键），方案 = 两张查找表
 //! （声母重映射 + 韵母键映射）。两张表均为多值模型：一个键可映射多个候选
@@ -24,7 +24,7 @@ pub struct ShuangpinScheme {
     pub initial_remap: HashMap<char, Vec<String>>,
     /// 零声母编码策略。
     pub zero_initial_style: ZeroInitialStyle,
-    /// 零声母逐音节编码表（仅 Custom 风格）：
+    /// 零声母逐音节编码表（仅 Custom 风格，首道双拼）：
     /// (首键, 末键) → 音节。首道式的记忆码方案（a→aa/ai→ai/ang→ay/
     /// e→ue/ei→ui/eng→uf/er→er/...）既非字面元音也非 o 前缀，只能整表表达。
     pub zero_initial_codes: HashMap<(char, char), String>,
@@ -45,8 +45,8 @@ pub enum ZeroInitialStyle {
 static BUILTINS_CELL: OnceLock<Vec<ShuangpinScheme>> = OnceLock::new();
 
 impl ShuangpinScheme {
-    /// 8 个预制方案（首次访问时构造，之后只读）。智能ABC/拼音加加/紫光为后续
-    /// 扩充，键位与主流双拼方案键位表交叉验证。
+    /// 8 个预制方案（首次访问时构造，之后只读；含首道）。
+    /// 智能ABC/拼音加加/紫光键位布局与业界通行版本交叉验证。
     pub fn builtins() -> &'static [ShuangpinScheme] {
         BUILTINS_CELL.get_or_init(|| {
             vec![
@@ -71,7 +71,7 @@ impl ShuangpinScheme {
 // ── 预制方案构造 helper（减少重复）──────────────────────────────
 
 fn initial_remap_zhchsh() -> HashMap<char, Vec<String>> {
-    // 4 个方案的声母重映射完全相同：v→zh, i→ch, u→sh（多值模型下为单元素列表）
+    // 4 个方案的声母重映射完全相同：v→zh, i→ch, u→sh（v2 多值模型下为单元素列表）
     let mut m = HashMap::new();
     m.insert('v', vec!["zh".to_string()]);
     m.insert('i', vec!["ch".to_string()]);
@@ -212,16 +212,16 @@ fn microsoft() -> ShuangpinScheme {
 }
 
 fn sogou() -> ShuangpinScheme {
-    // 搜狗方案与微软方案键位相同，单独成方案（id/display_name 不同）。
+    // 搜狗与微软完全相同（搜狗源自 MSPY）。克隆后改 id/display_name。
     let mut s = microsoft();
     s.id = "sogou".to_string();
     s.display_name = "搜狗双拼".to_string();
     s
 }
 
-// ── 后续扩充 3 套（键位与主流双拼方案键位表交叉验证）──
+// ── 新增 3 套（键位布局与业界通行版本交叉验证）──
 
-/// 智能ABC双拼：声母 zh→a / ch→e / sh→v（与常见 v/i/u 布局不同），
+/// 智能ABC双拼：声母 zh→a / ch→e / sh→v（与常见 v/i/u 布局不同！），
 /// 零声母 o 前缀（OPrefixed）。er 编码 = or（r 键 = er/iu，命中既有 r→er 特例）。
 fn abc() -> ShuangpinScheme {
     ShuangpinScheme {
@@ -364,7 +364,8 @@ fn ziguang() -> ShuangpinScheme {
     }
 }
 
-/// 首道双拼（第 8 套预制）。
+/// 首道双拼（第 8 套预制；数据来自官网 shoudaoshuangpin.github.io
+/// 开源页面的 shoudaoData——声母/韵母/零声母三张表逐项提取）。
 /// 特色：zh→V/ch→I/sh→E（e 键兼作 sh 声母与 e 韵母——声母/韵母分槽无冲突）；
 /// üe 拆两家（nüe/lüe 走 B 键 ve，jue/que/xue 走 L 键 ue）；零声母用逐音节
 /// 记忆码表（a→aa/ai→ai/an→an/ang→ay/ao→ao/e→ue/ei→ui/en→en/eng→uf/
@@ -521,7 +522,7 @@ fn is_valid_key(c: char) -> bool {
 
 /// 解码一组 (k1, k2)。None = 解不出合法音节。
 fn decode_pair(scheme: &ShuangpinScheme, p: &Pair) -> Option<String> {
-    // 单键组（末尾不完整声母）→ 输出该键的首个声母候选（多声母：取消歧顺序首位）
+    // 单键组（末尾不完整声母）→ 输出该键的首个声母候选（多值声母：取消歧顺序首位）
     if p.k2.is_none() {
         let initials = resolve_initials(scheme, p.k1);
         return Some(
@@ -581,7 +582,7 @@ fn decode_pair(scheme: &ShuangpinScheme, p: &Pair) -> Option<String> {
         return None;
     }
 
-    // 有声母路径：声母候选 × 韵母候选，逐个试有效性（多声母笛卡尔积）
+    // 有声母路径：声母候选 × 韵母候选，逐个试有效性（v2 多声母笛卡尔积）
     let initials = resolve_initials(scheme, p.k1);
     if let Some(finals) = scheme.final_map.get(&k2) {
         for ini in &initials {
@@ -711,7 +712,7 @@ pub const VALID_INITIALS: &[&str] = &[
 ];
 
 /// 合法韵母集合（含单元音 a/e/o 作零声母；pub：双拼管理器浮层分组以引擎为准，
-/// 单韵母/复韵母/鼻韵母/特殊分组在调用方按本表聚合）。
+/// 单韵母/复韵母/鼻韵母/特殊分组在管理器侧按本表聚合）。
 pub const VALID_FINALS: &[&str] = &[
     "a", "e", "o", "i", "u", "v", "ai", "ei", "ao", "ou", "an", "en", "ang", "eng", "er", "ia",
     "ie", "iao", "iu", "ian", "iang", "iong", "ing", "in", "ua", "uo", "ue", "ve", "uai", "ui",
@@ -842,8 +843,8 @@ impl ShuangpinScheme {
         }
 
         // OPrefixed 方案 er 必须可编码（模拟解码 er，解不出则拒绝）。
-        // 存在任意 "o"+k2 组合能解出 er 即可——不能硬编码 "or"→er：会误伤
-        // r 键 ≠ er 的方案（如紫光 r 键 = en，"or" 合法解 "en"、er 在 q 键 "oq"）。
+        // 修正：原实现硬编码 "or"→er，误伤紫光（r 键 = en，"or" 合法解 "en"，
+        // er 在 q 键 "oq"）——改为存在任意 "o"+k2 组合能解出 er 即可。
         if zero_initial_style == ZeroInitialStyle::OPrefixed {
             let er_encodable = ('a'..='z').chain(std::iter::once(';')).any(|k2| {
                 decode_buffer(&scheme, &format!("o{}", k2)).as_deref()
@@ -857,7 +858,7 @@ impl ShuangpinScheme {
         // 覆盖率软警告
         let mut warnings = Vec::new();
 
-        // 声母重叠软警告（多值模型：重叠仍可解码，仅提示歧义，不阻止保存）
+        // 声母重叠软警告（v2 多值模型：重叠仍可解码，仅提示歧义，不阻止保存）
         let remap_entries: Vec<(&char, &Vec<String>)> = scheme.initial_remap.iter().collect();
         for i in 0..remap_entries.len() {
             for j in (i + 1)..remap_entries.len() {
@@ -1280,9 +1281,11 @@ mod tests {
 
     #[test]
     fn test_yu_syllable_all_schemes() {
-        // 守护每套方案的 yu 编码：声母 y + ü 键的规范音节是 "yv"（雨/语/鱼/
-        // 与/玉/于/遇/预/育…高频字），由 normalize_syllable 归一化 "yv"→"yu"。
-        // 本测试逐套守护。各方案 ü 所在键：小鹤/自然码/加加/ABC v 键、微软/搜狗 y 键、紫光 x 键。
+        // 双拼补漏（发布阻断级）：VALID_SYLLABLES 原来缺 "yv"，
+        // 7 套方案 yu 的规范编码（声母 y + ü 键）全部解码失败 → 打不出 yu
+        // （雨/语/鱼/与/玉/于/遇/预/育…高频字）。修复：VALID_SYLLABLES 补 "yv"
+        // + normalize_syllable 补 "yv"→"yu"。本测试守护每套方案的 yu 编码。
+        // 各方案 ü 所在键：小鹤/自然码/加加/ABC v 键、微软/搜狗 y 键、紫光 x 键。
         let cases: [(&str, &str); 7] = [
             ("xiaohe", "yv"),    // 小鹤 v 键含 ü
             ("ziranma", "yv"),   // 自然码 v 键含 ü
@@ -1315,7 +1318,7 @@ mod tests {
         }
     }
 
-    // ── 后续扩充 3 套方案 ──
+    // ── 新增 3 套方案 ──
 
     #[test]
     fn test_abc_basic_decode() {
@@ -1396,7 +1399,7 @@ mod tests {
         assert_eq!(decode_buffer(s, "of"), Some(vec!["an".to_string()]));
         assert_eq!(decode_buffer(s, "og"), Some(vec!["ang".to_string()]));
         assert_eq!(decode_buffer(s, "ow"), Some(vec!["ei".to_string()]));
-        // 紫光 r 键 = en（非微软 uan）：or 必须解 en，不被 r→er 特例误伤
+        // 紫光 r 键 = en（非微软 uan）：or 必须解 en，不被 r→er 特例误伤（特例后移）
         assert_eq!(decode_buffer(s, "or"), Some(vec!["en".to_string()]));
         // er = oq（q 键 = er）；ing 在分号键：o; → 既有 ';' 特例
         assert_eq!(decode_buffer(s, "oq"), Some(vec!["er".to_string()]));
@@ -1448,7 +1451,7 @@ mod tests {
     #[test]
     fn test_xiaohe_template_json_passes_validation() {
         // 小鹤模板 JSON（含 m→ian、k→ing/uai、v→ui/v）必须通过校验：
-        // 守护 VALID_FINALS 覆盖 ian（缺失会让此类模板保存失败）
+        // 曾因 VALID_FINALS 缺 ian 导致自定义方案保存失败
         let json = r#"{"id":"custom-1","displayName":"小鹤模板","finalMap":{"a":["a"],"b":["in"],"c":["ao"],"d":["ai"],"e":["e"],"f":["en"],"g":["eng"],"h":["ang"],"i":["i"],"j":["an"],"k":["ing","uai"],"l":["iang","uang"],"m":["ian"],"n":["iao"],"o":["uo","o"],"p":["ie"],"q":["iu"],"r":["uan"],"s":["iong","ong"],"t":["ue","ve"],"u":["u"],"v":["ui","v"],"w":["ei"],"x":["ia","ua"],"y":["un"],"z":["ou"]},"initialRemap":{"v":["zh"],"i":["ch"],"u":["sh"]},"zeroInitialStyle":"literalVowel"}"#;
         let v = ShuangpinScheme::from_json(json);
         assert!(v.is_ok(), "xiaohe template must validate: {:?}", v.err());
@@ -1561,7 +1564,7 @@ mod tests {
 
     #[test]
     fn test_from_json_oprefixed_er_unencodable_rejected() {
-        // OPrefixed 方案 er 必须能编码。本例 r 键 = en（遮挡 r→er 特例，
+        // spec test case 26：OPrefixed 方案 er 必须能编码。本例 r 键 = en（遮挡 r→er 特例，
         // 模拟紫光键位），且无任何 "o"+k2 组合解出 er（紫光靠 q 键 "oq" 才合法）→ 拒绝。
         let json = r#"{"id":"x","displayName":"x","finalMap":{"a":["a"],"e":["e"],"o":["uo","o"],"r":["en"]},"initialRemap":{},"zeroInitialStyle":"oPrefixed"}"#;
         assert!(
@@ -1570,12 +1573,12 @@ mod tests {
         );
     }
 
-    // ── 首道双拼（第 8 套预制）──
+    // ── 首道双拼（第 8 套预制；数据源官网 shoudaoData）──
 
     #[test]
     fn test_shoudao_basic_decode() {
         let s = ShuangpinScheme::builtin_by_id("shoudao").unwrap();
-        // 示例用例：首=ES（sh+ou）道=DD（d+ao）
+        // 官网自证用例：首=ES（sh+ou）道=DD（d+ao）
         assert_eq!(decode_buffer(s, "es"), Some(vec!["shou".to_string()]));
         assert_eq!(decode_buffer(s, "dd"), Some(vec!["dao".to_string()]));
         // zh→V / ch→I / sh→E（e 键兼 sh 声母与 e 韵母，分槽无冲突）
@@ -1605,7 +1608,7 @@ mod tests {
     #[test]
     fn test_shoudao_zero_initial_custom_codes() {
         let s = ShuangpinScheme::builtin_by_id("shoudao").unwrap();
-        // 零声母记忆码表全 12 项
+        // 官网 special 表全 12 项
         for (code, syl) in [
             ("aa", "a"),
             ("ai", "ai"),

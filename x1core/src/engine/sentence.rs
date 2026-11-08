@@ -1,4 +1,4 @@
-//! 整句解码：N-best DP 把长拼音串切成最优词组序列，拼成整句候选。
+//! 整句解码（从 engine/mod.rs 抽出）。
 
 use alloc::string::String;
 use alloc::vec::Vec;
@@ -55,26 +55,26 @@ impl crate::engine::Engine {
     /// 安全性：只返回汉字（is_valid_chinese_text 防御字母泄漏）。
     /// 简拼首字母展开为音节（用于混合输入绿词）。
     ///
-    /// 结合上文 bigram 选最合适的音节，而非固定最高频。
+    /// 改进：结合上文 bigram 选最合适的音节，而非固定最高频。
     /// 如混合输入 qiehuanshurufzhihou（f 是简拼），上文「输入」+ f：
-    /// - 仅按最高频：固定取 f→fang「方」，绿词拼成「切换输入方知后」（错字）
-    /// - 遍历 f 开头所有音节（fa/fan/fang/fei/...），用 bigram(上文, 音节首字)
+    /// - 旧实现：固定取最高频 f→fang「方」，绿词拼成「切换输入方知后」（错字）
+    /// - 新实现：遍历 f 开头所有音节（fa/fan/fang/fei/...），用 bigram(上文, 音节首字)
     ///   选最强的 → 「法」(fa) 而非「方」(fang)，绿词拼成「切换输入法之后」
     ///
     /// `prev_char`：前一个有效音节的首字（如 "ru"→'r'）。无上文时回退最高频。
     /// 简拼首字母展开为音节（用于混合输入绿词）。
     ///
-    /// 基于成词选择音节：
-    /// 仅靠 bigram(prev字, 候选字) 在冷启动几乎失效，回退选
+    /// **基于成词选择音节**（关键修复）：
+    /// 旧逻辑用 bigram(prev字, 候选字) 选音节，但 bigram 在冷启动几乎失效，回退选
     /// 最高频单字（f→fang「方」），导致 shurufxiangmu 的 f 展开成 fang 拼出「乳房」
     /// 而非「输入法」的 fa。
     ///
-    /// 三层优先级：
-    /// 1. user_words 成词：尝试 initial 开头的所有音节，拼接 prev_syllables 后
+    /// 新逻辑三层优先级：
+    /// 1. **user_words 成词**：尝试 initial 开头的所有音节，拼接 prev_syllables 后
     ///    查 user_words（用户学过的词）。命中则用该音节。如 ru+fa 查到「输入法」→fa。
-    /// 2. 词库多字词：同上但查 base_dict 多字词。如 ru+fang→「乳房」（词库真词）。
-    /// 3. 回退最高频：上述都不成词，取该首字母最高频单字的音节。
-    #[allow(dead_code)] // 简拼音节展开，当前 DP 路径不再调用
+    /// 2. **词库多字词**：同上但查 base_dict 多字词。如 ru+fang→「乳房」（词库真词）。
+    /// 3. **回退最高频**：上述都不成词，取该首字母最高频单字的音节。
+    #[allow(dead_code)] // 旧版简拼音节展开，当前 DP 路径不再调用
     pub(crate) fn expand_initial_to_syllable(
         &self,
         initial: char,
@@ -155,7 +155,7 @@ impl crate::engine::Engine {
                 let cands = self.dict.query(&full_seg);
                 for c in &cands {
                     // 用户选过的词（user_words 入库 或 freq.counts 有累积）。
-                    // 系统词不进 user_words，但 freq.counts 记录选择次数，
+                    // 系统词去重后系统词不进 user_words，但 freq.counts 记录选择次数，
                     // 双轨判断让系统词也能引导简拼展开（如「输入法」选过即生效）。
                     let is_learned = self.user_words.contains_key(c.text.as_ref())
                         || self.freq.counts.contains_key(c.text.as_ref());
@@ -206,7 +206,7 @@ impl crate::engine::Engine {
     ) -> Option<String> {
         let initial = partial.chars().next()?;
         let mut cands = self.dict.query_single_char_by_initial(initial);
-        // 完整 partial 前缀过滤（含 zh/ch/sh 扩展）：悬尾可能是双字
+        // 完整 partial 前缀过滤（zh/ch/sh 扩展）：悬尾可能是双字
         // 声母（zh/ch/sh，双拼 v/i/u 键尾与全拼 zh 半截）——只认拼音以完整
         // partial 开头的字，防「zh」尾被补成首字母同为 z 但非 zh 系的字（实测
         // 全拼 faxianyigezh 补出「发现一个在[句]」——在=zai 是 z 系）；单字母
@@ -220,26 +220,26 @@ impl crate::engine::Engine {
         });
         // bigram 加分：与上文搭配的字优先。
         //
-        // 四层排序：bigram（用户/种子词级
-        // 邻接证据）> 精确音节 > 组合词关联（collocation）> 字频。
+        // 四层排序：
+        // bigram（用户/种子词级邻接证据）> **精确音节** > 组合词关联 > 字频。
         //
-        // 组合词层：悬尾补字若只有 bigram→字频两层，冷启动 bigram 全 0 时
+        // 组合词层：悬尾补字此前只有 bigram→字频两层，冷启动 bigram 全 0 时
         // 纯字频定序——干+m 补出 9760 的「没」而非 8940 的「吗」，而全拼
         // nixiangganma 的胜者 [你想][干][吗] 恰恰靠 boundary 组合词证据
         // collocation_freq(干,吗,ma)=706 过门（见本文件 BOUNDARY_
-        // COLLOCATION_FREQ_FLOOR）。因此把同一证据接入补字：与上文成组合词
+        // COLLOCATION_FREQ_FLOOR）。把同一证据接入补字：与上文成组合词
         //（prev+字 在词库成词且末音节一致）的字排进纯字频之前。过门槛者
         // 之间仍按字频定序——吗(8940) 压 嘛(1000)，与全拼首选同文本，续打
         // 到全拼时零跳变。
         //
-        // 精确音节层：partial 本身是完整音节（尾 a/e/o 等）时，拼音
-        // **恰好等于** partial 的字（a→啊）必须排在仅前缀匹配的字
-        //（a→爱 ai/安 an/昂 ang）之前——否则裸字频定序（爱 6120 > 啊
-        // 5000）让前缀猜测压过精确读法，补字拼出「还不错爱」占据
-        //「还不错啊」的位置。对齐统一排序规则「单音节输入时，精确匹配
-        // 当前音节的字优先于仅前缀匹配的字」（该规则早已覆盖单音节
-        // 输入，悬尾补字此前漏配）；partial 非完整音节（zh/h 等辅音
-        // 半截）时无字的拼音等于它，此层恒空、行为不变。
+        // 精确音节层（haibucuoa 案例）：partial 本身是完整
+        // 音节（尾 a/e/o 等）时，拼音**恰好等于** partial 的字（a→啊）必须排在
+        // 仅前缀匹配的字（a→爱 ai/安 an/昂 ang）之前——否则裸字频定序（爱 6120
+        // > 啊 5000）让前缀猜测压过精确读法，主路补字拼出「还不错爱」占据
+        // 「还不错啊」的位置。对齐统一排序规则 #4「单音节输入时，精确匹配当前
+        // 音节的字优先于仅前缀匹配的字」（该规则早已覆盖单音节输入，悬尾补字
+        // 漏配）；partial 非完整音节（zh/h 等辅音半截）时无字的拼音等于它，
+        // 此层恒空、行为逐字节不变（nixiangganm 的 m 不受影响）。
         /// 组合词证据门槛：与下方 DP 边界对 BOUNDARY_COLLOCATION_FREQ_FLOOR 同值
         ///（<500 的生僻组合词不算佐证）。
         const COMPLETION_COLOCATION_FLOOR: u32 = 500;
@@ -258,17 +258,16 @@ impl crate::engine::Engine {
                 let bb = self.freq.word_bigram_count(prev, &b.text);
                 let ca = colloc_ok(a) as u8;
                 let cb = colloc_ok(b) as u8;
-                // bigram 高的优先；同 bigram 精确音节优先；再同组合词
-                // 关联优先；再同则 base_freq 兜底
+                // bigram 高的优先（用户习惯最高）；同 bigram 精确音节优先；
+                // 再同组合词关联优先；再同 base_freq 兜底
                 bb.cmp(&ba)
                     .then_with(|| (exact_syl(b) as u8).cmp(&(exact_syl(a) as u8)))
                     .then_with(|| cb.cmp(&ca))
                     .then_with(|| b.base_freq.cmp(&a.base_freq))
             });
         } else {
-            // 无上文（防御分支，≥3 音节路径恒有 prev）：同样补精确层，
-            // 防裸字频让前缀匹配压制精确匹配；顺序与有上文分支一致
-            //（缺证据两层）。
+            // 无上文（防御分支，≥3 音节路径恒有 prev）：同样补精确层，防裸
+            // 字频让前缀匹配压制精确匹配；顺序与有上文分支一致（缺证据两层）。
             cands.sort_by(|a, b| {
                 (exact_syl(b) as u8)
                     .cmp(&(exact_syl(a) as u8))
@@ -281,9 +280,9 @@ impl crate::engine::Engine {
             .map(|c| c.text.as_ref().to_owned())
     }
 
-    /// `paths_limit > 0` 时在绿词截断/门槛之前收集
-    /// 过门禁的 top-K 路径（按 DP 分降序、文本去重）供 AI 切分裁决；
-    /// = 0 时不收集（收集逻辑整段被 `paths_limit > 0` 门控，主路径行为不变）。
+    /// `paths_limit > 0` 时在绿词截断/门槛**之前**收集
+    /// 过门禁的 top-K 路径（按 DP 分降序、文本去重）供 AI 切分裁决；= 0 时
+    /// 与旧版逐字节等价（收集逻辑整段被 `paths_limit > 0` 门控）。
     pub(crate) fn decode_sentence_paths(
         &self,
         input: &str,
@@ -301,7 +300,7 @@ impl crate::engine::Engine {
             return (Vec::new(), Vec::new());
         }
 
-        // 词库已有同音整词时不生成拼凑绿词（防"变以期"类噪音绿词）。
+        // 词库已有同音整词时不生成拼凑绿词（修复"变以期"噪音绿词）。
         //
         // 触发场景：bianyiqi 输入时词库已有「编译器」(bian yi qi) 整词，但 DP 仍会
         // 拼出「变+以期」之类单字组合绿词——整词路径 word_count=1 被 < 2 判据丢弃，
@@ -314,9 +313,9 @@ impl crate::engine::Engine {
         // 仅全拼模式生效（!is_initial_mode）：简拼模式（首字母 Token）的"整词"概念
         // 模糊（jpsr 可匹配大量首字母组合），不适合用整词判据短路，保持原行为。
         //
-        // 带 partial 尾时不短路：调用方传的 syllables 是 valid
+        // **带 partial 尾时不短路**：调用方传的 syllables 是 valid
         // 前缀，句子随后还会用尾首字母补字（见 mod.rs 整句插入段）——它比前缀词多
-        // 覆盖尾巴，不存在与整词重复的可能。若拿前缀直接查整词短路，会把
+        // 覆盖尾巴，不存在与整词重复的可能。此前拿前缀直接查整词短路，把
         // faxianyigew（valid=fa-xian-yi-ge 恰好是词「发现一个」）的句子层整体杀死，
         // partial 尾补字防闪烁机制失效（追加声母后首选回退「发现」；
         // xiwangnih→「希望」同型）。
@@ -333,24 +332,24 @@ impl crate::engine::Engine {
         let n = syllables.len();
 
         // A/B 对照开关：仅测试构建可关闭长程语境证据，
-        // 用于在同一份代码/同一 DB 上复现关闭态的行为（生产恒 true）。
+        // 用于在同一份代码/同一 DB 上复现关闭该证据时的行为（生产恒 true）。
         // 定义在模块级（见文件顶部 `longrange_ab`），测试通过
         // `set_longrange_enabled_for_test` 置位。
 
         // 查询辅助（简拼绿词支持）：
         // 全拼模式用 dict.query（精确音节）；简拼模式用 query_tokens（首字母子树）。
         //
-        // 段缓存：dict 级查询（query_tokens /
+        // **段缓存（长句卡顿修复）**：dict 级查询（query_tokens /
         // query + 末段全拼单字边补充 + 全消费字数 retain）收敛到
         // Engine::seg_query_cached 跨按键复用——打长句时稳定前缀段的简拼子树
         // 收集（单字母段收集整棵子树，实测占 DP 耗时 78%，n=15 时 11.3/14.6ms）
         // 不每键重算，新键只增量计算尾部段。counts 排序 / truncate(50) /
-        // green_memo 补充每键新鲜应用（选择学习与整句记忆即时生效）——
+        // green_memo 补充**每键新鲜应用**（选择学习与整句记忆即时生效）——
         // 缓存只改性能不改结果。失效仅挂 dict 变异点（seg_cache_clear），
         // 本层不依赖 counts / green_memo / context。
         let query_seg = |seg: &[&str], is_last: bool| -> Vec<Candidate> {
             if is_initial_mode {
-                // 缓存层语义（末位单字边 / 全消费守卫的完整说明见
+                // 缓存层语义（末位单字边 / 全消费守卫的完整叙事见
                 // seg_query_cached）：tokens 构造 + query_tokens 子树收集 +
                 // 末段单字边 + 字数 == 段长 retain。
                 let mut cands = self.seg_query_cached(seg, true, is_last);
@@ -365,8 +364,8 @@ impl crate::engine::Engine {
                 cands
             } else {
                 let mut cands = self.seg_query_cached(seg, false, is_last);
-                // green_memo 回退：查不到时尝试 green_memo 里的整句记忆
-                // 二级索引 O(1) 查找
+                // green_memo 回退：查不到时尝试 green_memo 里的整句记忆。
+                // 二级索引 O(1) 查找（原版全表扫描 O(N)）。
                 // green_memo 查询：
                 // 不管 dict 是否有候选，都额外查 green_memo（整段时用 input key）。
                 // 这确保绿词即使 dict 有部分匹配也能出现。（每键新鲜执行，不缓存）
@@ -412,42 +411,43 @@ impl crate::engine::Engine {
             }
         };
 
-        // N-best 前向 DP（解决贪心 DP 不可回溯缺陷）。
+        // N-best 前向 DP（根治贪心 DP 不可回溯缺陷）。
         //
-        // 单一最优版 best[i] 只存一个最优末词：当 best[3] 被「作废」k=2 词锁定后，
+        // 旧版（单一最优）：best[i] 只存一个最优末词。当 best[3] 被「作废」k=2 词锁定后，
         // 全局更优的 [坐]单字+[飞机] 路径彻底不可达——贪心不会为"后续能有飞机骨架"
         // 而牺牲当前位置。
         //
-        // 因此 best[i] 保留 Top-N 个候选（每个携带 back_ptr 指向前驱），
+        // 新版（Top-N 候选）：best[i] 保留 Top-N 个候选（每个携带 back_ptr 指向前驱），
         // 让次优末词（如「坐」单字）存活以支撑后续更优路径。回溯时对 N 条完整路径
         // 全局重评，选最优。N=3 在精度和噪音间取得平衡。
         //
         // 复杂度：O(N²·n·k_max)，N=3, n≤20, k_max=4 → 最坏 720 次转移，<1ms。
-        // TOP_N 随多候选边同步扩容：每段边数 ×3 后 best[i] 若仍只留
+        // TOP_N 随多候选边同步扩容：每段边数 ×3 后 best[i] 仍留
         // 3 条路径会挤掉原本存活的中间节点（wohaoxiangchifan 的 [我,好想,吃饭]
         // 被剪枝淘汰即此症状）。N=3→5，转移数 ×1.67，仍在毫秒级。
         //
         // 路径收集模式放宽保留宽度：paths_limit>0
         //（AI 长句裁决）时 TOP_N 5→12——把被剪枝的尾部路径（如「…汉字+词句」
-        // 这类未进 top-5 的合法切分）也暴露给路径收集，供 AI 字格。收集模式
-        // 由调用方双跑隔离（主候选仍走 paths_limit=0 的原参数，AI 开/关候选
+        // 这类未进 top-5 的合法切分）也暴露给路径收集，供 AI 字格。**收集模式
+        // 由调用方双跑隔离**（主候选仍走 paths_limit=0 的原参数，AI 开/关候选
         // 逐字节一致的不变量不破，见 engine::decode_sentence_collect）。
         let top_n: usize = if paths_limit > 0 { 12 } else { 5 };
 
         // 每段进入词图的平行词边数：Top-M 词各自
-        // 作为 DP 边参与转移，替代「每段只留一个代表词」。M 增大精度升、
+        // 作为 DP 边参与转移，替代原版「每段只留一个代表词」。M 增大精度升、
         // 转移数 ×M——M=3 时最坏转移 ~2160 次（n=20,k=4,N=3），仍在毫秒级。
-        //（词段（k>=2）边宽度恒 3 不动：M 再放大（如 6）会扰动路径竞争、把
-        // kanta 守护的「大致」路径挤出，收集模式只放宽 top_n。）
+        // （实测教训：收集模式试过 M 3→6，会扰动路径竞争、把 kanta
+        // 守护的「大致」路径挤出——**词段（k>=2）边宽度恒 3 不动**，收集模式
+        // 只放宽 top_n。）
         let top_m: usize = 3;
-        // 单字段（k=1）边配额独立放宽到 4：失败归因显示
-        // 整句死亡几乎全部卡在单字边：常用功能字（事/之/市/件/机/由）
-        // 在音节内频次排第 4-8 名，3 条边进不了词格，gold 路径直接死亡
-        //（「单字配额∞/词配额 3」可构造 100% 失败样本，反向「词∞/单字 3」
-        // 仅 18%）。词段恒 3 不动；单字配额再放大（如 6）会扰动路径竞争、
-        // 挤出 kanta 守护的「大致」自然切分
-        //（verify_fullpinyin_long_sentence_paths 守护），4 是扩容收益与竞争
-        // 扰动的平衡档位。
+        // 单字段（k=1）边配额独立放宽 3→4（覆盖归因）：自然语料 A-edge
+        // 失败 366 条中「单字配额∞/词配额 3」可构造 100%，反向「词∞/单字 3」
+        // 仅 18%——整句死亡几乎全部卡在单字边：常用功能字（事/之/市/件/机/由）
+        // 在音节内频次排第 4-8 名，3 条边进不了词格，gold 路径直接死亡。
+        // 词段恒 3 不动（实测教训）。配额试探：6 会扰动路径竞争、挤出
+        // kanta 守护的「大致」自然切分（verify_fullpinyin_long_sentence_paths
+        // 实测红），退到 4（可构造率 7.9% 自然 / own500 8/32），扩容收益与
+        // 竞争扰动在此档位平衡。
         let top_m_single: usize = 4;
 
         // DP 节点：best[i] 列表中的一个候选，记录从 0 到 i 的一条切分路径的末段信息。
@@ -517,8 +517,8 @@ impl crate::engine::Engine {
                     let ra = self.freq.recent_score(&a.text);
                     let rb = self.freq.recent_score(&b.text);
                     if ra != rb {
-                        // freq 差距守卫：
-                        // freq 是 compute_freq 真实值（50-9999，200 倍差距）。
+                        // freq 差距守卫（阈值从 5 调回 20）：
+                        // freq 取消压扁回归 compute_freq 真实值（50-9999，200 倍差距）。
                         // 阈值 20 意味着：base_freq 差距 >20 倍时（如 我9999 vs 窝500），
                         // recent_score/counts 不能翻盘，直接比 base_freq。
                         // 差距 ≤20 倍时（如 吃6800 vs 持4500=1.5x，我9999 vs 吃6800=1.47x），
@@ -563,7 +563,7 @@ impl crate::engine::Engine {
                     .unwrap();
 
                 // bigram 引导覆盖 + 多候选边：
-                // 每段只留一个 pick 进词图的话，同段其余候选全部丢弃——Viterbi DP 的
+                // 原版每段只留一个 pick 进词图，同段其余候选全部丢弃——Viterbi DP 的
                 // 最优性保证建立在「所有候选词都作为图的边」之上，砍边后求的不再是
                 // 全局最优切分（正确句子可能因中间段的代表词选错而永远拼不出）。
                 // 现保留 Top-M 词作为平行边：首位严格等于原 pick 行为（bigram 覆盖
@@ -585,12 +585,12 @@ impl crate::engine::Engine {
                             .filter_map(|(_, pw, _, _)| pw.as_deref())
                             .collect()
                     } else if is_initial_mode {
-                        // 简拼模式（is_initial_mode）下句首段完全不读 context：
+                        // **简拼模式（is_initial_mode）下句首段完全不读 context**：
                         // 简拼输入（如 wwww）用户的真实意图是"逐字自造词"或"找首字母开头的词"，
                         // 与上文的语义/共现关联极弱。任何 context 引导都是噪音——
                         // 用户刚选过"忘我无为"（w 开头绿词）→ context 含它 → 下次 wwww 的
                         // DP 把 w 单字里和"忘我无为"bigram 高的字拼出来，结果随 context 翻转。
-                        // 实证：上文变结果就变，同上文结果才稳定。
+                        // 实证（debug.log）：上文变结果就变，同上文结果才稳定。
                         // 简拼下 bigram_sources 留空，DP pick 纯靠 freq/recent 稳态信号。
                         Vec::new()
                     } else {
@@ -618,28 +618,34 @@ impl crate::engine::Engine {
                             best_idx = Some(idx);
                         }
                     }
-                    // 首位 = 默认 pick（bigram 覆盖优先，行为不变）
+                    // 首位 = 原逻辑的 pick（bigram 覆盖优先，行为不变）
                     let lead: &Candidate = match best_idx {
                         Some(idx) => &cands[idx],
-                        // 注：不做 semantic 引导覆盖。
+                        // 注：semantic 引导覆盖已移除。
                         // bigram 无法区分候选时（best_idx=None），直接用 default_pick
-                        // （按 freq/counts 排序的稳态结果）。semantic 引导在简拼下
-                        // 会让结果随 context 翻转、全拼下不可靠，故不采用。
+                        // （按 freq/counts 排序的稳态结果）。原 semantic 引导在简拼下
+                        // 制造不稳定，全拼下用户不信任，已完全移除。
                         None => default_pick,
                     };
                     let mut picks: Vec<&Candidate> = vec![lead];
-                    // 同键排序补位到 TOP_M（去重）
+                    // 同键排序补位到 TOP_M（去重）。
+                    // `is_primary` 过滤两次实测不可删（放开后 pristine 冷启动
+                    // eval 135→133 回退）——还(huan) 类低频次音字进边后靠上下文
+                    // 证据抢赢正确主音路径（坏了就还/还条路走）。次音单字类问题
+                    // （的/地/都…）的正解是词性/语法先验（x1func_ctx GrammarModel
+                    // lift，「不能靠删边」）。
                     let mut ranked: Vec<&Candidate> = cands
                         .iter()
                         .filter(|c| !self.removed_texts.contains(c.text.as_ref()))
                         .filter(|c| c.text.chars().count() >= 2 || c.is_primary)
                         .collect();
-                    // `cand_order` 的「freq 差 >20× 跳过 recent/counts」是成对守卫，不满足
-                    // 全序（A/B 比 recent、B/C 比 counts、A/C 比 freq 可成环），
-                    // 不能直接交给排序器（全序违规会 panic，FFI 捕获后返回空候选，
-                    // 表现为候选框整窗消失、补打字母才恢复）。
-                    // 排序改用按组内最高词频归一的固定键：离最高频 >20× 的
-                    // 候选跳过 recent/counts（保留 freq 差距守卫意图），组内按
+                    // 修复（buheshiyid 候选消失）：`cand_order` 的
+                    // 「freq 差 >20× 跳过 recent/counts」是**成对守卫**，不满足
+                    // 全序（A/B 比 recent、B/C 比 counts、A/C 比 freq 可成环）。
+                    // 排序器检测到全序违规直接 panic，FFI 捕获后返回空候选——
+                    // 用户看到输入 `d` 时候选框整窗消失、补到 `de` 才恢复。
+                    // 排序改用**按组内最高词频归一**的固定键：离最高频 >20× 的
+                    // 候选跳过 recent/counts（保留频率守卫意图），组内按
                     // user_words → recent → counts → base_freq；lead 仍由上面的
                     // cand_order/default_pick 决定，首位行为不变。
                     let max_base = ranked.iter().map(|c| c.base_freq).max().unwrap_or(0);
@@ -661,9 +667,9 @@ impl crate::engine::Engine {
                             c.base_freq,
                         )
                     };
-                    ranked.sort_by_key(|c| std::cmp::Reverse(sort_key(c)));
+                    ranked.sort_by_key(|b| std::cmp::Reverse(sort_key(b)));
                     // 段配额：单字段（k=1）用 top_m_single，词段恒 top_m=3
-                    //（见上方单字段配额注释；lead/首位行为不受影响）
+                    //（见上方覆盖归因注释；lead/首位行为不受影响）
                     let seg_quota = if k == 1 { top_m_single } else { top_m };
                     for c in ranked {
                         if picks.len() >= seg_quota {
@@ -683,21 +689,21 @@ impl crate::engine::Engine {
                     picks
                 };
 
-                // ── 长程语境证据 ──────────────────────────────
+                // ── 长程语境证据 ──────────────────────────
                 //
-                // 缺口：绿词 DP 若只在句首段读 `self.context`，
+                // 缺口（实测）：绿词 DP 原本只在**句首段**读 `self.context`，
                 // 句中段只有 DP 路径上的 prev1/prev2（Markov-2）。所以
                 // 「机场 → 马上出发」这类「语境词在前、歧义词在句中」的关系，
                 // DP 完全看不见——15 个不同机场类上下文对 mashangchufa 给出
                 // 完全相同的结果（tests_longrange 实证）。
                 //
-                // 本段让每个转移段都评估一次「self.context 更远上文 → 候选」
+                // 本段让**每个转移段**都评估一次「self.context 更远上文 → 候选」
                 // 的衰减证据，但严格门控：
-                // ① 仅全拼（简拼句首不读 context 是既有约束）；
-                // ② 仅真同音歧义段（组内 ≥2 个多字同拼音词、频率比 ≤5×）——
+                // ① 仅全拼（简拼句首不读 context 是既有红线）；
+                // ② 仅**真同音歧义段**（组内 ≥2 个多字同拼音词、频率比 ≤5×）——
                 //    歧义段才是缺少裁决的地方；非歧义段是确定性命中，加了只会
                 //    让上下文推翻词频/结构证据（散弹效应的反面）；
-                // ③ 只加正增量（该读法明显强于最强对手时才加分），有上限；
+                // ③ 只加**正增量**（该读法明显强于最强对手时才加分），有上限；
                 // ④ 零证据 = 空表 = 逐字节保持现状。
                 let mut longrange: Vec<(String, f32)> = Vec::new();
                 if !is_initial_mode && longrange_ab::enabled() {
@@ -743,7 +749,7 @@ impl crate::engine::Engine {
                     let recent_bonus =
                         ((recent_score_val as f64 / 160.0).round() as i32).clamp(0, 6);
                     let exact_match = char_count == k;
-                    // 词完整性加分：k≥3 整词精确
+                    // 词完整性加分（大游戏/打游戏 修复）：k≥3 整词精确
                     // 匹配边加档。碎拼链靠「单字高 unigram + 后续词条件加成」双击点
                     // 得分（大|游戏 4 分压过整词 打游戏 -4；同文本整词路径还被同文本
                     // 高分碎拼路径去重吞掉）——整词是更诚实的切分，加分让词完整性
@@ -767,17 +773,18 @@ impl crate::engine::Engine {
                     // 对 best[i] 的每个前驱候选，计算转移到 next 的分数
                     // 四元组：(pred_idx, prev1=last_word, prev2=prev_word, score)
                     for (pred_idx, prev1_word, prev2_word, prev_score) in preds_i.iter() {
-                        // 统计先验（插值 LM）：三元插值条件概率
+                        // 统计先验（插值 LM）：替代旧 freq_score +
+                        // context_bonus_dp 加法先验。三元插值条件概率
                         // λ3·log2(P3)+λ2·log2(P2)+λ1·log2(P1) 归一化衡量上文选择性，
-                        // 避免 raw-count 高频弱指向的搭配错配（有则/着个）。
+                        // 修复 raw-count 高频弱指向搭配错配（有则/着个）。
                         //
-                        // 上下文构造（与 context_bonus 口径一致）：
+                        // 上下文构造（与旧 context_bonus_dp 一致）：
                         // - 句中段（有 prev1）：[prev2?, prev1]，prev1 紧邻上文。
-                        // - 句首段（无 prev1）：简拼 → 空 ctx（约束：简拼句首不读 context）；
+                        // - 句首段（无 prev1）：简拼 → 空 ctx（红线：简拼句首不读 context）；
                         //   全拼 → self.context（跨句衔接，lm_prior_score 取栈尾两词）。
                         //
-                        // 量级：lm_prior_score 返回 clamp(0, 32)（对应 freq_score 0-16 +
-                        // context 0-16 之和的量级），与保留分量 word_adjust(-4..11)、
+                        // 量级：lm_prior_score 返回 clamp(0, 32)（= 旧 freq_score 0-16 +
+                        // context 0-16 之和），与保留分量 word_adjust(-4..11)、
                         // recent_bonus(0-6)、collocation_penalty(-3) 同量级平衡。
                         let ctx_buf: Vec<String>;
                         let ctx_slice: &[String] = if let Some(prev1) = prev1_word {
@@ -800,13 +807,13 @@ impl crate::engine::Engine {
                         // 搭配惩罚：
                         // 相邻两词既无词级 bigram、又无字级 bigram、又无 trigram → 判定不合理，
                         // 轻惩罚 -3（可被 freq_score/recent_bonus 抵消，不误杀新组合）。
-                        // 用本地统计判定（weak_collocation_penalty 思路）。句首段（无 prev1）不判。
+                        // 用本地统计判定。句首段（无 prev1）不判。
                         //
                         // 注：循环里 prev1_word 是紧邻 pick 的上文词（distance==0），
                         //     prev2_word 是更早一词（distance==1，trigram 第三元）。
                         let collocation_penalty: i32 = if let Some(prev1) = &prev1_word {
                             let w_bc = self.freq.word_bigram_count(prev1, &pick.text);
-                            // 按需查组合词（上文+候选是否构成词库词）
+                            // 按需查组合词（上文+候选是否构成词库词），替代原 char_bigram
                             // 注：DP 路径传 pick.pinyin 做读音校验（pick 是切分段，pinyin 与切分一致）
                             let c_bc = if w_bc == 0 {
                                 self.dict
@@ -955,7 +962,7 @@ impl crate::engine::Engine {
                 let seg = &syllables[pos - k..pos];
                 let seg_pinyin = seg.join(" ");
                 // 回溯零查询：last_word 和 last_freq 在 forward DP 时已存入
-                // DPNode，回溯直接读，不再重复 query_seg。
+                // DPNode，回溯直接读，不再重复 query_seg（原版每段查 2 次 Trie）。
                 let word_text = path_node.last_word.clone().unwrap_or_default();
                 let word_freq = path_node.last_freq;
                 words.push(word_text);
@@ -978,11 +985,11 @@ impl crate::engine::Engine {
             if word_count < 2 {
                 continue;
             }
-            // 总字数上限守卫（防 wwww 类重复长串）：
+            // **总字数上限守卫（defense-in-depth，防 wwww 类重复长串 bug）**：
             // initial-mode 下输入 N 个简拼字母，候选总字数最多 N + 容差 2（允许"问题"等
             // 2 字词略多于单字母段）。全拼模式不受此限制（全拼下 k 个音节对应 k 字是常态，
             // 长词如"明天下午"4 字 = 4 音节是合理的）。
-            // 这是 query_seg 字数过滤之后的兜底——即使某条新路径绕过前一层过滤，
+            // 这是修复 1（query_seg 字数过滤）之后的兜底——即使将来某条新路径绕过修复 1，
             // 这里仍能挡住超长串候选。
             if is_initial_mode {
                 let total_chars: usize = words.iter().map(|w| w.chars().count()).sum();
@@ -995,11 +1002,11 @@ impl crate::engine::Engine {
             let multi_word_segments: usize =
                 words.iter().filter(|w| w.chars().count() >= 2).count();
             let single_segments = word_count - multi_word_segments;
-            // 长输入放宽：≥4 个完整音节（含全拼+简拼尾的
-            // 混合输入）时用户是"整句连打"意图，完整覆盖本身即强证据——形状门槛
-            //（全单字链 / multi<single）在此让位于 DP 分数竞争，否则「天快黑了」
+            // 长输入放宽：≥4 个**完整音节**（含全拼+简拼尾的
+            // 混合输入）时用户是"整句连打"意图，**完整覆盖本身即强证据**——形状门槛
+            // （全单字链 / multi<single）在此让位于 DP 分数竞争，否则「天快黑了」
             // (全单字链)、「我去买瓶水」(multi<single) 这类自然句子永远进不了候选
-            // （冷启动 Top1 损失 2pt）。
+            // （实测冷启动 Top1 损失 2pt）。
             // 判据刻意用「多字母有效音节数」而非音节总数：纯简拼输入（wwww 的 4 个
             // 单字母段）不算长输入，那类输入的语义是逐字自造词，整句拼凑是噪音
             // ——test_no_repetition_in_jianpin_wwww 守护。
@@ -1011,7 +1018,7 @@ impl crate::engine::Engine {
             if multi_word_segments == 0 && !long_input {
                 continue;
             }
-            // bigram 支持度：累加路径上所有相邻词对
+            // bigram 支持度（wohuanlegeshouji 修复）：累加路径上所有相邻词对
             // 的 word_bigram_count。用户 commit 过相关整句后此值 > 0，表示这条切分与
             // 用户真实历史一致。
             //
@@ -1020,11 +1027,11 @@ impl crate::engine::Engine {
             // 会误杀。当支持度足够强（≥3，即至少 1 个强 bigram 或多个弱 bigram），
             // 放宽到「multi >= 1」（只要有 1 个多字词即可）。
             //
-            // 边界成词佐证：冷启动种子
+            // **边界成词佐证（wohaoxiangchifan 冷启动专项）**：冷启动种子
             // bigram 未覆盖的常见句式（我|好|想|吃饭），word_bigram_count 恒 0 → 门槛
             // 全杀 → 整句候选缺席，前缀词（我好/我好想/我好像）霸屏。补充第二个证据源：
-            // 相邻段边界字对成词——前段末字 + 后段首字拼成的二字词在词库且 freq≥500
-            //（我好840/好想781/想吃1019，三对即达阈值；吃反类噪音对不成词不计）。
+            // **相邻段边界字对成词**——前段末字 + 后段首字拼成的二字词在词库且 freq≥500
+            // （我好840/好想781/想吃1019，三对即达阈值；吃反类噪音对不成词不计）。
             // 这是「该字符序列拼出来是自然中文词链」的词库级证据，与用户 bigram（行为级
             // 证据）互补。只影响门槛判定，不改路径分数与排序——存活路径仍按 score 竞争，
             // green_accept 动态门槛继续过滤次优绿词。
@@ -1076,7 +1083,7 @@ impl crate::engine::Engine {
         // 证据并进路径分——同一份 seed_bigram 计数换反向归一化视角，
         // P(left|right)=count/next_total(right)，详见 engine/backward.rs。
         // 只重排已收集路径：不进 DP、不动门槛与分层排序（守护面不变）；
-        // 仅全拼（简拼保守处理）；A/B 开关供评测对照。
+        // 仅全拼（简拼保守红线）；A/B 开关供评测对照。
         if !is_initial_mode && backward_ab::enabled() {
             for path in &mut all_paths {
                 let delta = self.backward_path_delta(&path.0, &path.5);
@@ -1084,13 +1091,14 @@ impl crate::engine::Engine {
             }
         }
 
-        // 词性/语法重打分：
+        // 词性/语法重打分（PFR 词性资产）：
         // - 对路径里的单字 的/地/得 按 (前词粗类, 后词粗类) 的 lift 加减分；
         // - 若“的”在语境下显著应作“地”（如 用力|的|推 → 地），生成“地”变体；
         //   变体保留原路径分 + 变体语法分，解决“地”进不了 DP top_m_single 配额
         //   导致 yonglidetui 永远拼不出“用力地推”的问题。
-        // 词性组合层 A/B：主路径与全部变体的 `grammar_ab_pos_delta` 出口统一——
-        // 微型模型开（grammar_micro_enabled）**且模型已加载**时，legacy 三项
+        // 词性组合层 A/B（默认仍关）：主路径与全部
+        // 变体的 `grammar_ab_pos_delta` 出口统一——微型模型开
+        // （grammar_micro_enabled）**且模型已加载**时，legacy 三项
         // （POS 转移+三元组合+语法模板）整体换 `grammar_micro_delta` 的
         // path_score；开而未加载（x1grammar.bin 缺失/解码失败降级态）回退
         // legacy 三项（不静默丢层）；关则与基线逐字节一致；候选生成与
@@ -1276,20 +1284,20 @@ impl crate::engine::Engine {
         }
 
         // 按 score 降序排，取 Top-K 绿词候选，去重文本。
-        // 设计哲学：
-        // - Top-1 思路：一个准确的首绿词优于多个噪音候选。
-        // - Top-2 + 动态门槛：输出 2 个绿词候选（让用户在候选框看到备选），
+        // 设计哲学（Top-1 → Top-2 + 动态门槛演进）：
+        // - 原版 Top-1：一个准确的首绿词优于多个噪音候选。
+        // - v2 Top-2 + 动态门槛：输出 2 个绿词候选（让用户在候选框看到备选），
         //   但第二绿词须过动态门槛（`threshold_ratio`），否则只保留第一绿词。
         //   门槛比例由 `green_accept.threshold_ratio(first_score)` 决定：
         //     动态阈值（按第一绿词绝对分档）+ 采纳率微调（样本 ≥ 20 才介入）。
         //   这让第二绿词「值得时才出现」——避免无脑 Top-2 噪音，又给合理备选机会。
         // DP 内部仍用 TOP_N=3 保证精度，最终输出截断到 1-2 个。
         all_paths.sort_by_key(|x| std::cmp::Reverse(x.4));
-        // AI 切分裁决路径收集——在绿词截断（green_candidate_count）
-        // 与第二绿词动态门槛之前取 top-K。门槛外被截掉的第 3-8 名正是 AI 可能
-        // 提升的对象（纯简拼长串 top-2 可能是垃圾切分、正确句排在第 5 位）。
+        // AI 切分裁决路径收集——在绿词截断（MAX_GREEN_CANDIDATES）
+        // 与第二绿词动态门槛**之前**取 top-K。门槛外被截掉的第 3-8 名正是 AI 可能
+        // 提升的对象（历史案例：纯简拼长串 top-2 是垃圾切分、正确句排在第 5 位）。
         // 文本去重保最高分（同文本不同分段保留首个 = 分最高者）。paths_limit==0
-        // 时整段跳过（收集只用 & 借用，不影响下方消费）。
+        // 时整段跳过——与旧行为逐字节等价（收集只用 & 借用，不影响下方消费）。
         let mut paths: Vec<SentencePath> = Vec::new();
         if paths_limit > 0 {
             let mut seen_pt: std::collections::HashSet<String> = std::collections::HashSet::new();
@@ -1308,7 +1316,8 @@ impl crate::engine::Engine {
                 });
             }
         }
-        // 长句绿词条数（green_candidate_count 1..=5）：第 2 条起受第二绿词动态门槛约束
+        // 长句绿词条数（默认 1 条，可设 green_candidate_count 1..=5）：
+        // 第 2 条起受第二绿词动态门槛约束
         //（下方循环内 threshold 判定，分差超容忍即 break，不逐条放宽）。
         // AI 候选（玫红）独立一位、不受此限（有 aiEnabled 总闸）。
         let max_green: usize = self.green_candidate_count as usize;
@@ -1322,10 +1331,10 @@ impl crate::engine::Engine {
             }
             // 第二绿词门槛（动态阈值 + 采纳率学习）：
             // 第二绿词与第一绿词的分数差距超容忍度 → 视为噪音丢弃（后续更差，全 break）。
-            // 容忍度 = |first| × (1 - ratio)，最低 4 分：
-            // 直接用 threshold = first × ratio 只对正 first 有「容忍 14% 差距」语义，
+            // 容忍度 = |first| × (1 - ratio)，最低 4 分（负分修复）：
+            // 原实现 threshold = first × ratio 只对正 first 有「容忍 14% 差距」语义，
             // 负 first 时 -1×0.86=-0.86 > -1，门槛比第一名还高——第二绿词永远不可达
-            //（wohaoxiangchifan：-1 vs -3 的合理双候选会被硬筛）。最低 4 分 ≈
+            //（wohaoxiangchifan 实证：-1 vs -3 的合理双候选被硬筛）。最低 4 分 ≈
             // 1.3 bit ≈ 词频差 2.5 倍——弱先验场景两个都合理的句子应同时可见，
             // 用户选一次即由行为数据收敛。
             if !result.is_empty() {
@@ -1376,9 +1385,9 @@ pub(crate) fn set_backward_enabled_for_test(on: bool) {
 }
 
 /// A/B 对照开关：仅测试构建可关闭长程语境证据，
-/// 用于在同一份代码/同一 DB 上复现关闭态的行为。生产恒 true。
+/// 用于在同一份代码/同一 DB 上复现关闭该证据时的行为。生产恒 true。
 ///
-/// 线程局部而非全局原子：cargo test 默认并行跑测试，若用全局标志，
+/// **线程局部**而非全局原子：cargo test 默认并行跑测试，若用全局标志，
 /// A/B 测试置 false 的瞬间会让其它测试线程看到「关闭态」→ 偶发假红。
 /// 线程局部让每个测试线程各自持有开关，默认 true，互不可见。
 #[cfg(test)]
@@ -1403,7 +1412,7 @@ mod longrange_ab {
 }
 
 /// A/B 对照开关（双向词格）：与 longrange_ab 同款线程局部
-/// 开关——测试构建可关闭后向重打分复现关闭态的行为，生产恒 true。
+/// 开关——测试构建可关闭后向重打分，生产恒 true。
 #[cfg(test)]
 mod backward_ab {
     use std::cell::Cell;

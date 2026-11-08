@@ -308,13 +308,13 @@ fn test_no_green_when_user_created_full_word() {
 //
 // 根因：process_jianpin_inner 在 jp_len>=4 时触发 initial-mode 绿词 DP，
 // query_seg 在 initial-mode 下对 seg=[w]（k=1）调 query_tokens，
-// 因"全 Initial 时 collect_candidates 全子树收"（dict.rs）拿到 w 子树下
+// 因"全 Initial 时 collect_candidates 全子树收"（dict.rs:621）拿到 w 子树下
 // 任意字数的词（4-8 字长词如"文件清单"）；DP 打分对"小 k 段却 pick 长词"
 // 无惩罚，导致 4 段拼出 12+ 字长串，且同一长词被多段重复 pick 就出现
 // "X+X+X"三重重复模式。
 //
-// 处理：① query_seg initial 分支过滤 char_count ≤ k（k 个首字母最多对应 k 个汉字）
-//      ② 回溯门槛加"总字数 ≤ 总音节数 + 容差"硬上限（defense-in-depth）
+// 修复：① query_seg initial 分支过滤 char_count ≤ k（k 个首字母最多对应 k 个汉字）
+//       ② 回溯门槛加"总字数 ≤ 总音节数 + 容差"硬上限（defense-in-depth）
 // ──────────────────────────────────────────────────────────────────────
 
 /// 构造复现 wwww bug 的 DB：词库有"文件清单"（wen jian qing dan，首字母 wjqd）
@@ -322,7 +322,7 @@ fn test_no_green_when_user_created_full_word() {
 /// 输入 wwww（首字母序列 wwww）与"文件清单"的首字母 wjqd 不匹配，
 /// 但因 initial-mode DP 子树全收的 bug，会被错误地拼进候选。
 ///
-/// **关键**：真实使用中的 DB 里"文件清单"既在 x1dict_words 也在 user_words
+/// **关键**：用户真实 DB 里"文件清单"既在 x1dict_words 也在 user_words
 /// （user_freq=4），需要同时写入两表才能复现 bug（user_words 回填 Trie 的
 /// 路径与 x1dict_words 略有差异，且 user_words 的词会进 Trie candidates）。
 fn make_jianpin_repetition_db() -> std::path::PathBuf {
@@ -485,12 +485,12 @@ fn test_jianpin_www_below_dp_threshold() {
 
 // 守护 5：（已删除——测试 DB 触发不了绿词，无法验证 context 污染）。
 //
-// 背景：同一输入 wwww，不同时刻可能产生不同绿词候选。根因是
-// **context 上文 + semantic_bonuses 协同污染**：每次 commit 后 context 变化 +
-// 后台语义向量组件重算 semantic_bonuses，
+// 历史背景：同一输入 wwww，
+// 不同时刻产生不同绿词候选。debug.log 实证根因是 **context 上文 + semantic_bonuses
+// 协同污染**：每次 commit 后 context 变化 + 后台重算 semantic_bonuses，
 // 下次 wwww 的简拼 DP bigram_sources 变了 → pick 决策变 → 结果变。
 //
-// 处理（sentence.rs）：
+// 修复（sentence.rs）：
 // - 简拼（is_initial_mode）下 pick 阶段 + seg 打分阶段跳过 semantic_bonuses 引导
 // - 简拼下句首段 bigram_sources 只取 context 最近 1 个词（全拼仍取 3 个）
 //
@@ -500,7 +500,7 @@ fn test_jianpin_www_below_dp_threshold() {
 
 // ---- 绿词 Top-2 动态门槛单元测试 ----
 
-/// 机制 A 动态阈值：按第一绿词绝对分档，样本不足 20 时纯用动态值。
+/// 动态阈值：按第一绿词绝对分档，样本不足 20 时纯用动态值。
 #[test]
 fn test_green_threshold_dynamic() {
     let stats = GreenAcceptStats::default();
@@ -509,7 +509,7 @@ fn test_green_threshold_dynamic() {
     assert_eq!(stats.threshold_ratio(40), 0.82); // <= 50
 }
 
-/// 机制 B 采纳率微调：样本 ≥ 20 介入，高采纳率 → 门槛下调 0.03。
+/// 采纳率微调：样本 ≥ 20 介入，高采纳率 → 门槛下调 0.03。
 #[test]
 fn test_green_threshold_learning() {
     // accept_rate = 8/25 = 0.32 > 0.25 → adjust = -0.03 → 0.86 - 0.03 = 0.83
@@ -520,7 +520,7 @@ fn test_green_threshold_learning() {
     assert_eq!(stats.threshold_ratio(60), 0.83);
 }
 
-/// 机制 B 冷启动：样本 < 20 不介入，纯用机制 A 动态阈值。
+/// 冷启动：样本 < 20 不介入，纯用动态阈值。
 #[test]
 fn test_green_threshold_cold_start() {
     // 样本仅 10，即使 second 占比高也不介入
@@ -531,7 +531,7 @@ fn test_green_threshold_cold_start() {
     assert_eq!(stats.threshold_ratio(60), 0.86);
 }
 
-/// 机制 B 低采纳率：样本 ≥ 20 但几乎不选第二绿词 → 门槛上调 0.05（收紧）。
+/// 低采纳率：样本 ≥ 20 但几乎不选第二绿词 → 门槛上调 0.05（收紧）。
 #[test]
 fn test_green_threshold_low_accept() {
     // accept_rate = 1/30 ≈ 0.033 < 0.05 → adjust = +0.05 → 0.86 + 0.05 = 0.91，clamp 到 0.92 内
@@ -542,8 +542,8 @@ fn test_green_threshold_low_accept() {
     assert_eq!(stats.threshold_ratio(60), 0.91);
 }
 
-/// second_green_picks 采集：用户 commit 的 text 恰为 process 结果里
-/// **第二位**绿词（is_sentence 候选按显示序的第 2 个）时计数。
+/// second_green_picks 采集：用户 commit 的 text 恰为
+/// process 结果里**第二位**绿词（is_sentence 候选按显示序的第 2 个）时计数。
 /// 两个引擎各自只做一次 commit（与用户看到的 process 状态一致，避免学习
 /// 写入改变重算序导致断言漂移）。
 #[test]
@@ -591,8 +591,8 @@ fn test_first_green_pick_not_counted_as_second() {
 }
 
 /// second_green_picks 持久化：flush 写 db_meta（green_second_picks），
-/// 重开引擎恢复——否则 total 跨会话累积而 second 每次清零，采纳率被系统性
-/// 低估、按采纳率微调的动态门槛恒走「收紧」单向棘轮。
+/// 重开引擎恢复——否则 total 跨会话累积而 second 每次清零，采纳率被低估、
+/// 恒走「收紧」方向（单向棘轮）。
 #[test]
 fn test_second_green_picks_persist_across_flush() {
     let seed = super::tests_query::seed_copy("sgp3");
@@ -641,11 +641,11 @@ fn test_long_word_bonus_chained() {
 
 /// wohuanlegeshouji 冷启动行为守护。
 ///
-/// 冷启动（未 commit 过）时，DP 靠 freq 猜切分，倾向于多字词组合
+/// 冷启动（用户未 commit 过）时，DP 靠 freq 猜切分，倾向于多字词组合
 /// （「我欢乐各手机」），无法切出「我换了个手机」。这是已知限制——
-/// 无 bigram 引导时无解，靠首次 commit 建立 bigram 后修正。
+/// 无 bigram 引导时任何修复都无效，靠用户首次 commit 建立 bigram 后修正。
 ///
-/// 此测试守护：冷启动行为不因门槛放宽而改变（bigram_support_score=0
+/// 此测试守护：冷启动行为不因本轮门槛放宽而改变（bigram_support_score=0
 /// 时仍走原严格门槛 multi >= single）。
 #[test]
 fn test_wohuanlegeshouji_cold_start_unchanged() {
@@ -659,9 +659,9 @@ fn test_wohuanlegeshouji_cold_start_unchanged() {
     for (i, c) in greens.iter().enumerate() {
         println!("  [{}] text={:?}", i, c.text);
     }
-    // freq 有真实区分度（我们9500/葡萄533），
-    // 冷启动也能切出「我换了个手机」。
-    // 断言：冷启动至少应有绿词输出（不空），且不应是"我欢乐各手机"（错误切分）。
+    // 取消 freq 压扁后：freq 有真实区分度（我们9500/葡萄533），
+    // 冷启动也能切出「我换了个手机」（之前的断言已不适用）。
+    // 新断言：冷启动至少应有绿词输出（不空），且不应是"我欢乐各手机"（错误切分）。
     assert!(!greens.is_empty(), "冷启动应有绿词输出");
     let has_wrong = greens.iter().any(|c| c.text.as_ref() == "我欢乐各手机");
     assert!(!has_wrong, "冷启动不应输出错误的「我欢乐各手机」");
@@ -669,15 +669,19 @@ fn test_wohuanlegeshouji_cold_start_unchanged() {
 
 /// wohuanlegeshouji 学习后修正守护。
 ///
-/// 场景：输入 `wohuanlegeshouji`（我换了个手机），
+/// Bug 历史：输入 `wohuanlegeshouji`（我换了个手机），
 /// DP 绿词输出「我欢乐个手机」。即使 commit 正确整句建立 4 个 bigram
 /// （(我,换)(换,了)(了,个)(个,手机) 各 +3 权重）后仍切错。
 ///
-/// 根因：**绿词门槛 multi >= single 误杀合理句子**。DP 的 N-best 多样性
-/// 剪枝本就保留了「我换了个手机」路径（4 单字 + 1 双字），但回溯后的门槛
-/// multi(1) < single(4) 把它硬过滤掉。
+/// 根因诊断（4 轮批判性分析）：
+/// - v1 推翻：path_single_penalty 不是主因（设 0 后仍切错，且不依赖它）
+/// - v2 推翻：word_adjust 双重奖励是因素但非瓶颈
+/// - v3 推翻：context_bonus_dp 系数太弱是因素但非瓶颈（实验提系数仍切错）
+/// - v4 确认：**绿词门槛 multi >= single 误杀合理句子**。DP 的 N-best 多样性
+///   剪枝本就保留了「我换了个手机」路径（4 单字 + 1 双字），但回溯后的门槛
+///   multi(1) < single(4) 把它硬过滤掉。
 ///
-/// 处理（sentence.rs 绿词门槛）：路径有强 bigram 支持时（bigram_support_score ≥ 3），
+/// 修复（sentence.rs 绿词门槛）：路径有强 bigram 支持时（bigram_support_score ≥ 3），
 /// 放宽门槛到 multi >= 1（只要有 1 个多字词即可）。冷启动 bigram_support=0 走原门槛。
 ///
 /// 此测试守护：commit 后 wohuanlegeshouji 应能切对。

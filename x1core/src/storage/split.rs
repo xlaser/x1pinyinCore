@@ -187,8 +187,8 @@ impl crate::storage::Storage {
 
 /// 本地修正标记键（写 dict.db 的修正通道写入后打标）。
 ///
-/// 文本学习 / 词库管理器对系统词库的修正直接落 dict.db（dict.db 不是只读副本）。
-/// 更新覆盖时据此**先备份**，杜绝修正被种子静默吞掉。
+/// 文本学习 / 词库管理器对系统词库的修正直接落 dict.db
+/// （dict.db 不是只读副本）。更新覆盖时据此**先备份**，杜绝修正被种子静默吞掉。
 pub const LOCAL_CORRECTIONS_KEY: &str = "local_corrections";
 
 /// 打本地修正标记（修正通道写完 dict.db 后调用；幂等）。
@@ -208,17 +208,18 @@ pub fn mark_dict_corrected(dict_db: &Path) -> rusqlite::Result<()> {
 /// 与 dict.db 记录的哈希不等 → 原子替换（tmp + fsync + rename）。
 /// 相等 → 直接返回 false（微秒级，无全表扫描）。
 ///
-/// **修正保护**：dict.db 带 `local_corrections` 标记（写过本地修正）时，
+/// **修正保护**：dict.db 带 `local_corrections` 标记（文本学习/管理器写过修正）时，
 /// 覆盖前先把现存 dict.db 备份为 `dict.db.corrected-<时间戳>.bak`——修正要跨更新
 /// 持久需走 promote 进种子流程，备份是防静默丢失的兜底。
 ///
 /// 返回 `Ok(true)` = 执行了替换（调用方需重载内存态）。
 pub fn ensure_dict_db(dict_db: &Path, seed_db: &Path) -> std::io::Result<bool> {
-    // 首次铺开无条件执行：
+    // 首次铺开**无条件执行**（新机空词库事故）：
     // 哈希门控只保护「已存在的 dict.db 不被未标定种子打回原形」，绝不能挡在
     // 缺失检查之前——安装目录只读（Program Files / mac 签名 bundle）时 WAL
     // 形态种子的 read_meta 会因 -wal/-shm 边车建不出而**静默失败返回 None**，
-    // 门控在前会连首次复制都跳过：dict.db 空壳 → x1dict 空 → 引擎回退内置小词库。
+    // 旧序（门控在前）连首次复制都跳过：dict.db 空壳 → x1dict 空 → 引擎回退
+    // 内置小词库（Windows 新机实测，只读目录复现 100%）。
     if !dict_db.exists() {
         // 孤儿边车清理：dict.db 不在但 -wal/-shm 残留（崩溃/手工删库）时，
         // 新库继承旧 WAL 同样会 malformed（见下方注释）
@@ -257,6 +258,8 @@ pub fn ensure_dict_db(dict_db: &Path, seed_db: &Path) -> std::io::Result<bool> {
     //    残留 WAL 的页属于旧代文件，新库配上它会被 SQLite 判定
     //    "database disk image is malformed"（页头/页数错位），或更隐蔽地
     //    被 strip_user_tables 的 wal_checkpoint 折叠进新库（旧代内容静默混入）。
+    //    事故实测：x1_engine_new_split 因此返回 NULL → 调用方静默回退
+    //    合并模式（x1pinyin.db），学习数据写进旧库且分离永不恢复。
     drop_db_sidecars(dict_db);
     atomic_copy(seed_db, dict_db)?;
     strip_user_tables(dict_db);
@@ -281,7 +284,7 @@ fn drop_db_sidecars(db: &Path) {
 
 /// 把库的边车文件挪到一旁（`<db>-wal.stale-<stamp>`）并返回是否挪动过——
 /// 供分离引导**自愈**用（open_split 失败时若残留边车，挪开重试一次；
-/// 挪动而非删除：数据可人工恢复，符合「用户数据不可丢」原则）。
+/// 挪动而非删除：数据可人工恢复——用户数据不可丢）。
 pub fn quarantine_db_sidecars(db: &Path) -> bool {
     let stamp = now_unix();
     let mut moved = false;
@@ -338,6 +341,7 @@ fn read_meta(db: &Path, key: &str) -> Option<String> {
 }
 
 /// 原子复制（tmp + fsync + 同卷 rename）——中断不产生半截目标文件。
+/// 顺带把与种子同目录的 `seed_bigram_cache.bin` 一并更新（哈希同步变化）。
 fn atomic_copy(src: &Path, dst: &Path) -> std::io::Result<()> {
     let tmp = dst.with_extension("tmp-copy");
     std::fs::copy(src, &tmp)?;

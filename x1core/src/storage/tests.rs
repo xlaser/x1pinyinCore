@@ -185,7 +185,7 @@ fn test_sync_x1dict_adds_new_polyphonic_reading() {
     // 回归测试：sync_x1dict_from_builtin 必须能把内置 DB 新增的多音字读音
     //（如「谁 shui」）同步进用户 DB，即使该字的其他读音（「谁 shei」）已存在。
     //
-    // 旧实现：sync 用 SELECT id 直接插入用户 DB，内置「谁 shui」的 id
+    // 历史 bug：sync 用 SELECT id 直接插入用户 DB，内置「谁 shui」的 id
     // 在用户 DB 已被别的词占用 → OR IGNORE 静默跳过 → 「谁 shui」永远
     // 同步不进去 → 用户打 shui 打不出「谁」。
     use std::fs;
@@ -266,7 +266,7 @@ fn test_sync_x1dict_adds_new_polyphonic_reading() {
     assert_eq!(
         after,
         vec!["shei".to_string(), "shui".to_string()],
-        "同步后必须同时有 shei 和 shui"
+        "同步后必须同时有 shei 和 shui（修复前因 id 冲突 shui 永远进不来）"
     );
     // 不应有重复
     let dup_count: i64 = user
@@ -377,7 +377,7 @@ fn test_x1dict_crud_and_search() {
     assert!(storage.x1dict_is_empty().unwrap());
 }
 
-/// 搜索音节感知排序（「搜 de 看不到 地」场景）：
+/// 搜索音节感知排序（修「搜 de 看不到 地」）：
 /// 子串匹配命中 deng/记得 等拼音内含 de 的词，高频次音字被排到 200+ 位。
 /// 四级排序：精确同音 → 音节前缀 → 词文本含 → 拼音内部含，同级 freq 降序。
 #[test]
@@ -1101,7 +1101,7 @@ fn test_load_all_for_trie_clamps_anomalous_freq() {
 
 #[test]
 fn test_trigram_counts_roundtrip() {
-    // trigram 表 load/replace 全量往返
+    // trigram 表 load/replace 全量往返（上下文引擎 v2）
     let mut storage = Storage::open_memory().unwrap();
     let entries = vec![
         ("我".to_string(), "知道".to_string(), "你".to_string(), 5u32),
@@ -1185,7 +1185,7 @@ fn test_seed_bigram_cache_lifecycle() {
 
 #[test]
 fn test_wal_tuning_pragmas_applied() {
-    // WAL 调优（与统计库同标准）：词库/user 库连接 autocheckpoint
+    // WAL 调优：词库/user 库连接 autocheckpoint
     // 2000 页 + WAL 截断上限 8MB——周期 flush 的 diff 事务回拷频率减半、WAL
     // 不随会话时长无界增长。open_raw 双端共享，本测试钉住参数不回退。
     use std::fs;
@@ -1259,7 +1259,7 @@ fn test_user_words_multi_pinyin_migration() {
     fs::remove_dir_all(&dir).ok();
 }
 
-/// 种子写保护守护自检：测试构建下可写打开仓库种子必须 panic。
+/// 仓库种子守护自检：测试构建下可写打开仓库种子必须 panic。
 ///
 /// 守护的理由见 `Storage::guard_repo_seed_open` 注释——套件曾偶发把交付种子
 /// 写脏（db_meta.x1dict_sync_hash 改写 + assets/seed_bigram_cache.bin 重写 +

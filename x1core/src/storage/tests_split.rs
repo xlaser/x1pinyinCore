@@ -151,8 +151,8 @@ fn test_split_migration_zero_loss() {
         old.replace_input_mappings(&[("nihao".to_string(), "你好".to_string(), 3)])
             .unwrap();
         old.set_user_meta("context_snapshot", "旧快照").unwrap();
-        // 绿词采纳率两键必须随用户库迁移（漏键 = 采纳率微调通道
-        // 分子清零、采纳率被低估，门槛单向收紧复活）
+        // 绿词采纳率两键必须随用户库迁移（漏键 = 分子清零、
+        // 采纳率被低估，门槛单向收紧复活）
         old.set_user_meta("green_total_picks", "7").unwrap();
         old.set_user_meta("green_second_picks", "3").unwrap();
         old.set_seed_meta("x1dict_sync_hash", "aaaaaaaaaaaaaaaa")
@@ -366,7 +366,7 @@ fn test_split_dict_stays_writable_and_corrections_protected() {
     }
     crate::storage::split::ensure_dict_db(&dict_db, &seed).unwrap();
 
-    // ① dict.db 可写：模拟本地修正（改 freq + 加词）+ 打修正标记
+    // ① dict.db 可写：模拟文本学习修正（改 freq + 加词）+ 打修正标记
     {
         let mut d = Storage::open(&dict_db).unwrap();
         d.update_x1dict_word(
@@ -375,7 +375,7 @@ fn test_split_dict_stays_writable_and_corrections_protected() {
             &X1DictWord {
                 simplified: "广州".into(),
                 pinyin: "guang zhou".into(),
-                freq: 4200, // 学到的修正频次
+                freq: 4200, // 文本学习到的修正频次
                 is_primary: true,
             },
         )
@@ -398,7 +398,7 @@ fn test_split_dict_stays_writable_and_corrections_protected() {
                 |r| r.get(0),
             )
             .unwrap();
-        assert_eq!(f, 4200, "dict.db 应可写（本地修正生效在库内）");
+        assert_eq!(f, 4200, "dict.db 应可写（文本学习修正生效在库内）");
     }
 
     // ② 新种子到达 → 覆盖前必须留下修正备份
@@ -440,8 +440,8 @@ fn test_split_dict_stays_writable_and_corrections_protected() {
             |r| r.get(0),
         )
         .unwrap();
-    assert_eq!(f, 4200, "备份应保留修正后的频次");
-    assert_eq!(n, 1, "备份应保留修正新增的词");
+    assert_eq!(f, 4200, "备份应保留文本学习修正后的频次");
+    assert_eq!(n, 1, "备份应保留文本学习修正新增的词");
     drop(bc);
 
     // ③ 无修正标记的 DB 覆盖时不产生多余备份
@@ -464,12 +464,13 @@ fn test_split_dict_stays_writable_and_corrections_protected() {
     fs::remove_dir_all(&dir).ok();
 }
 
-/// dict.db 替换必须清理旧 WAL/SHM（回归测试）。
+/// dict.db 替换必须清理旧 WAL/SHM（事故回归）。
 ///
-/// 风险链：ensure_dict_db 用 atomic_copy 覆盖 dict.db 后，**上一代 dict.db 的
+/// 事故链：ensure_dict_db 用 atomic_copy 覆盖 dict.db 后，**上一代 dict.db 的
 /// -wal/-shm 残留**——陈旧 WAL 的页属于旧文件，SQLite 打开新库时应用旧页 →
 /// "database disk image is malformed" → x1_engine_new_split 返回 NULL →
-/// 调用方静默回退**合并模式**（x1pinyin.db），分离布局永不恢复。
+/// 调用方静默回退**合并模式**（x1pinyin.db）——用户学习/固定全写进
+/// 旧库且 split 永不恢复。
 #[test]
 fn replace_dict_db_clears_stale_wal() {
     let dir = temp_dir("stale_wal");
@@ -483,7 +484,7 @@ fn replace_dict_db_clears_stale_wal() {
     fs::copy(&seed, &dict_db).unwrap();
 
     // ① 让旧 dict.db 与种子**真正换代**（否则陈旧 WAL 恰好与同内容新库匹配，
-    //    测不出问题）：正常 WAL 模式写入 +
+    //    复现不出事故——首版测试就栽在这个假阳性上）：正常 WAL 模式写入 +
     //    关闭（关闭即 checkpoint 回写主文件、WAL 清空）→ 主文件内容已不同于种子
     {
         use rusqlite::Connection;
@@ -501,9 +502,9 @@ fn replace_dict_db_clears_stale_wal() {
 
     // ② 制造"陈旧 WAL 残留"：手工落无效头的 wal/shm 边车（真实场景 = 崩溃进程
     //    留下、句柄已随进程消亡）。**不能**用泄漏连接模拟——Windows 上被 forget
-    //    的连接持有文件句柄，替换时删 dict.db 会"拒绝访问"（平台差异）。
-    //    SQLite 对无效头 WAL 按"空 WAL"处理，checkpoint_db_wal / open 的容错
-    //    路径不受影响。
+    //    的连接持有文件句柄，替换时删 dict.db 会"拒绝访问"（平台差异，
+    //    实测稳定复现；CI 无种子时整段测试跳过，故此前未暴露）。SQLite 对无效头
+    //    WAL 按"空 WAL"处理，checkpoint_db_wal / open 的容错路径不受影响。
     fs::write(
         dict_db.with_extension("db-wal"),
         b"stale-wal-not-a-real-wal",
@@ -538,11 +539,11 @@ fn replace_dict_db_clears_stale_wal() {
         "替换后必须无 dict.db-shm 残留"
     );
 
-    // 更本质的断言：陈旧 WAL 的**内容不得被折叠进新库**。
+    // 更本质的断言（事故真实病灶）：陈旧 WAL 的**内容不得被折叠进新库**。
     // strip_user_tables 的 `PRAGMA wal_checkpoint(TRUNCATE)` 会把残留 WAL 的页
-    // 回写进刚复制的新文件——旧代页混入新库 = 页头/页数错位，真实数据差异大时
-    // open_split 直接 "database disk image is malformed"。新库应是种子的纯净
-    // 副本：旧代标记（WAL 里的 local_corrections / 主文件的
+    // 回写进刚复制的新文件——旧代页混入新库 = 页头/页数错位 → 真实数据差异大时
+    // open_split 直接 "database disk image is malformed"（本机事故）。修复后新库
+    // 是种子的纯净副本：旧代标记（WAL 里的 local_corrections / 主文件的
     // stale_gen_marker）都不得出现。
     {
         use rusqlite::Connection;
@@ -554,7 +555,7 @@ fn replace_dict_db_clears_stale_wal() {
         assert_eq!(leaked, 0, "旧代 WAL/主文件内容不得混入替换后的 dict.db");
     }
 
-    // 端到端：替换后的 dict.db 必须能被 open_split 打开
+    // 端到端：替换后的 dict.db 必须能被 open_split 打开（修复前此处 malformed）
     let user_db = dir.join("user.db");
     let engine = crate::engine::Engine::open_split(
         dict_db.to_string_lossy().as_ref(),
@@ -568,9 +569,9 @@ fn replace_dict_db_clears_stale_wal() {
     let _ = fs::remove_dir_all(&dir);
 }
 
-/// 迁移中途崩溃的恢复：崩溃残留的 x1dict_words_new 不得让重跑报
-/// "table already exists" 导致 Storage::open 永久失败——事务 + 前置
-/// DROP IF EXISTS 后，残留现场应被清理并完成重建。
+/// 毒库迁移恢复：迁移中途崩溃会残留
+/// x1dict_words_new，重跑不得报 "table already exists" 导致 Storage::open
+/// 永久失败——事务 + 前置 DROP IF EXISTS 后，残留现场应被清理并完成重建。
 #[test]
 fn migrate_survives_leftover_new_table() {
     let dir = temp_dir("poison_migrate");
@@ -593,8 +594,8 @@ fn migrate_survives_leftover_new_table() {
         )
         .unwrap();
     }
-    // 重跑 CREATE TABLE x1dict_words_new 不得报 "table already exists"
-    let storage = Storage::open(&db).expect("残留现场必须可恢复打开");
+    // 修复前：重跑 CREATE TABLE x1dict_words_new → "table already exists" → open 失败
+    let storage = Storage::open(&db).expect("残留现场必须可恢复打开（毒库修复）");
     // 新形态验证：翻译列已删、数据保留、无残留表
     let has_old: bool = storage
         .dict

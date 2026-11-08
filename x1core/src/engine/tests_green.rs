@@ -1,6 +1,6 @@
-//! Engine 测试 · 绿词 / 多音字次音。
+//! Engine 测试 · 绿词 / 多音字次音（从 engine/tests.rs 拆出）。
 //!
-//! 按主题分组：
+//! 本文件由原 `tests.rs` 整体搬出，按主题分组：
 //! - 简拼绿词 DP：jpsr/jiafentj 等纯简拼组合绿词
 //! - 绿词骨架偏好：多字骨架优先、字典词不需学习、N-best DP 找更优路径
 //! - 多音字次音：绿词内不选次音、用户 compose 后 wanchengle/chiputao 记忆效应
@@ -35,14 +35,8 @@ fn test_jianpin_green_word() {
 /// 验证：jiafentj 应出现"加分条件"绿词
 #[test]
 fn test_jiafentj_green() {
-    // 优先 X1_USER_DB_DIR 指定的本机用户 DB（诊断用）；不可用时回退种子副本。
-    let engine = std::env::var("X1_USER_DB_DIR")
-        .ok()
-        .and_then(|dir| Engine::new_with_db(format!("{}/x1pinyin.db", dir).as_str()).ok())
-        .unwrap_or_else(|| {
-            let seed = super::tests_query::seed_copy("green");
-            Engine::new_with_db(&seed).unwrap_or_else(|_| Engine::new())
-        });
+    // 真实库经 X1_REAL_DB_DIR 注入（tests_query::real_engine，含 split/旧库/种子三级回退）
+    let engine = super::tests_query::real_engine();
     let cands = engine.process("jiafentj");
     for (i, c) in cands.iter().enumerate().take(20) {
         let tag = if c.is_sentence {
@@ -87,8 +81,8 @@ fn test_jiafentj_green() {
 
 /// 测试数据策略：构造式 DB（避免种子 DB「宛城」freq 压制「完成」）。
 ///
-/// 注意：DB 不放「完成了」整词（pinyin=wan cheng le）——词库已有同音整词时
-/// decode_sentence 直接返回空（不生绿词）。要测"绿词在
+/// 调整：移除「完成了」整词（pinyin=wan cheng le）——因为绿词质量修复
+/// 后，词库已有同音整词时 decode_sentence 直接返回空（不生绿词）。要测"绿词在
 /// 多路径中偏好多字骨架"，DB 不能有 `wan cheng le` 整词，否则短路。词库只放
 /// 「完成」(2 字) + 「了」(单字)，让 DP 在「完成+了」vs「万+成了」之间选择。
 #[test]
@@ -192,7 +186,7 @@ fn test_green_word_no_learning_required_for_dict_words() {
 
 /// N-best DP 回溯重排：根治贪心 DP 不可回溯的结构性缺陷。
 ///
-/// 纯贪心 DP 的 best[i] 只存单一最优末词。当 best[4] 被「作废」k=2 词锁定后，
+/// 旧版 DP 的 best[i] 只存单一最优末词。当 best[4] 被「作废」k=2 词锁定后，
 /// 全局更优的 [坐]单字+[飞机] 路径彻底不可达——贪心不会为"后续能有飞机骨架"
 /// 而牺牲当前位置。
 ///
@@ -202,7 +196,7 @@ fn test_green_word_no_learning_required_for_dict_words() {
 /// 测试场景：woyaozuofeijichuxing
 /// - 词库有「飞机」(1938)、「作废」(1426)、「出行」(2940)
 /// - 词库无「坐飞机」三字词
-/// - 纯贪心 DP：[作废]k=2 锁定 best[zuo+fei]，ji 被迫单字堆「祭」
+/// - 旧贪心 DP：[作废]k=2 锁定 best[zuo+fei]，ji 被迫单字堆「祭」
 /// - N-best DP + bigram 增强：用户 commit 一次建立 (坐,飞) 信号后，DP 选对切分
 #[test]
 fn test_nbest_dp_recovers_better_path() {
@@ -229,7 +223,7 @@ fn test_nbest_dp_recovers_better_path() {
     );
     assert!(
         !first.unwrap_or("").contains("作废祭"),
-        "不应出现「作废祭」（贪心 DP 锁定缺陷）"
+        "不应出现「作废祭」（贪心 DP 锁定的旧 bug）"
     );
 
     // 额外验证 N-best DP 本身（不走白词固化路径）：
@@ -263,7 +257,7 @@ fn test_nbest_dp_recovers_better_path() {
         );
         assert!(
             !g.text.contains("作废祭"),
-            "不应出现「作废祭」（贪心 DP 锁定缺陷），实际：{}",
+            "不应出现「作废祭」（贪心 DP 锁定的旧 bug），实际：{}",
             g.text
         );
     }
@@ -271,8 +265,8 @@ fn test_nbest_dp_recovers_better_path() {
 
 /// 多音字次音标记保护：「万 mo」is_primary=0 后，绿词 DP 单字 pick 跳过次音字。
 ///
-/// 缺陷场景：momingqim 部分输入会出现「万名气门」绿词（partial tail m→门）。
-/// 正确行为：DP 不应选「万」做 mo 首字，且 partial tail 不应展开为无意义的「门」组合。
+/// Bug 复现：momingqim 部分输入曾出现「万名气门」绿词（partial tail m→门）。
+/// 修复后：DP 不应选「万」做 mo 首字，且 partial tail 不应展开为无意义的「门」组合。
 #[test]
 fn test_polyphone_secondary_not_picked_in_green_word() {
     let seed = super::tests_query::seed_copy("green");
@@ -294,7 +288,7 @@ fn test_polyphone_secondary_not_picked_in_green_word() {
 }
 
 /// 回归测试：用户自组词「完成」+「了」后，wanchengle 应得「完成了」排首位。
-/// 「完成了」是系统词不写 user_words，但 freq.counts 记录选择。
+/// 演进：「完成了」是系统词不写 user_words，但 freq.counts 记录选择。
 /// 测试数据策略：构造式 DB（避免种子 DB「宛城」freq 压制）。
 #[test]
 fn test_wanchengle_after_user_compose() {
@@ -531,7 +525,7 @@ fn test_green_memo_first_select_persists() {
 }
 
 /// 撇号分隔的尾音节回归（绿词 nibuyaoguolai'a 出「你不要
-/// 过来安」的根因）：' 显式断开的单字母音节 a 是完整音节——必须进
+/// 过来安」根因）：' 显式断开的单字母音节 a 是完整音节——必须进
 /// valid_syl，让 green_memo 字数匹配成立、DP 按全拼音节解码（a→啊，
 /// 不得当半截声母走首字母补字捞 an→安，也不得当简拼触发 initial_mode）。
 #[test]
@@ -607,7 +601,7 @@ fn test_apostrophe_trailing_vowel_syllable() {
     }
     let mut engine = Engine::new_with_db(tmp.to_str().unwrap()).unwrap();
 
-    // 用户逐词组装绿词后 commit（与 31n 组合升级 IPC 同形：整 input + 整句）
+    // 用户逐词组装绿词后 commit（组合场景同形：整 input + 整句）
     engine.commit(
         "nibuyaoguolai'a",
         "你不要过来啊",
@@ -704,7 +698,7 @@ fn test_green_memo_survives_restart() {
     let _ = std::fs::remove_file(&tmp);
 }
 
-/// 回归测试：混合简拼绿词应尊重用户已学词。8feb0ea 后用 freq.counts 双轨判断。
+/// 回归测试：混合简拼绿词应尊重用户已学词。系统词去重后用 freq.counts 双轨判断。
 #[test]
 fn test_mixed_jianpin_respects_user_words() {
     let seed = super::tests_query::seed_copy("green");

@@ -1,20 +1,23 @@
-//! 候选翻译副栏：只翻译当前选中的候选词，按需查询、纯展示。
-//! - 英文词（ASCII 字母 2..=24）→ 英译中：`english_words` 精确查
+//! 候选翻译副栏（1.7.2）。
+//!
+//! **只翻译当前选中的候选词**，按需查询、纯展示：
+//! - 英文词（ASCII 字母 2..=24）→ **英译中**：`english_words` 精确查
 //!   （大小写不敏感），返回规范词形 + 词性 + 中文释义；
-//! - 中文词（含 CJK）→ 中译英两级：
-//!   ① 精确词典（`zh_en_words` 首选）：词级精确命中
+//! - 中文词（含 CJK）→ **中译英**两级：
+//!   ① **精确词典**（`zh_en_words`，首选）：词级精确命中
 //!     （含单字实词——水→water、你→you 均为学习刚需；语气/结构助词
 //!     如「的/了/着」数据层不收），多译按词典 freq 降序最多 3 条；
-//!   ② cn 释义反查回退（`english_words.cn` `LIKE` 缩小集合，按 `；`
-//!     切分义项，只保留整条义项精确命中，按种子 freq 降序最多 3 条；
-//!     子串提及不算对译：「开发环境」不应译出 VisualStudio（其释义
-//!     「集成开发环境」只是*提到*该词），同类「微软→微软公司」
-//!     「智能→智能手机」全是实例而非对译，宁缺毋滥；合法对译需求由
-//!     `zh_en_words` 数据侧承接）——维持 ≥2 字门槛（单字 LIKE 噪声大）；
+//!   ② **cn 释义反查**回退（`english_words.cn` `LIKE` 缩小集合，按 `；`
+//!     切分义项，**只保留整条义项精确命中**，按种子 freq 降序最多 3 条；
+//!     收紧规则——子串提及不算对译：「开发环境」不应译出
+//!     VisualStudio（其释义「集成开发环境」只是*提到*该词），同类
+//!     「微软→微软公司」「智能→智能手机」全是实例而非对译，宁缺毋滥；
+//!     合法对译需求由 `zh_en_words` 数据侧承接）——维持 ≥2 字门槛
+//!     （单字 LIKE 噪声大）；
 //! - 数字/符号、ASCII 非词形、无收录词 → 空结果（不硬猜）。
 //!
 //! 零网络、零学习、不参与候选排序；数据源只有 `dict.db` 的
-//! `english_words` + `zh_en_words`。反查 10k 行约 ~0.3ms，精确查是
+//! `english_words` + `zh_en_words`。反查 10k 行实测 ~0.3ms，精确查是
 //! B 树点查（μs 级），只在选中项变化时调用（非按键热路径）。
 
 use alloc::string::String;
@@ -112,9 +115,9 @@ impl Engine {
 
         // ── 中译英②回退：cn 释义反查，只保留整条义项精确命中（≥2 字门槛
         //    保留——单字 LIKE 噪声大，精确词典未收的单字宁可空结果）。
-        //    子串提及不算对译（释义「集成开发环境」提到
+        //    收紧：子串提及不算对译（释义「集成开发环境」提到
         //    「开发环境」≠ VisualStudio 是它的对译），无精确义项 → 空结果
-        //    不硬猜；被挡掉的合法对译（微软/智能/开发环境…）由
+        //    不硬猜；被收紧挡掉的合法对译（微软/智能/开发环境…）由
         //    zh_en_words 数据侧收录。──
         if has_cjk(term) && term.chars().count() >= 2 {
             let rows = storage.english_reverse_cn(term, 32);
@@ -184,7 +187,7 @@ mod tests {
     #[test]
     fn chinese_single_char_content_word() {
         let e = en_engine();
-        // 单字实词走精确词典（水→water、你→you 是学习刚需，代词亦收录）
+        // 单字实词走精确词典（水→water、你→you 是学习刚需；代词已补收）
         let r = e.translate_candidate("水", 3);
         assert_eq!(r.direction, "zh2en");
         assert_eq!(r.entries[0].word, "water");
@@ -214,7 +217,7 @@ mod tests {
     #[test]
     fn chinese_reverse_fallback_drops_substring_mentions() {
         let e = en_engine();
-        // 错误类守护：「开发环境」不得译出 VisualStudio——其释义
+        // 错误类回归：「开发环境」译出 VisualStudio——其释义
         // 「集成开发环境」只是*提到*该词，子串提及不是对译。回退只认整条
         // 义项精确命中，无精确义项 → 空结果不硬猜。「智能手」是策略探针
         // （smartphone 释义「智能手机」的子串，永远不整条相等，也不会进
@@ -233,9 +236,9 @@ mod tests {
     }
 
     #[test]
-    fn zh_to_en_exact_dictionary_hits() {
+    fn chinese_named_user_reports_2026_10_20() {
         let e = en_engine();
-        // 中译英精确词典正译守护（含多词短语对译）
+        // 中译英精确词典正译（含多词短语对译）
         let r = e.translate_candidate("开发环境", 3);
         assert_eq!(r.direction, "zh2en");
         assert_eq!(r.entries[0].word, "development environment");

@@ -1,7 +1,7 @@
 //! 微型词性搭配模型：`x1grammar.bin` 的解码与查询。
 //!
-//! 字节级唯一权威定义为模型构建工具（编码 + `--check` 解析器，独立分发），
-//! 本模块是其 Rust 运行时镜像。
+//! 字节级唯一权威定义在离线构建脚本（编码 + `--check`
+//! 解析器），本模块是其 Rust 运行时镜像。
 //!
 //! 格式速记（小端，32 字节头 + payload）：
 //! ```text
@@ -15,15 +15,15 @@
 //!   5 的地得 prev:u8, next:u8, de:u32, di:u32, de2:u32
 //! ```
 //!
-//! 13 词性粗类（设计 §4.1，与构建端 CLASS_NAMES 同序）：0名词 1动词 2形容词
+//! 13 词性粗类（与构建端 CLASS_NAMES 同序）：0名词 1动词 2形容词
 //! 3副词 4代词 5数词 6时间词 7方位词 8介词 9连词 10助词 11标点 12其他。
-//! 二元/三元把标点/其他类当普通 ID 统计（构建端口径决策 2），消费端勿假设
+//! 二元/三元把标点/其他类当普通 ID 统计，消费端勿假设
 //! 只有内容词类。
 //!
 //! 工程约束：
 //! - 只用 std（`std::fs::read` 一次读入，无 mmap/无新依赖）；
 //! - 解码失败一律返回 `Err(GrammarMicroError)`，**不 panic、不修复、不写文件**
-//!   （启动路径零维护动作：失败由调用方降级空模型）；
+//!   （启动秒开约束：启动路径零维护动作；失败由调用方降级空模型）；
 //! - 查询零分配（`path_score` 只用栈上哨兵，无 Vec/String）；
 //! - score 全部构建期算好，运行时不做浮点对数（的/地/得层存的是原始计数，
 //!   该层查询频度极低，沿用 legacy `GrammarModel::delta_for` 的 f64 log2
@@ -39,7 +39,7 @@ const MAGIC: [u8; 4] = *b"X1GM";
 const VERSION: u16 = 1;
 /// 头部长度（构建端 `HEADER_SIZE`）。
 const HEADER_SIZE: u16 = 32;
-/// 词性粗类数（设计 §4.1）。
+/// 词性粗类数。
 const N_CLASSES: u8 = 13;
 /// Block 4 滑动块长度合法区间（构建端只写 4/5/6）。
 const BLOCK_LEN_MIN: u8 = 4;
@@ -51,7 +51,7 @@ const BLOCK_PAD: u8 = 0xFF;
 const FNV_OFFSET: u32 = 0x811C_9DC5;
 const FNV_PRIME: u32 = 0x0100_0193;
 
-/// `path_score` 参与打分的路径长度上限（设计 §8.2 / legacy
+/// `path_score` 参与打分的路径长度上限（legacy
 /// `pattern_window_stats` 同为 24 词上限；引擎包装层同口径）。
 const PATH_MAX_LEN: usize = 24;
 /// `path_score` 总分钳位区间。
@@ -113,7 +113,7 @@ impl FuncMicroCounts {
     }
 }
 
-/// 模型加载/解码失败。加载失败不得 panic，由调用方降级为空模型（设计 §10）。
+/// 模型加载/解码失败。加载失败不得 panic，由调用方降级为空模型。
 #[derive(Debug)]
 pub enum GrammarMicroError {
     /// 文件读取失败（不存在/权限等）。
@@ -158,8 +158,8 @@ pub struct MicroPathBreakdown {
 }
 
 /// 一条**词**路径的微型语法模型诊断（`Engine::grammar_micro_path_components`
-/// 的返回值，只读观测；词→粗类映射与逐层分量只此一份实现，避免镜像
-/// 复刻漂移）。
+/// 的返回值，只读观测；词→粗类
+/// 映射与逐层分量不在消费侧复刻，避免双份逻辑漂移）。
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct GrammarMicroPathDiagnosis {
     /// 模型是否在场（false = 资产缺失/解码失败的降级空模型，分量全 0）。
@@ -177,9 +177,10 @@ pub struct GrammarMicroPathDiagnosis {
 impl GrammarMicroPathDiagnosis {
     /// 上下文让位后的实际分（镜像引擎 `grammar_micro_delta` 的让位规则：
     /// 强语境 → `raw_total / 4`，Rust 整除向零截断——观测口径与排序口径
-    /// 同式）。让位判据由调用方给出（与引擎谓词同款）。
+    /// 同式）。让位判据由调用方给出（用
+    /// `grammar_diagnosis().context_yield`，与引擎谓词同款）。
     pub fn effective(&self, yield_context: bool) -> i32 {
-        // 正分融合回归定稿：强上下文完全让位（raw/4 仍会翻转
+        // 正分融合定稿：强上下文完全让位（raw/4 仍会翻转
         // 长程语境）。观测口径必须与 grammar_micro_delta 一致。
         if yield_context {
             0
@@ -189,7 +190,7 @@ impl GrammarMicroPathDiagnosis {
     }
 }
 
-/// 模型元信息（诊断信息的数据源）。
+/// 模型元信息（调试 CLI `grammar-model info` 的数据源）。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GrammarMicroInfo {
     pub version: u16,
@@ -317,7 +318,7 @@ impl GrammarMicro {
             .unwrap_or(0)
     }
 
-    /// 4–6 词滑动块分。未命中（或长度不在 4–6）返回 0——设计 §8.2
+    /// 4–6 词滑动块分。未命中（或长度不在 4–6）返回 0——
     /// 「未命中语法块不惩罚」。
     pub fn block_score(&self, ids: &[u8]) -> i8 {
         if !((BLOCK_LEN_MIN as usize..=BLOCK_LEN_MAX as usize).contains(&ids.len())) {
@@ -336,14 +337,15 @@ impl GrammarMicro {
     /// 存在 4–6 词窗口     → 取最高 3 个 block_score，各除以 2 后累加
     /// 总分 clamp [-24, 24]
     /// ```
-    /// 路径长度上限 24（引擎包装层同口径先做了一次门控：
-    /// `words.len() > 24` 才返回 0，否则所有合法路径恒为 0 分）。
+    /// 路径长度上限 24（引擎包装层同口径先做了一次门控：按消费口径
+    /// `words.len() > 24` 才返回 0，
+    /// 否则所有合法路径恒为 0 分）。
     /// 零分配：二元/三元/块窗口全走借用切片，块最高 3 名用栈上哨兵维护。
     pub fn path_score(&self, classes: &[u8]) -> i32 {
         self.path_breakdown(classes).total
     }
 
-    /// 整条词性路径的逐层分（诊断观测，经
+    /// 整条词性路径的逐层分（诊断观测；调试 CLI 经
     /// `Engine::grammar_micro_path_components` 消费）。与 [`Self::path_score`]
     /// **同一实现**（`path_score` 即本方法的 `total`），诊断与排序逐层对账
     /// 不漂移；规则、门控、零分配纪律同 `path_score` 文档。
@@ -873,10 +875,10 @@ mod tests {
         assert_eq!(m.path_score(&[7]), 0);
         assert_eq!(m.path_score(&[0, 1]), 2); // len == 2 → 单二元
         assert_eq!(m.path_score(&[0, 1, 2]), 2 + 3 + (-1)); // len 3：二元和 + 三元和
-                                                            // len 4：二元(2+3+4) + 三元(-1+1) + 块窗口 [0,1,2,3]=8/2
-        assert_eq!(m.path_score(&[0, 1, 2, 3]), 9 + 8 / 2); // 二元和 9、三元和 0
-                                                            // len 6：二元 2+3+4 + 三元 -1+1 + 最高 3 块 {16,8,0}/2 → 8+4+0
-        assert_eq!(m.path_score(&[0, 1, 2, 3, 4, 5]), 9 + (16 / 2 + 8 / 2)); // 三元和 0
+                                                            // len 4：二元(2+3+4) + 三元(-1+1)=0 + 块窗口 [0,1,2,3]=8/2
+        assert_eq!(m.path_score(&[0, 1, 2, 3]), 9 + 8 / 2);
+        // len 6：二元 2+3+4 + 三元 -1+1=0 + 最高 3 块 {16,8,0}/2 → 8+4
+        assert_eq!(m.path_score(&[0, 1, 2, 3, 4, 5]), 9 + (16 / 2 + 8 / 2));
         assert_eq!(m.path_score(&[0u8; 25]), 0); // 超长门控
         assert_eq!(m.path_score(&[12u8; 24]), 0); // 全未命中 = 0 分不惩罚
 

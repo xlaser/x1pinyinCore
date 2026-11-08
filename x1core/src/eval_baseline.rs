@@ -10,17 +10,18 @@
 //! 运行：
 //! ```bash
 //! cargo test -p x1core --release eval_baseline -- --nocapture
-//! # 真冷启动（纯净种子，无用户运行时数据）——用 X1_EVAL_DB 指向纯净种子 DB：
-//! X1_EVAL_DB=<seed.db> cargo test -p x1core --release --lib eval_baseline -- --nocapture
+//! # 真冷启动（纯净种子，无用户运行时数据；pristine_seed.db 不入 git）：
+//! X1_EVAL_DB=x1core/assets/eval/pristine_seed.db cargo test -p x1core --release --lib eval_baseline -- --nocapture
 //! ```
 //! 人类可读摘要走 stderr，机器可读 JSON 固定写 `/tmp/x1_eval_baseline.json`。
-//! JSON 记录 git commit + DB 路径 / DB / 语料 sha256，确保跨轮对比时
+//! JSON 记录 git commit + DB 路径 / DB / 语料 sha256，确保对比时
 //! 知道语料与词库版本是否一致（改了 DB 或语料后旧基线不可直接比）。
 //!
-//! 注意：repo 种子若混入过运行时数据（user_words/user_counts 等），直接
-//! 测得到的是"冷启动 + 个人语言模型"的混合结果——真冷启动必须用纯净
-//! 种子（X1_EVAL_DB 指向干净 DB）。种子 freq 意外损坏时单测可能全绿，
-//! 只有本评测的 Top1 大幅波动能将其暴露。
+//! 教训：repo 种子可能已合并开发者运行时数据
+//! （user_words/user_counts/context_snapshot），直接测得到的是"冷启动 +
+//! 开发者个人语言模型"的混合结果——真冷启动必须用纯净种子（X1_EVAL_DB）。
+//! 且若种子 freq 被意外损坏，单测全绿
+//! 也察觉不到，只有本评测的 Top1 大幅波动能暴露。
 //!
 //! 本测试不 assert 任何阈值——基线是测量工具不是守门员，
 //! 任何排序/词库改动后都应能跑出报告（变好或变差都是有效信息）。
@@ -120,7 +121,7 @@ pub(crate) mod tests {
     /// 返回被多字词（len≥2）覆盖的字符比例。单字兜底不计入覆盖。
     ///
     /// 用于 dict_missing 归因：覆盖率低说明期望句的内容词词库根本没有
-    /// （如「社恐」「内卷」），再好的切分排序也拼不出来（词库扩容的直接目标）。
+    /// （如「社恐」「内卷」），再好的切分排序也拼不出来。
     /// 反之覆盖率高但引擎没拼对，问题在切分/排序而非词库。
     ///
     /// 这比「相邻 2-gram 命中率」准确：2-gram 把「太棒了」的「然了」这类
@@ -177,18 +178,18 @@ pub(crate) mod tests {
 
     /// 冷启动引擎（与 eval.rs cold_engine 相同语义：种子 DB + 无用户历史）。
     ///
-    /// DB 路径可用环境变量 `X1_EVAL_DB` 覆盖（指向纯净种子 DB 测真冷启动，
-    /// 或指向变体 DB）。默认仍用 repo 种子，行为与之前一致。
+    /// DB 路径可用环境变量 `X1_EVAL_DB` 覆盖（指向 assets/eval/pristine_seed.db
+    /// 测真冷启动，或指向变体 DB）。默认仍用 repo 种子，行为与之前一致。
     fn eval_db_path() -> String {
         std::env::var("X1_EVAL_DB").unwrap_or_else(|_| SEED_DB_PATH.to_string())
     }
 
     /// **评测专用 DB 副本路径**：评测全程只读副本，绝不碰源 DB。
     ///
-    /// 为什么必须复制：
+    /// 为什么必须复制（真实事故 + 可复现性）：
     /// - `Engine::new_with_db` 打开 DB 即做 journal→WAL 转换并写 db_meta，
-    ///   传入的**源文件被就地修改**——用纯净种子跑评测会改写它，
-    ///   同一 commit 跑两次结果不同。
+    ///   传入的**源文件被就地修改**——用 `X1_EVAL_DB=assets/eval/pristine_seed.db`
+    ///   跑一次评测，pristine 种子就长大 8KB，同一 commit 跑两次结果不同。
     /// - 评测语义是"冷启动"：任何写回都在给下一次评测偷偷预热，
     ///   `seed_db_sha256` 记录也会随运行漂移，无法定位差异来源。
     ///
@@ -200,11 +201,12 @@ pub(crate) mod tests {
         static COPY: OnceLock<String> = OnceLock::new();
         COPY.get_or_init(|| {
             let src = eval_db_path();
-            // DB 副本（53MB 级）落项目 target/test-tmp（测试产物不进系统
-            // 临时目录）。JSON 结果文件仍走 temp_dir——跨平台一致的输出路径。
+            // DB 副本（53MB 级）落项目 target/test-tmp（测试产物绝不进系统
+            // 临时目录）。JSON 结果文件仍走 temp_dir——那是与 sweep 脚本的
+            // 契约路径，见 test_tmp 模块文档。
             // 独立子目录（与 green_homophone 同款）：微型语法模型按
-            // 「DB 同目录」发现，副本若落 test-tmp 顶层，A/B 暂存的
-            // x1grammar.bin 会被其它并行测试的顶层裸副本互见（污染对照组臂）。
+            // 「DB 同目录」发现，副本若落 test-tmp 顶层，A/B 暂存的 x1grammar.bin
+            // 会被其它并行测试的顶层裸副本互见（污染对照组臂）。
             let dir = crate::test_tmp::dir().join(format!(
                 "x1_eval_baseline_{}_{}",
                 std::process::id(),
@@ -223,10 +225,10 @@ pub(crate) mod tests {
             .and_then(|c| c.execute("VACUUM INTO ?1", rusqlite::params![&dst_str]))
             .is_ok();
             if copied {
-                // 微型语法模型按「DB 同目录」发现：评测副本默认不带模型 =
-                // 引擎降级回退 legacy——A/B 验收微模型臂必须显式带过去
-                // （X1_EVAL_GRAMMAR_MODEL 指向 x1grammar.bin），与
-                // green_homophone 的暂存同款；不设 env 的普通跑保持历史口径。
+                // 微型语法模型按「DB 同目录」发现：
+                // 评测副本默认不带模型 = 引擎降级回退 legacy——A/B 验收微模型臂
+                // 必须显式带过去（X1_EVAL_GRAMMAR_MODEL 指向 x1grammar.bin），
+                // 与 green_homophone 的暂存同款；不设 env 的普通跑保持历史口径。
                 if let Ok(src_model) = std::env::var("X1_EVAL_GRAMMAR_MODEL") {
                     let dst_model = dir.join("x1grammar.bin");
                     if std::fs::copy(&src_model, &dst_model).is_ok() {
@@ -253,8 +255,8 @@ pub(crate) mod tests {
                 Engine::new()
             }
         };
-        // 智能单词识别关闭：英文候选会挤占 Top1 位次，评测保持
-        // 「纯中文候选」口径——基线连续可比。
+        // 智能单词识别关闭：英文候选会挤占 Top1 位次，评测保持「纯中文
+        // 候选」口径——Top1 64.8% 基线连续可比。
         engine.set_smart_word_zh_enabled(false);
         engine
     }
@@ -539,9 +541,11 @@ pub(crate) mod tests {
     /// 即存在一种切分，把 expected 切成若干词库词条（含单字），各词条拼音
     /// 连写恰好等于 input。违反此不变量的条目**任何算法都无法答对**（要么
     /// 输入漏了音节，要么期望句多字/错字），计入 Top1 分母只会压低评测数字、
-    /// 掩盖真实改进——与语料纪律守护同属评测可信度守护。
+    /// 掩盖真实改进——同属"语料纪律"的评测可信度守护。
     ///
-    /// 修正一律落在 input 侧（期望句是标注真值）。
+    /// 典型违规形态：input 侧漏字母/漏音节（nixianmangma→你现在忙吗 少 zai）、
+    /// 期望句多字（你现在在哪里 多一个「在」）、音近错打（benben→版本 应为
+    /// banben）等——期望句是标注真值，一律修正 input 侧。
     ///
     /// 该检查是**冷启动视角**（只查种子词库，不含用户词）——语料本身按
     /// 冷启动设计，用户词只在个人评测回放里出现。

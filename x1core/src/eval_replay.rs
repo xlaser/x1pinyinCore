@@ -5,11 +5,11 @@
 //! 「用户当时选的词，现在的引擎能不能直接排第一？」
 //!
 //! 与 eval_baseline（150 句固定语料）的区别：固定语料测的是算法冷启动质量，
-//! 行为回放测的是**真实使用中的引擎表现**——调行为类参数（绿词采纳门槛、
+//! 行为回放测的是**真实使用中的引擎表现**——调行为类旋钮（绿词采纳门槛、
 //! freq_ratio 误选守卫等）应以本工具的指标为准，固定语料测不出这些。
 //!
-//! 噪音过滤：真实日志混有少量非意图事件（选错→删除重打的中间态、教学
-//! 连击、天马行空白造词）。过滤器三原则：
+//! v2 噪音过滤：真实日志混有 ~6% 非意图事件（选错→删除重打的
+//! 中间态、教学连击、天马行空白造词）。过滤器三原则：
 //! ① 只标记**高置信噪音**（只有一种合理解释的模式，宁可漏杀不可错杀）；
 //! ② **标记分段而非删除**——全集/干净集/噪音集三栏并列，过滤改变可见；
 //! ③ **审计清单全量落盘**——被标记事件逐条列出供人工否决。
@@ -23,13 +23,13 @@
 //! 环境变量：
 //! - `X1_REPLAY_LOG`：selections.jsonl 路径（默认用户数据目录：macOS =
 //!   ~/Library/Application Support/x1pinyin，Windows = %APPDATA%\x1pinyin）
-//! - `X1_REPLAY_DB`：回放用 DB（默认复制用户 DB 到临时目录后用副本——绝不直接打开
+//! - `X1_REPLAY_DB`：回放用 DB（默认复制用户 DB 到系统临时目录后用副本——绝不直接打开
 //!   活动 DB，避免锁冲突/迁移写入风险；**A/B 对比必须显式固定此变量**，
 //!   否则活动 DB 漂移会造成假差异）
 //! - `X1_REPLAY_CHAIN`：1（默认）= 链式回放（按 ts 顺序，把前序 picked_text 推进
 //!   context，5 分钟间隔算新会话）；0 = 每条独立冷上下文
 //!
-//! 已知保真边界：日志的 context 字段恒为空（宿主端未记录）→ 上下文
+//! 已知保真边界（v1 不处理）：日志的 context 字段恒为空（记录端未写入）→ 上下文
 //! 靠链式重建（真实打字的近似）；引擎用默认 fuzzy/correction 配置（与用户偏好
 //! 可能有出入）；日志里混有极少数非拼音 input（符号提交等）会进 absent 统计。
 //! 测量工具不 assert 阈值（同 eval_baseline），JSON 落盘系统临时目录
@@ -40,7 +40,7 @@ mod tests {
     use crate::engine::Engine;
 
     /// x1 用户数据目录（跨平台：Windows = %APPDATA%\x1pinyin，macOS =
-    /// ~/Library/Application Support/x1pinyin，与宿主端解析保持一致）。
+    /// ~/Library/Application Support/x1pinyin）。
     fn x1_data_dir() -> std::path::PathBuf {
         if cfg!(windows) {
             std::env::var_os("APPDATA")
@@ -52,7 +52,7 @@ mod tests {
         }
     }
 
-    /// 回放 JSON 输出路径（系统临时目录，跨平台一致）。
+    /// 回放 JSON 输出路径（系统临时目录）。
     fn eval_json_path() -> std::path::PathBuf {
         std::env::temp_dir().join("x1_eval_replay.json")
     }
@@ -153,7 +153,7 @@ mod tests {
         flags
     }
 
-    /// 极简 JSON 字段提取（selections.jsonl 是宿主端手工拼接的扁平结构，
+    /// 极简 JSON 字段提取（selections.jsonl 是手工拼接的扁平结构，
     /// 无嵌套同名键冲突：input/picked/picked_text/ts 都是顶层键，candidates/features
     /// 数组内只有 text/freq/pinyin 不冲突）。逐字段定位 + 字符串 unescape，
     /// 比引入 serde_json 依赖更轻（x1core 保持零多余依赖）。
@@ -386,14 +386,13 @@ mod tests {
         let chain = std::env::var("X1_REPLAY_CHAIN").unwrap_or_else(|_| "1".to_string()) != "0";
 
         // DB：默认复制用户 DB 到临时目录用副本（绝不直接打开活动用户 DB——
-        // 避免与运行中的输入法宿主进程锁冲突，也避免引擎构造期的迁移写入污染真库）。
-        // A/B 对比时必须显式 export X1_REPLAY_DB 固定副本，否则活动 DB
-        // 漂移会造成假差异。
+        // 避免与运行中的输入法进程锁冲突，也避免引擎构造期的迁移写入污染真库）。
+        // A/B 对比时必须显式 export X1_REPLAY_DB 固定副本（DB 漂移陷阱）。
         let db_path = std::env::var("X1_REPLAY_DB").unwrap_or_else(|_| {
-            // 候选源：合并布局用户库 → 分离布局 dict.db（双库分离布局下
-            // x1pinyin.db 不存在）→ 仓库种子。**一律复制副本再打开**——
-            // Storage::open 会把种子转 WAL 并写入迁移标记，直接打开
-            // 种子路径会改写源文件。
+            // 候选源：合并布局用户库 → 分离布局 dict.db（分离布局下 x1pinyin.db
+            // 不存在）→ 仓库种子。**一律复制副本再打开**——旧版在合并库缺失时
+            // 直接返回 assets 种子路径，Storage::open 会把交付种子转 WAL 并写入
+            // 迁移标记。
             let data_dir = x1_data_dir();
             let candidates = [
                 data_dir.join("x1pinyin.db"),
@@ -443,8 +442,8 @@ mod tests {
                 return;
             }
         };
-        // 智能单词识别关闭：行为回放测中文候选行为，
-        // 英文候选会改变候选位次——与 eval_baseline 同口径关闭。
+        // 智能单词识别关闭：行为回放测中文候选行为，英文候选会改变候选位次——
+        // 与 eval_baseline 同口径关闭。
         engine.set_smart_word_zh_enabled(false);
 
         // 三栏统计：全集 / 干净集 / 噪音集（防线二：过滤改变可见）

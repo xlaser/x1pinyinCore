@@ -6,7 +6,7 @@
 use core::str;
 use std::collections::HashMap;
 
-/// 统一拼音查询的 Token 类型
+/// 统一拼音查询的 Token 类型（统一混合拼音查询）
 ///
 /// 把任意输入切成 Token 序列，让全拼/纯简拼/混合简拼走同一套查询逻辑。
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -91,19 +91,20 @@ pub fn is_valid_syllable_pub(s: &str) -> bool {
 ///
 /// 语义：存在以 `prefix` 开头的有效音节 s，使 `input` 以 s 开头（zhongguo 的
 /// zhong），或 `input` 本身是 s 的前缀（zho 打向 zhong 的中间态）。
-/// 用于混合声母路由（`Engine::is_hybrid_shengmu_input`）：不满足即 input
+/// 用于混合声母路由（`Engine::is_hybrid_shengmu_input`）：**不满足**即 input
 /// 的前两字母只能是简拼声母（zhgrm 的 zh）。
 ///
-/// 判据需精确区分「zh 是全拼音节开头」（zhonggrm 放行全拼）与「zh 是完成
-/// 声母」（zhgrmjfjxa 归混合）——若按「zh 之后不得含元音」粗判，会把 a/e/o
-/// 首字母（西安=xa）的合法简拼整体误拒，掉进纯简拼路径按逐字母拆读。
+/// 修复 zhgrmjfjxa 塌陷家族：旧路由判据「zh 之后不得含元音」
+/// 把 a/e/o 首字母（西安=xa）的合法简拼整体误拒 → 掉纯简拼路径按逐字母拆读。
+/// 本判据精确区分「zh 是全拼音节开头」（zhonggrm 放行全拼）与「zh 是完成
+/// 声母」（zhgrmjfjxa 归混合）。
 pub fn is_syllable_initial_prefix(prefix: &str, input: &str) -> bool {
     VALID_SYLLABLES
         .iter()
         .any(|s| s.starts_with(prefix) && (input.starts_with(s) || s.starts_with(input)))
 }
 
-/// 判断一个有效音节是否为零声母音节（不以辅音声母开头）。
+/// 判断一个有效音节是否为**零声母音节**（不以辅音声母开头）。
 ///
 /// 拼音里零声母音节有两类书写形式：
 /// 1. 纯韵母：a/ai/an/ang/ao/e/ei/en/eng/er/o/ou
@@ -116,8 +117,8 @@ pub fn is_syllable_initial_prefix(prefix: &str, input: &str) -> bool {
 /// 非零声母尾部（如 duanlian 的 lian，l 声母）不会命中，保护完整音节不被误拆。
 ///
 /// 前缀词收割系统化后，橙词补充零声母尾部补查已泛化为任意尾
-/// （本函数唯一生产调用点已移除）——保留作拼音工具（历史语义文档 + 潜在
-/// 复用：诊断/宿主前端侧），#[allow] 防误删。
+/// （本函数唯一生产调用点移除）——保留作拼音工具（历史语义文档 + 潜在
+/// 复用：诊断/TSF 侧），#[allow] 防误删。
 #[allow(dead_code)]
 pub fn is_zero_initial_syllable(s: &str) -> bool {
     if !is_valid_syllable_pub(s) {
@@ -149,9 +150,9 @@ pub fn normalize_syllable(s: &str) -> &str {
         "lue" => "lve",
         "nue" => "nve",
         // j/q/x/y 后：v → u（jv→ju, qv→qu, xv→xu, yv→yu）。
-        // yv 必须归一：多套双拼方案 yu 的规范编码以
+        // yv 是双拼补漏：7 套双拼方案 yu 的规范编码都以
         // 「声母 y + ü 键」结尾（小鹤 yv、微软 yy、紫光 yx），VALID_SYLLABLES
-        // 只有 yu 没有 yv → 不归一则这些方案打不出 yu（雨/语/鱼/与/玉/于…）。
+        // 原来只有 yu 没有 yv → 全部打不出 yu（雨/语/鱼/与/玉/于…）。
         "jv" => "ju",
         "qv" => "qu",
         "xv" => "xu",
@@ -241,13 +242,13 @@ pub fn parse_pinyin(input: &str) -> PinyinSeq<'_> {
     }
 }
 
-/// 切分语义参数（统一核心 DFS 用）。
+/// 切分语义参数。
 ///
-/// 背景：segmentations / segmentations_with_partial / segmentations_tokens 共享
-/// 同一 DFS 核心，差异仅两点（第三处 Shengmu 条件
+/// 历史：segmentations / segmentations_with_partial / segmentations_tokens 是
+/// 同一 DFS 枚举的三份重复实现，差异仅两点（第三处 Shengmu 条件
 /// 漂移已在统一中修复——以 tokens 的「有后续 token 或紧邻前是 Full」为准）：
 /// - 单字符有效音节（a/e/m/o）：全拼语义算 Full，混合语义算 Initial（tokens
-///   的「单字符严格等于首字母」决策，spec §2.2）。两套语义分别对应全拼/混合
+///   的「单字符严格等于首字母」决策）。两套语义分别对应全拼/混合
 ///   两个消费场景，是设计差异而非 bug，用参数表达。
 /// - 是否允许不完整音节（单字符声母 + zh/sh/ch 双字符声母）。
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -278,19 +279,19 @@ const SEG_TOKENS: SegmentOptions = SegmentOptions {
 ///
 /// 切分 DFS 按字节逐级递归（每层前进 1 字节），递归深度 = 输入字节数，
 /// 且 memo 每个位置物化最多 max 条完整切分（O(N²) token 内存）。
-/// 实测 ~2KB 输入即耗尽 1MB 线程栈（栈溢出 = SIGSEGV，
+/// 实测：~2KB 输入即耗尽 1MB 线程栈（栈溢出 = SIGSEGV，
 /// catch_unwind 无法拦截）。正常拼音输入（含长地址句子）远不到 256 字节，
 /// 超限输入按「无法切分」处理（空结果），调用方走各自的兜底路径。
 pub const MAX_INPUT_BYTES: usize = 256;
 
-/// 枚举输入切分的单一核心 DFS。
+/// 枚举输入切分的**单一核心 DFS**。
 ///
 /// 产出 Token 序列（Full/Initial/Shengmu 三态，信息最全）。三个公开 API 是它的
 /// 薄包装：segmentations/with_partial 投影为 &str 序列（tokens_to_strs），
 /// segmentations_tokens 直接返回。分支顺序（决定结果排序）：Full（长到短）→
 /// Shengmu（zh/sh/ch）→ Initial（单字符兜底），与历史实现逐位一致；Shengmu
-/// 放行条件统一为「有后续 token 或紧邻前是 Full」（消除 with_partial 与 tokens
-/// 的条件漂移——with_partial 注释声称与 tokens 一致，实现却缺放行路径）。
+/// 放行条件统一为「有后续 token 或紧邻前是 Full」（修复 with_partial 与 tokens
+/// 的条件漂移——原 with_partial 注释声称与 tokens 一致但实现缺放行路径）。
 // 嵌套 dfs 的 `input` 形参只随递归下传（token 切片需要 &str 来源）；
 // 参数级 lint 只能由最外层 item 的 allow 覆盖（挂 dfs 自身不生效）。
 #[allow(clippy::only_used_in_recursion)]
@@ -334,19 +335,20 @@ fn segment_tokens_with_opts(
         }
 
         // 分支清单（顺序契约不变：Full 长到短 → Shengmu → Initial）。
-        // 分支配额保留（结构性护栏）：贪长分支的退化子树产出条数随串长乘法
-        // 增长（reng|u|o 类误并 + 单字符兜底续命），远超 max 把名额吃光 → 正解
-        // 兄弟（如 ren）一条都进不了枚举。纯扩 cap 永远追不上（b 尾 512 够、
-        // zh 尾 2048 才够、16 音节+简拼尾再爆）→ 改为 Full 兄弟间让位：同层
-        // 每个长度档保证至少 1 条名额（reserve = 剩余 Full 兄弟数），贪长档
-        // 至多用 max − reserve 条；兄弟档的第一条即其贪长最优切分（正解所在，
+        // 分支配额保留（结构性修复）：
+        // 贪长分支的退化子树产出条数随串长**乘法增长**（reng|u|o 类误并 +
+        // 单字符兜底续命），远超 max 把名额吃光 → 正解兄弟（如 ren）一条都
+        // 进不了枚举。纯扩 cap 永远追不上（b 尾 512 够、zh 尾 2048 才够、
+        // 16 音节+简拼尾再爆）→ 改为 **Full 兄弟间让位**：同层每个长度档
+        // 保证至少 1 条名额（reserve = 剩余 Full 兄弟数），贪长档至多用
+        // max − reserve 条；兄弟档的**第一条**即其贪长最优切分（正解所在，
         // 由调用方打分竞争选中：正解 1000+ 分 vs 垃圾延续全 0 分）。
-        // 让位只对 Full 兄弟计算，Shengmu/Initial 分支不预留名额：
-        // 它们在同层是「另起炉灶」而非同一路线的替代最优——预留会把
-        // zh|o|n|g|fan|… 这类重开头的伪切分放进枚举，
+        // 让位**只对 Full 兄弟**计算，Shengmu/Initial 分支不预留名额：
+        // 它们在同层是「另起炉灶」而非同一路线
+        // 的替代最优——预留会把 zh|o|n|g|fan|… 这类重开头的伪切分放进枚举，
         // 高频单字堆分压过正解（zhongfanzuohaole 1022>1020，两条例句整句
         // 候选消失）；旧行为本就只在 Full 系产不满 max 时才轮到它们。
-        // 非退化态行为逐位不变：所有分支实际产出总和 ≤ max 时配额不触发。
+        // **非退化态行为逐位不变**：所有分支实际产出总和 ≤ max 时配额不触发。
         let min_full_len = if opts.allow_single_char_full { 1 } else { 2 };
         let full_cands: Vec<&str> = (min_full_len..=max_len)
             .rev()
@@ -394,7 +396,7 @@ fn segment_tokens_with_opts(
 
         // Shengmu 分支：zh/sh/ch（仅 allow_partial 语义启用——segmentations
         // 全有效语义无此分支，zh 不是有效音节）。
-        // 放行条件（全语义统一）：
+        // 放行条件：
         // ① 有后续 token（zhgrm → [Shengmu(zh), I(g), I(r), I(m)]）；
         // ② 末尾但紧邻前面是 Full（guangzh → [Full(guang), Shengmu(zh)]，
         //    「广州」可达）。纯简拼末尾（zh 单独 / 前一个 token 是 Initial 或
@@ -492,7 +494,7 @@ pub(crate) fn tokens_to_strs<'a>(input: &'a str, tokens: &[Token<'a>]) -> Vec<&'
 /// "xian" → ["xian"] 和 ["xi", "an"]。
 /// 若输入含不完整音节（如 "muq"），返回空 Vec，调用方应回退到 `parse_pinyin`。
 ///
-/// 实现：统一核心 `segment_tokens_with_opts` 的薄包装
+/// 实现为统一核心 `segment_tokens_with_opts` 的薄包装
 /// （SEG_FULL_ONLY：全有效 + 单字符有效音节算 Full），行为逐位不变
 /// （等价性由 test_segmentations_matches_core_projection 对拍守护）。
 pub fn segmentations(input: &str, max_results: usize) -> Vec<Vec<&str>> {
@@ -513,10 +515,10 @@ pub fn segmentations(input: &str, max_results: usize) -> Vec<Vec<&str>> {
 ///
 /// 全有效音节切分（如果存在）排在前面，含不完整音节的切分排在后面。
 ///
-/// 实现：统一核心 `segment_tokens_with_opts` 的薄包装
+/// 实现为统一核心 `segment_tokens_with_opts` 的薄包装
 /// （SEG_PARTIAL：全拼 + 不完整音节）。
-/// 行为变化点（修复 Shengmu 条件漂移）：zh/sh/ch 放行条件对齐 tokens——
-/// 「有后续 token 或紧邻前是 Full」（早期实现仅「紧邻前是 Full」，注释却自称
+/// **行为变化点（修复 Shengmu 条件漂移）**：zh/sh/ch 放行条件对齐 tokens——
+/// 「有后续 token 或紧邻前是 Full」（原实现仅「紧邻前是 Full」，注释却自称
 /// 与 tokens 一致）。实际受影响输入仅「非简拼 + 非 zh/sh/ch 开头 + 含
 /// zh/sh/ch + 有后续 token」的边缘混合（如 guzhx → 现含 [gu,zh,x] 切分，
 /// 声母组合更合理；xzhg 类被 is_jianpin 分流截走，生产路径基本不可达）。
@@ -528,18 +530,18 @@ pub fn segmentations_with_partial(input: &str, max_results: usize) -> Vec<Vec<&s
 }
 
 /// 打字进行中形态的保底切分：「完整音节前缀 + 尾部未拼完字母」合成变体
-///（如 `dang…zhineng` 后多打一个下句首字母 `d` 的绿词消失场景）。
+/// （绿词消失修复：`dang…zhineng` + 多打一个下句首字母 `d`）。
 ///
-/// 背景：`segmentations`（全有效语义）对含不完整尾的输入整体返回空；
+/// 背景：`segmentations`（全有效语义）对含不完整尾的输入**整体返回空**；
 /// 含尾枚举（with_partial/tokens）的 DFS 名额又被贪长退化子树挤满——实测
 /// `dangnishiyongrengongzhinengd` 的正解 `…ren|gong|…`（1053 分）落在 cap 之外
-/// 从未被枚举，1039 分的 `…reng|o|n|g…`（reng 误并 + 单字符续命）胜出，
+/// **从未被枚举**，1039 分的 `…reng|o|n|g…`（reng 误并 + 单字符续命）胜出，
 /// best_syllables 垃圾化 → 整句 DP 无法组句 → 绿词整体消失。而「≥3 完整音节
-/// 前缀 + 1-2 个未拼完字母」正是长句逐键打字的恒常态，必须恒在候选切分里。
+/// 前缀 + 1-2 个未拼完字母」正是长句逐键打字的**恒常态**，必须恒在候选切分里。
 ///
-/// 做法：输入无法全有效切分时，找最长的可全有效切分前缀，尾部字母逐段追加
-///（贪心最长有效音节优先——尾部已敲完整的音节整段；无有效音节开头时
-/// zh/sh/ch 双字母声母一段，其余单字母一段），合成保底变体。
+/// 做法：输入无法全有效切分时，找**最长的可全有效切分前缀**，尾部字母逐段追加
+///（贪心最长有效音节优先——尾部已敲完整的音节整段；
+/// 无有效音节开头时 zh/sh/ch 双字母声母一段，其余单字母一段），合成保底变体。
 /// 打分层（score_for_syllables）把它与既有枚举变体同台竞争，正解分高自然胜出；
 /// 与既有变体重合时由调用方去重，零行为变化。
 ///
@@ -552,7 +554,7 @@ pub fn segmentations_prefix_tail(input: &str) -> Vec<Vec<&str>> {
         return Vec::new();
     }
     // 非 ASCII 输入不可能是拼音：先短路，避免下方按字节剥尾时切在
-    // UTF-8 字符内部（process("中") 曾在此处 panic）。
+    // UTF-8 字符内部（实测 process("中") panic）。
     if !input.is_ascii() {
         return Vec::new();
     }
@@ -581,12 +583,12 @@ pub fn segmentations_prefix_tail(input: &str) -> Vec<Vec<&str>> {
         if prefix_segs.is_empty() {
             continue;
         }
-        // 尾部逐段：贪心最长有效音节优先——尾部里
+        // 尾部逐段：**贪心最长有效音节优先**——尾部里
         // 已经敲完整的音节（pengbfzhan 的 zhan）必须整体成段，与候选链 token
-        // 语义（Full 整段）一致。若一律按声母/单字母拆会把 zhan 拆成
+        // 语义（Full 整段）一致。旧规则「一律按声母/单字母拆」把 zhan 拆成
         // zh|a|n：显示/计数/消费链数出 6 音节，而 4 字候选「蓬勃发展」只对应
         // 4 音节 →「选 4 字词只消费前 4 音节」在 zh 处截断 → 提交后残留 an
-        //（消费链同病）。
+        //（Windows consumed 同链同病）。
         // 无有效音节开头时才退化：zh/sh/ch 双字母声母一段（与 Shengmu 对齐，
         // guangzh 类形态合成 [guang, zh] 与既有枚举重合去重），其余单字母一段，
         // 单字母交给消费侧既有悬尾/简拼语义（partial tail 补字、initial 模式）。
@@ -631,15 +633,15 @@ pub fn segmentations_prefix_tail(input: &str) -> Vec<Vec<&str>> {
 ///
 /// Shengmu 生效条件：
 /// 1. 「声母+后续 token」场景（递归剩余非空）——zhgrm → [Shengmu(zh), I(g), I(r), I(m)]；
-/// 2. 末尾 Shengmu 且紧邻前面是 Full 音节（guangzh → [Full(guang), Shengmu(zh)]，
-///    「广州」可达）。若只允许条件 1，`guangzh` 的 zh 在末尾被拆成 I(z)+I(h)
-///    （广州会），「广州」永远不可达。
+/// 2. **末尾 Shengmu 且紧邻前面是 Full 音节**（guangzh → [Full(guang), Shengmu(zh)]，
+///    「广州」可达）。此前只允许条件 1，`guangzh` 的 zh 在末尾被拆成 I(z)+I(h)
+///    （广州会），「广州」永远不可达——「输入 guangzh 总出广州会」的根因。
 ///    条件 2 不放行纯简拼（`zh` 单独输入 prev=None → 仍拆 z+h，保「智慧」等
 ///    双首字母词）。
 /// 单字符一律归 Initial（不论是否 a/e/m/o 有效音节），这是「单字符严格等于首字母」
-/// 决策的体现（详见 spec §2.2）。
+/// 决策的体现。
 ///
-/// 实现：统一核心 `segment_tokens_with_opts` 的薄包装
+/// 实现为统一核心 `segment_tokens_with_opts` 的薄包装
 /// （SEG_TOKENS：混合语义 + 不完整音节），行为逐位不变
 /// （等价性由 test_tokens_unchanged 对拍守护）。
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
@@ -655,9 +657,9 @@ pub fn segmentations_tokens(input: &str, max_results: usize) -> Vec<Vec<Token<'_
     segment_tokens_with_opts(input, max_results, SEG_TOKENS)
 }
 
-/// 判断输入是否「看起来像打错了」（历史实现，已被 `is_legal_jianpin_mix` 取代）。
+/// 判断输入是否「看起来像打错了」（**历史实现，已被 `is_legal_jianpin_mix` 取代**）。
 ///
-/// 当前无生产调用方：智能纠错触发判定（`Engine::maybe_correct`）现使用
+/// **当前无生产调用方**：智能纠错触发判定（`Engine::maybe_correct`）现使用
 /// `segmentations` + `is_legal_jianpin_mix` 组合，本函数仅保留供测试对照
 /// （`test_is_likely_typo` 验证拼写错误特征识别能力，确保纠错路径不被破坏）。
 /// 两者判定逻辑相近但有差异：本函数基于「单字母分布特征」，新实现基于
@@ -667,8 +669,8 @@ pub fn segmentations_tokens(input: &str, max_results: usize) -> Vec<Vec<Token<'_
 /// 输入（如 `zhongg` = zhong+g，用户打「中国」简拼）也返回空，导致纠错误触发。
 ///
 /// 本函数用贪心 `parse_pinyin` 切分后，识别「真正像拼错」的特征：
-/// - 出现两个相邻的单字母音节（如 `hs`、`fs`）——不是合法声母组合；
-/// - 单字母音节夹在两个完整音节中间（如 `ni-h-sou` 的 h）——孤立字符。
+/// - 出现**两个相邻的单字母音节**（如 `hs`、`fs`）——不是合法声母组合；
+/// - 单字母音节**夹在两个完整音节中间**（如 `ni-h-sou` 的 h）——孤立字符。
 ///
 /// 正常的「完整音节 + 末尾声母」（如 `zhongg`/`beij`/`shangh`）只产生末尾
 /// 单字母，不算拼错，返回 `false`，纠错跳过。
@@ -712,7 +714,7 @@ pub fn is_likely_typo(input: &str) -> bool {
 /// 判断输入是否为简拼模式（每个字符独立作为首字母）
 ///
 /// 简拼判定标准：
-/// - 长度 ≥ 2（分类不设上限，见下）
+/// - 长度 ≥ 2（**分类不设上限**，无 6 字上限，见下）
 /// - 全部是小写 ASCII 字母
 /// - 任何连续两个字符都不能构成有效音节
 ///   （如果有连续字符能构成有效音节，说明用户在打全拼，如 "ai" 不是简拼）
@@ -720,26 +722,29 @@ pub fn is_likely_typo(input: &str) -> bool {
 /// 例如 "zw" → true，"agz" → true（a/g/z 任意两个连续都不能构成有效音节），
 /// "ai" → false（"ai" 是有效音节，用户在打全拼）。
 ///
-/// 无长度上限：长度上限判据与下方两条语义判据冗余且有害——真实全拼必含
-/// 元音（i/u 任意位置、a/e/o 非首位即拒），长度上限只会挡住"纯首字母长串"
-/// （如连输 7 个 z，前 6 个正常出词，第 7 个被踢出简拼路径 → 全拼路径切不出
-/// 有效音节 → 候选框完全断词）。混合声母路径（zh/sh/ch 开头，见
+/// **6 字上限移除（真机 bug）**：原实现 `len > 6` 强判非简拼，
+/// 与下方两条语义判据冗余且有害——真实全拼必含元音（i/u 任意位置、a/e/o
+/// 非首位即拒），长度上限只挡住"纯首字母长串"。实测缺陷：连输 7 个 z，
+/// 前 6 个正常出词，第 7 个被踢出简拼路径 → 全拼路径切不出有效音节 →
+/// 候选框完全断词（空列表）。混合声母路径（zh/sh/ch 开头，见
 /// `Engine::is_hybrid_shengmu_input`）本就无长度上限，纯简拼与之对齐。
-/// 分类不设限 ≠ 无护栏：算力大头各自有界——模糊展开笛卡尔积 ≤
-/// `MAX_JIANPIN_EXPANSIONS`（超限回退原串）、整句猜测 DP ≤ MAX_GREEN_CHARS
-/// 字母（`process_jianpin_inner` 内，超限跳过猜测但查词/单字照常）。
-/// 所以任意长度都不断词、也不会卡住单线程服务。
+/// **分类不设限 ≠ 无护栏**：算力
+/// 大头各自有界——模糊展开笛卡尔积 ≤ `MAX_JIANPIN_EXPANSIONS`（超限回退原串）、
+/// 整句猜测 DP ≤ MAX_GREEN_CHARS 字母（`process_jianpin_inner` 内
+/// 16→36，超限跳过猜测但查词/单字照常）。所以任意长度都不断词、
+/// 也不会卡住单线程服务。
 ///
-/// a/e/o 判据用「全拼前缀」测试：a/e/o 可作零声母音节（安/嗯/哦…）的首字母，
-/// 是合法简拼写法——西安=xa、西安科技=xakj，`zgrmjfjxa`（中国人民解放军西安）
-/// 必须走简拼。若按「a/e/o 非首位即非简拼」会把这类输入整条踢出简拼路径 →
-/// 候选塌成单字。但全拼中间态（zho→zhong、zhon）也长这样，不能一刀放宽——
-/// 改为两条判据取或：① 整串是某个全拼音节序列的前缀（含末音节半截，
-/// [`is_pinyin_prefix`]——zho/zhon/zong 命中，zgrmjfjxa 首字母无法成音节）；
-/// ② 整串嵌含 ≥2 字符完整音节（[`has_embedded_full_syllable`]——hdong=h+dong、
-/// zhonggr=zhong+g+r 这类「全拼+半截声母」混合形态；仅判据 ① 对 h 开头
-/// 整串解析不了，会把它们误判简拼塌成单字，故 ② 必不可少）。
-/// 两条都不命中才判简拼（zgrmjfjxa/xa/agz → 简拼）。
+/// **a/e/o 判据改「全拼前缀」测试（zgrmjfjxa）**：a/e/o
+/// 可作零声母音节（安/嗯/哦…）的首字母，是合法简拼写法——西安=xa、西安科技=
+/// xakj，`zgrmjfjxa`（中国人民解放军西安）必须走简拼。旧判据「a/e/o 非首位
+/// 即非简拼」把这类输入整条踢出简拼路径 → 候选塌成单字（同构参照实锤）。
+/// 但全拼中间态（zho→zhong、zhon）也长这样，不能一刀放宽——改为两条判据
+/// 取或：① 整串是某个全拼音节序列的前缀（含末音节半截，[`is_pinyin_prefix`]
+/// ——zho/zhon/zong 命中，zgrmjfjxa 首字母无法成音节）；② 整串嵌含 ≥2 字符
+/// 完整音节（[`has_embedded_full_syllable`]——hdong=h+dong、zhonggr=zhong+g+r
+/// 这类「全拼+半截声母」混合形态；首轮回归 5 测红后补入：前缀测试对 h 开头
+/// 整串解析不了，仅判据 ① 会把它们误判简拼塌成单字）。两条都不命中才判
+/// 简拼（zgrmjfjxa/xa/agz → 简拼）。
 pub fn is_jianpin(input: &str) -> bool {
     if input.len() < 2 {
         return false;
@@ -827,8 +832,9 @@ pub fn is_pinyin_prefix(chars: &[char]) -> bool {
 /// 服务对象：`hdong`（h+dong）、`zhonggr`（zhong+g+r）这类「全拼 + 半截
 /// 声母」混合形态——旧 a/e/o 判据（非首位即全拼）天然放它们走全拼路径，
 /// 前缀测试（[`is_pinyin_prefix`]）覆盖不到（h 开头整串解析不了）。
-/// 覆盖面由 `hdong`/`zhonggr`/`zhonggrm` 及消费链/诊断矩阵相关测试守护，
-/// 判据取「存在切分使每个元音字母都归入 ≥2 字符的完整音节，其余字符全是辅音」。
+/// 为 `hdong`/`zhonggr`/`zhonggrm`/consumed_lens/diag_matrix 场景补入，
+/// 判据取「存在切分使每个元音字母都归入
+/// ≥2 字符的完整音节，其余字符全是辅音」。
 ///
 /// 与「连续两字符成音节」检查无交集是此形态能触达本函数的原因：
 /// dong 的子串 do/on/ng 皆非音节（ong 族整体如此），pair 检查放行后
@@ -879,7 +885,7 @@ fn has_embedded_full_syllable(chars: &[char]) -> bool {
     go(chars, 0, false, &mut memo)
 }
 
-/// 为简拼生成可能的音节序列（未实现，保留为占位）。
+/// 为简拼生成可能的音节序列（**未实现，保留为占位**）。
 ///
 /// 简拼展开是组合爆炸问题（每个首字母对应多个声母/音节，笛卡尔积巨大），
 /// 实际引擎中采用更聪明的方式：在 `Dict::query_jianpin` 里直接用首字母前缀
@@ -899,7 +905,7 @@ mod tests {
 
     /// 配置契约对拍：segmentations 包装 == 核心(SEG_FULL_ONLY) 投影。
     ///
-    /// 包装就是「核心 + 固定参数 + 投影」的同义反复，本测试守护的是配置契约：
+    /// 包装就是「核心 + 固定参数 + 投影」的同义反复，本测试守护的是**配置契约**：
     /// 未来若有人改 SEG_FULL_ONLY 参数或改包装投影逻辑，这里立即失败——防止
     /// 「全有效语义」被意外混入 partial/混合语义。输入集覆盖全拼/分隔符/悬尾/
     /// 零声母/长句边界。
@@ -987,10 +993,10 @@ mod tests {
         }
     }
 
-    /// 行为增强点（Shengmu 条件漂移修复）：with_partial 的
+    /// 行为增强点（修复 Shengmu 条件漂移）：with_partial 的
     /// zh/sh/ch 放行条件对齐 tokens——「有后续 token 或紧邻前是 Full」。
-    /// xzhg（x 是 Initial，zh 后有 g）：仅按旧条件只有 [x,z,h,g]（zh 前非 Full 不放行），
-    /// 现含 [x,zh,g]（声母组合更合理，与 zhgrm 双试同款）。
+    /// xzhg（x 是 Initial，zh 后有 g）：旧实现仅 [x,z,h,g]（zh 前非 Full 不放行），
+    /// 新实现含 [x,zh,g]（声母组合更合理，与 zhgrm 双试同款）。
     #[test]
     fn test_shengmu_tail_alignment() {
         let segs = segmentations_with_partial("xzhg", 16);
@@ -1077,7 +1083,7 @@ mod tests {
     fn test_is_jianpin() {
         assert!(is_jianpin("zw"));
         assert!(is_jianpin("zgr"));
-        assert!(is_jianpin("zzzzzzz")); // 7 连 z（守护：不得引入 6 字上限导致断词）
+        assert!(is_jianpin("zzzzzzz")); // 7 连 z（断词 bug 守护：不得再有 6 字上限）
         assert!(is_jianpin("jgrmjsr")); // 8 首字母长串
         assert!(!is_jianpin("z")); // 太短
         assert!(!is_jianpin("zhongwen")); // 含元音（长度上限已移除，元音判据独立生效）
@@ -1085,7 +1091,7 @@ mod tests {
         assert!(!is_jianpin("123")); // 非字母
         assert!(!is_jianpin("ZW")); // 大写
 
-        // a/e/o 作简拼首字母（如 zgrmjfjxa 场景）：
+        // a/e/o 作简拼首字母（zgrmjfjxa 修复）：
         // 是合法简拼写法，但需与全拼中间态区分——判据 = 整串是否全拼前缀。
         assert!(is_jianpin("zgrmjfjxa")); // 中国人民解放军西安（xa=西安）
         assert!(is_jianpin("zgrmjfjxakj")); // ＋科技（a 中位，非末位）
@@ -1099,7 +1105,7 @@ mod tests {
         assert!(!is_jianpin("zhong")); // o 非首位 + 完整音节
         assert!(!is_jianpin("zhongg")); // 全拼+声母尾（g 是 ga… 半截 → 全拼前缀）
                                         // 「全拼 + 半截声母」混合形态不得误判简拼
-                                        //（hdong/zhonggr/zhonggrm——判据 ② has_embedded_full_syllable 守护）
+                                        // （hdong/zhonggr/zhonggrm——判据 ② has_embedded_full_syllable 守护）
         assert!(!is_jianpin("hdong")); // h + dong（活动类拍扁形态）
         assert!(!is_jianpin("zhonggr")); // zhong + g + r（中国人混合简拼）
         assert!(!is_jianpin("zhonggrm")); // zhong + g + r + m（中国人民）

@@ -1,4 +1,21 @@
-//! 切分选举误判守护：高频单词不得压过更自然的词组链。
+//! 切分选举误判守护（shougangeili 案例）。
+//!
+//! 病灶：`shougangeili` 在用户活库上出「首钢诶里」而不是「手感给力」——
+//! 切分选举用**最高单词频**定序，用户词「首钢」(1355) 压过「手感 767 +
+//! 给力 1028」这条两个词的链：
+//! - 当选 [shou,gang,ei,li]：1 个词跨度（首钢），选举分 1999
+//! - 备选 [shou,gan,gei,li]：2 个词跨度（手感/给力），选举分 1770
+//! DP 原本只在「含简拼位」或「解码为空」时仲裁，此场景两者都不满足 →
+//! DP 永远看不到 gan|gei 读法。
+//!
+//! 修复分两层（本文件守护）：
+//! 1. **仲裁触发**：当选读法的词跨度数 < 备选读法的词跨度数时也让 DP 裁决
+//!    （一个高频词压过更自然的词组链 = 选举不可信的签名）。对比基准：
+//!    nizaiganmane（当选 6 > 备选 3）与 wananle（2 > 1）都**不触发**，
+//!    保住既有定稿。
+//! 2. **记忆相对质量门**：green_memo / input_mappings 的记忆条目若词组链比
+//!    当前最优句更差，降级到候选末尾（保可达），不再无条件抢首位——一次
+//!    误选不该永久霸屏。
 
 use super::tests_query::{seed_copy, seed_copy_cleanup};
 use super::Engine;
@@ -29,10 +46,10 @@ fn top1(engine: &Engine, input: &str) -> String {
         .unwrap_or_default()
 }
 
-/// 核心：有了高频「首钢」词，`shougangeili` 仍必须解出「手感给力」。
+/// **核心**：有了高频「首钢」词，`shougangeili` 仍必须解出「手感给力」。
 ///
-/// 机制：若只按选举定序会被 首钢(1355) 拉向 gang|ei，DP 只看到该切分 →
-/// 首钢诶里；备选 gan|gei 的词跨度更多 → 触发仲裁 → DP 按语言证据选出
+/// 修复前：选举被 首钢(1355) 拉向 gang|ei，DP 只看到该切分 → 首钢诶里。
+/// 修复后：备选 gan|gei 的词跨度更多 → 触发仲裁 → DP 按语言证据选出
 /// 手感给力（手感/给力两个词）。
 #[test]
 fn test_high_freq_word_does_not_beat_better_word_chain() {
@@ -54,12 +71,12 @@ fn test_high_freq_word_does_not_beat_better_word_chain() {
     seed_copy_cleanup(&db);
 }
 
-/// 反例：当选读法词组链不劣于备选时不触发仲裁，既有结果不回归。
+/// 反例：当选读法词组链**不劣于**备选时不触发仲裁，既有定稿不回归。
 ///
 /// - `nizaiganmane`：当选 [ni,zai,gan,ma,ne] 词跨度 6 > 备选 3 → 不触发
-///   （既定期望「你在干嘛呢」）。
+///   （平局裁决定稿「你在干嘛呢」）。
 /// - `wananle`：当选 [wan,an,le] 跨度 2 > 备选 [wa,nan,le] 1 → 不触发
-///   （既定期望「晚安了」）。
+///   （仲裁收紧定稿「晚安了」）。
 #[test]
 fn test_arbitration_not_triggered_when_elected_chain_is_better() {
     let (db, engine) = seed_copy_engine("seg_chain_negative");
@@ -67,12 +84,12 @@ fn test_arbitration_not_triggered_when_elected_chain_is_better() {
     assert_eq!(
         top1(&engine, "nizaiganmane"),
         "你在干嘛呢",
-        "nizaiganmane 既有结果不回归（当选链更优，不仲裁）"
+        "nizaiganmane 定稿不回归（当选链更优，不仲裁）"
     );
     let wan = top1(&engine, "wananle");
     assert!(
         wan.starts_with("晚安"),
-        "wananle 既有结果不回归（当选链更优，不仲裁），实际 {wan}"
+        "wananle 定稿不回归（当选链更优，不仲裁），实际 {wan}"
     );
 
     seed_copy_cleanup(&db);
@@ -85,11 +102,11 @@ fn seed_copy_engine(tag: &str) -> (String, Engine) {
     (db, engine)
 }
 
-/// 记忆相对质量门：误选留下的记忆条目（链路更差）不应压过更自然的整句。
+/// **记忆相对质量门**：误选留下的记忆条目（链路更差）不应压过更自然的整句。
 ///
 /// 直接注入 green_memo（不经 commit，隔离掉「commit 会同时学习子词 bigram」
 /// 这个副作用——那是另一条设计语义）：条目「首钢诶里」词组链只有 1 个多字段，
-/// 而 DP 最优句「手感给力」有 2 个 → 条目不抢首位，但保留可达（末尾仍在）。
+/// 而 DP 最优句「手感给力」有 2 个 → 条目不抢首位，但**保留可达**（末尾仍在）。
 #[test]
 fn test_memo_with_weaker_chain_does_not_pin_bad_sentence() {
     let (db, mut engine) = engine_with_shougang("seg_chain_memo");
@@ -144,11 +161,11 @@ fn test_legit_memo_still_lifts_to_front() {
     seed_copy_cleanup(&db);
 }
 
-/// 同长白词在场时绿词不展示。
+/// **同长白词在场时绿词不展示**。
 ///
 /// 场景：`haowuyc` → 「毫无用处（白）+ 好物因此（绿）」，绿词扎眼。
 /// 120 个「4 字整词 + 尾段简拼」构造样本实测：有同长白词时 74 例绿词被压到
-/// 第 2 位，74/74 的 top1 白词都是该输入对应的真实词，绿词全是
+/// 第 2 位，**74/74 的 top1 白词都是该输入对应的真实词**，绿词全是
 /// 「是一政策 / 网络电视 / 农家出租」这类碎片拼凑。判据：同长白词在场 =
 /// 这条绿词没有额外信息量（同一串音节必然也能被拆成「词+虚字」的碎片链）。
 ///
@@ -210,14 +227,14 @@ fn test_learned_green_still_reachable_despite_same_length_white() {
     seed_copy_cleanup(&db);
 }
 
-/// reading_preference_cmp 全序回归守护。
+/// reading_preference_cmp 全序回归守护（172k 语料 learn panic 修复）。
 ///
-/// 若选择史层带成对 20× 词频守卫，三切分下 A/B、B/C、A/C 各自判定可成环
-/// （sort_by 全序违规 panic，等价于用户积累 input_mappings 后打字崩溃）。
-/// 证据键 = 纯逐侧函数（bigram, 谱地板门控 counts），本测试钉住两个
-/// 不变量：①裁决对称（A<B ⇔ B>A）；②等键（无证据）返回 None 回退
+/// 原实现的选择史层带**成对** 20× 词频守卫，三切分下 A/B、B/C、A/C 各自判定
+/// 可成环（sort_by 全序违规 panic，用户积累 input_mappings 后打字即触发）。
+/// 修复后证据键 = 纯逐侧函数（bigram, 谱地板门控 counts），本测试
+/// 钉住两个不变量：①裁决对称（A<B ⇔ B>A）；②等键（无证据）返回 None 回退
 /// 窗口/结构层。谱地板（freq≥500 才计选择史）的逐侧门控同时保住
-/// 反感 997/方案 3455 同谱段的选择史照常生效。
+/// 裁决案例（反感 997/方案 3455 同谱段，选择史照常生效）。
 #[test]
 fn test_reading_preference_symmetry_and_none_on_equal_evidence() {
     let (db, mut engine) = seed_copy_engine("reading_pref_totality");
@@ -249,7 +266,7 @@ fn test_reading_preference_symmetry_and_none_on_equal_evidence() {
     seed_copy_cleanup(&db);
 }
 
-/// consumed_lens 规则③：备选切分的词级候选
+/// consumed_lens 规则③（bendana 案例）：备选切分的词级候选
 /// （笨蛋 = ben dan ⊂ bendana，橙词「词+零声母语气词」模式）必须按自身
 /// 读音消费 6 字节、留 "a" 继续组词——不得被选举切分边界（ben+da=5）截短
 /// 成残留 "na"。规则②既有行为由 max() 构造保证零变化（只延长不缩短），
@@ -299,7 +316,7 @@ fn test_consumed_prefix_cross_segment_word() {
     seed_copy_cleanup(&db);
 }
 
-/// zhenbena 语气词整句绿词（不加撇号也要能组出「真笨啊」）：
+/// zhenbena 语气词整句绿词（「不加撇号组不出 真笨啊」案例）：
 /// 裸尾单字母零声母音节两可（半截长音节 jisua→an / 语气词 真笨+啊）——
 /// 主路补字预览不动，第二路 DP 共存合并必须产出全消费整句（珍本啊/真笨啊
 /// 平分 100:100，任意一条在列即过；选一次即由个人统计定序）。jisua 的
@@ -367,7 +384,7 @@ fn test_display_segmentation_tracks_extension_word() {
     seed_copy_cleanup(&db);
 }
 
-/// ssef 简拼整词（「似是而非」应可达）：is_jianpin 判非简拼
+/// ssef 简拼整词（「似是而非」不可达案例）：is_jianpin 判非简拼
 /// （se 是音节）→ 混合读法绿词压过真词。补充规则：每字母一字的简拼整词作为
 /// 白词竞争读法并入 + 消费走规则④（首字母串==输入 → 全消费）。
 #[test]
@@ -397,7 +414,7 @@ fn test_ssef_jianpin_whole_word() {
     seed_copy_cleanup(&db);
 }
 
-/// 混合声母显示/计数/消费同源（zhgrm 选「中国人民」曾残留 m）。
+/// 混合声母显示/计数/消费同源（zhgrm 选「中国人民」残留 m 案例）。
 ///
 /// 候选链把 zh 当一个 Shengmu 单位（zh|g|r|m = 4），显示/计数/消费若仍按
 /// is_jianpin 的逐字符语义（z|h|g|r|m = 5），4 字候选就会被误判为分步，
@@ -549,10 +566,10 @@ fn test_jianpin_apostrophe_white_words_and_consumption() {
     );
 }
 
-/// 词性语法模型：的/地/得 上下文裁决。
+/// 词性语法模型：的/地/得 上下文裁决（PFR 侧表）。
 ///
 /// 种子随包带 `x1dict_pos` / `x1func_ctx`。lift 口径：`(a,v)` 语境下
-/// 地 的 lift 远高于的（语料：地 3948 / 的 12771，但的全局占比 ~96%），
+/// 地 的 lift 远高于的（PFR：地 3948 / 的 12771，但的全局占比 ~96%），
 /// 所以“认真 地 思考 / 用力 地 推”应翻到首位；“认真 的 态度”保持的。
 #[test]
 fn test_grammar_de_di_on_seed() {
@@ -568,7 +585,7 @@ fn test_grammar_de_di_on_seed() {
     seed_copy_cleanup(&db);
 }
 
-/// 词级上下文（DP 用整词“我在/我再”时也要能翻）。
+/// 在/再 词级上下文（DP 用整词“我在/我再”时也要能翻）。
 #[test]
 fn test_grammar_zai_qu_on_seed() {
     let db = seed_copy("grammar_zai");

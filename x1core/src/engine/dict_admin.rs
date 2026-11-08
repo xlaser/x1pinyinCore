@@ -15,7 +15,7 @@ impl crate::engine::Engine {
     /// - 删除的词 → `delete_user_words_batch`
     ///
     /// 若未启用 SQLite（`new()` 创建），则空操作。
-    /// 由宿主前端定时器 / 退出时调用，热路径不直接写磁盘。
+    /// 由调用方定时器 / 退出时调用，热路径不直接写磁盘。
     /// 最近一次 flush 的分段耗时（`阶段=ms` 空格分隔；无记录返回空串）。
     /// 诊断 API：卡顿排查需要知道耗时花在哪个阶段。
     pub fn flush_breakdown(&self) -> String {
@@ -28,10 +28,10 @@ impl crate::engine::Engine {
 
     pub fn flush(&mut self) -> Result<(), rusqlite::Error> {
         if let Some(storage) = &mut self.storage {
-            // 分段计时：定位落盘耗时花在哪一段
+            // 分段计时：定位 88ms 落盘耗时花在哪一段
             let mut bd: Vec<(&'static str, u128)> = Vec::new();
             let mut t_bd = std::time::Instant::now();
-            // 早退判据含模型层脏标记：bigram/trigram 的
+            // 早退判据含模型层脏标记（增量落盘）：bigram/trigram 的
             // 变化记在 freq/trigram 自己的 dirty 上——只看 Engine::dirty 会让
             // 「仅模型层变化」（如 forget_bigram）的增量静默不落盘。
             if !self.dirty
@@ -66,7 +66,7 @@ impl crate::engine::Engine {
             }
 
             // 先删除（失败回填——drain 后写库失败不得
-            // 丢增量，SQLITE_BUSY/磁盘抖动时本轮待删词会静默蒸发；回填后
+            // 丢增量，SQLITE_BUSY/磁盘抖动时本轮待删词曾静默蒸发；回填后
             // 下轮 flush 重试，dirty 未清保证重试必发生）
             if !self.pending_deletions.is_empty() {
                 let taken = std::mem::take(&mut self.pending_deletions);
@@ -80,7 +80,7 @@ impl crate::engine::Engine {
             // 读音替换清理（多读音合并补漏）：显式编辑（词库管理器）
             // 改拼音后，旧读音行必须删掉——内存 vec 是权威读音表，不在其中的行
             // 都是残留（此前只 upsert 新读音 → 同词两条、候选冒旧读音）。
-            // 在 upsert 之前执行：先清残留再写新值，中途失败时下一轮
+            // 在 upsert **之前**执行：先清残留再写新值，中途失败时下一轮
             // flush 重试（集合未清）。
             if !self.pending_reading_prune.is_empty() {
                 let taken = std::mem::take(&mut self.pending_reading_prune);
@@ -163,9 +163,9 @@ impl crate::engine::Engine {
             bd.push(("pinyin", t_bd.elapsed().as_millis()));
             t_bd = std::time::Instant::now();
             // 同步 bigram 共现统计（词级，用户真实意图数据）
-            // bigram 为增量落盘（避免上屏卡顿）：全量快照 replace 需要
-            // DELETE 全表 + 重插 7 万行 ≈ 200ms，挂在 Commit 请求路径上 =
-            // 每 60s 一次的某次上屏被拖慢。故用 diff 增量（典型数十行 →
+            // 增量落盘（上屏卡顿修复）：原为全量快照 replace
+            // （DELETE 全表 + 重插 7 万行 ≈ 200ms，挂在 Commit 请求路径上 =
+            // 每 60s 一次的某次上屏被拖慢）。改为 diff 增量（典型数十行 →
             // 个位数 ms）。deletes 覆盖 forget_bigram 的删除语义。
             // take 语义 + 失败回填：写盘失败时把增量放回 dirty，
             // 下次 flush 重试——与 pending_deletions 同款模式，绝不丢变化。
@@ -214,9 +214,9 @@ impl crate::engine::Engine {
 
             bd.push(("counts", t_bd.elapsed().as_millis()));
             t_bd = std::time::Instant::now();
-            // 持久化绿词采纳率统计：total/second 都跨会话累积，
-            // 比率分子分母同源——只持久化 total 会让 second 每次清零、
-            // 采纳率被系统性低估，按采纳率微调的动态门槛恒走单向收紧。
+            // 持久化绿词采纳率统计：total/second 都跨会话累积，让动态门槛
+            // （采纳率微调）的比率分子分母同源——只持久化 total 会让
+            // second 每次清零、采纳率被系统性低估，恒走「收紧」单向棘轮。
             let _ = storage.set_user_meta(
                 "green_total_picks",
                 &self.green_accept.total_green_picks.to_string(),
@@ -316,7 +316,7 @@ impl crate::engine::Engine {
                 .get(2)
                 .and_then(|s| s.parse::<u32>().ok())
                 .unwrap_or(1);
-            // 字数==音节数守卫（同 learn）：外部 TSV 的
+            // 字数==音节数守卫（重复上屏修复，同 learn）：外部 TSV 的
             // 错位拼音行（如「习惯惯」→"xi guan"）入 Trie 后挂在短音节键下，
             // 输入 "xiguan" 会把 3 字词当整词候选顶出（末字重复上屏根因）。
             if !super::user_word_pinyin_matches(&text, &pinyin) {
@@ -516,8 +516,9 @@ impl crate::engine::Engine {
 
     /// 从 storage 重新加载 X1Dict 并重建内存 Trie
     ///
-    /// rebuild_dict 内部已从 SQL 全量重建（系统词 + user_words），
-    /// 这里只需调 rebuild_dict。
+    /// 原版手动建 dict + clone base_dict + rebuild_dict 三步；去掉 base_dict 后
+    /// rebuild_dict 内部已从 SQL 全量重建（系统词 + user_words），这里只需调
+    /// rebuild_dict。
     pub fn reload_x1dict(&mut self) -> Result<(), rusqlite::Error> {
         self.rebuild_dict();
         Ok(())
@@ -540,7 +541,7 @@ impl crate::engine::Engine {
     /// 从 storage 重新加载用户词状态（导入/同步后使用）
     /// 以 DB 为准全量重载用户学习态（user_words/freq/input_mappings/黑名单）+
     /// 重建 Trie + 清 pending。词库管理工具改库后的服务端同步（Reload 请求）
-    /// 与单字清理路径共用。pending 丢弃是语义（防旧 upsert 盖掉刚落盘的
+    /// 与单字清理路径共用。**pending 丢弃是语义**（防旧 upsert 盖掉刚落盘的
     /// 删除，见服务端 Reload 注释）。
     pub fn reload_user_state(&mut self) -> Result<(), rusqlite::Error> {
         if let Some(storage) = &mut self.storage {
@@ -610,7 +611,7 @@ impl crate::engine::Engine {
         };
         if migrated {
             // 迁移改了 x1dict freq + 种子搭配表，必须重建内存状态
-            //（sync/restore 类写 DB 后立即 reload，否则整个会话用旧数据）。
+            // （sync/restore 类写 DB 后立即 reload，否则整个会话用旧数据）。
             let _ = self.reload_x1dict();
             // 种子 bigram 内存表同步重载（trigram 是按需 SQL 查询，自动新鲜，无需处理）。
             if let Some(storage) = &self.storage {
@@ -631,7 +632,7 @@ impl crate::engine::Engine {
 
     /// 检查是否需要从内置 DB 同步 x1dict_words。
     ///
-    /// 基于内容哈希判断，而非行数比较：
+    /// 基于**内容哈希**判断，而非行数比较：
     /// - 仅当内置 DB 的内容哈希与用户 DB 中记录的上次同步哈希不同时返回 `true`
     /// - 用户在词库管理器中对系统词的增删改不会改变内置 DB，因此不会误触发同步
     /// - 首次安装（用户 DB 无记录）返回 `true`
@@ -644,17 +645,18 @@ impl crate::engine::Engine {
     }
 
     /// 从内置词库同步 x1dict_words，保留 user_words 不变。
-    /// 同步完成后回填用户词中缺失的拼音，并立即重建内存状态（Trie + 种子 bigram）。
+    /// 同步完成后回填用户词中缺失的拼音，并**立即重建内存状态**（Trie + 种子 bigram）。
     /// 返回 true 表示成功。
     ///
-    /// 双通道：storage.sync 的 INSERT OR IGNORE 只补缺词、不更新已有词 freq——
-    /// 种子侧 freq 定标（多音字次音 / 词承载词频）也需传导到存量用户库。
-    /// 因此 sync 成功后追加
+    /// **双通道（补 freq 通道）**：storage.sync 的 INSERT OR IGNORE 只补
+    /// 缺词**不更新已有词 freq**——种子侧 freq 定标（多音字次音 / 词承载词频）对
+    /// 存量用户库的传导曾依赖手动脚本。现在 sync 成功后追加
     /// `restore_x1dict_freq_from`（按 (simplified,pinyin) 业务键 UPDATE freq/
     /// is_primary，不碰用户数据表），哈希门控下仅在种子内容变化的那次启动执行。
     /// 代价：restore 约 1-2s + 与 sync 共享同一次 Trie reload（不额外重建）。
     /// 注意：种子哈希变化时用户在词库管理器对系统词的 freq/is_primary 修改会被
-    /// 种子值覆盖（仅种子变更时执行，比每次启动都 restore 更温和）。
+    /// 种子值覆盖（与启动期 restore 的语义一致，且更温和——启动 restore 每次
+    /// 执行，这里仅种子变更时）。
     pub fn sync_x1dict_from_builtin(&mut self, builtin_path: &str) -> bool {
         let ok = match &mut self.storage {
             Some(storage) => {
@@ -673,11 +675,10 @@ impl crate::engine::Engine {
         };
         if ok {
             // sync 后必须立即重建内存状态。
-            // sync 调用方在主线程执行（与 process(&self) 同线程串行），
-            // reload 修改 engine 内存无并发竞争。
-            // 不 reload 的后果：部署更新后整个会话用旧词库——
-            // DB 磁盘已是新词库，但运行引擎内存 Trie 是 sync 前的旧版，
-            // 必须重启输入法进程才生效。
+            // 前提：sync 需在主线程执行（与 process(&self) 同线程串行），
+            // reload 修改 engine 内存才不会与查询竞争。
+            // 不 reload 的后果：DB 磁盘已是新词库，但运行引擎内存 Trie 是
+            // sync 前的旧版，必须重启输入法进程才生效（womashangdao 出「我妈伤道」）。
             // 代价：Trie 重建 ~300-400ms 主线程一次性 stall，仅 sync 发生（版本更新
             // 后首次启动）时付一次，远比整会话旧词库划算。
             let _ = self.reload_x1dict();
@@ -722,8 +723,8 @@ impl crate::engine::Engine {
     }
 
     // decay_input_mappings（×7/8 时间衰减）已废除（时间不进权重公式）。
-    // input_mappings 的「退化」由 competition.rs 整句层
-    //（CtxKey::Input）零和归一承担——未选中的 (input,text) 被分母稀释。
+    // input_mappings 的「退化」由 competition.rs 整句层（CtxKey::Input）
+    // 零和归一承担——未选中的 (input,text) 被分母稀释。
 
     /// 删除一条用户词（从内存用户词库、Trie、频率模型中同时删除）
     pub fn delete_user_word(&mut self, text: &str) {
@@ -739,12 +740,12 @@ impl crate::engine::Engine {
 
     /// 更新一条用户词的拼音和频率
     pub fn update_user_word(&mut self, text: &str, pinyin: &str, freq: u32) {
-        // 字数==音节数守卫（同 learn）：词库管理器编辑
+        // 字数==音节数守卫（重复上屏修复，同 learn）：词库管理器编辑
         // 拼音也可能造出错位条目，拒绝写入。
         if !super::user_word_pinyin_matches(text, pinyin) {
             return;
         }
-        // 显式编辑 = 用新读音替换该词全部读音（多读音共存下，管理器编辑语义
+        // 显式编辑 = 用新读音**替换**该词全部读音（多读音共存下，管理器编辑语义
         // 是"修正这个词"，不是追加）。
         self.user_words
             .insert(text.to_string(), vec![pinyin.to_string()]);
@@ -852,6 +853,8 @@ impl crate::engine::Engine {
     /// 设置双击故障判定阈值（毫秒，偏好设置滑块）。钳制到 30..1000
     /// 防止 preferences.json 被改成离谱值。键盘 bounce 典型 <50ms，
     /// 默认 100 是宽松界；调大 = 更容易判定为故障（更积极折叠）。
+    ///（时序检测恒活，折叠由纠错总闸+键盘误触子开关门控；
+    /// 原 set_double_fault_correction_enabled 已摘除。）
     pub fn set_double_fault_threshold_ms(&mut self, ms: u32) {
         self.double_fault_threshold_ms = ms.clamp(30, 1000);
     }
@@ -871,7 +874,7 @@ impl crate::engine::Engine {
     }
 
     /// 设置整句自动固化阈值（用户选过 N 次后自动固化，0=禁用）。
-    /// 宿主偏好设置通过 FFI 实时同步。
+    /// 偏好设置通过 FFI 实时同步。
     pub fn set_auto_solidify_threshold(&mut self, threshold: u32) {
         self.auto_solidify_threshold = threshold;
     }
@@ -893,7 +896,7 @@ impl crate::engine::Engine {
             self.freq = FreqModel::new();
         }
         for (text, pinyin, freq) in entries {
-            // 字数==音节数守卫（同 learn）：错位拼音行
+            // 字数==音节数守卫（重复上屏修复，同 learn）：错位拼音行
             // 不入 user_words/Trie（详情见 user_word_pinyin_matches 注释）。
             if !super::user_word_pinyin_matches(text, pinyin) {
                 continue;

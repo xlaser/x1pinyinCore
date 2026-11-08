@@ -1,7 +1,7 @@
 //! 同音绿词评测。
 //!
 //! 目标：同一拼音串的绿词候选里，正句是否压过同音替换负样本。
-//! 用 `assets/eval/green_homophone.tsv`（single 单字口语 + mixed 标注句），
+//! 用 `assets/eval/green_homophone.tsv`（single 单字口语 + mixed PFR 句），
 //! 只测量不断言阈值；A/B 用 `X1_EVAL_DB` 指向无 POS 表的副本即可关掉语法层。
 //!
 //! 运行：
@@ -178,7 +178,7 @@ fn green_homophone_eval() {
         }
     }
 
-    eprintln!("── 同音绿词评测（G1）──");
+    eprintln!("── 同音绿词评测 ──");
     for (subset, s) in &by_subset {
         eprintln!(
             "{subset:8} n={:3} 正Top1={:3}/{:<3} 正Top3={:3}/{:<3} 正Any={:3}/{:<3} 负Top1={:3} 负Top3={:3} 负Any={:3}",

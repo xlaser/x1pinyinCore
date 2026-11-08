@@ -5,12 +5,14 @@
 //! - Swift 不得直接解引用 Rust 指针
 //! - 字符串使用 UTF-8 C 字符串（null-terminated）
 //!
-//! 线程契约（C ABI）：Engine 内含 RefCell ×3 + rusqlite Connection
-//!（!Sync），**全部导出函数必须在同一线程调用**（宿主前端的输入法主线程 /
-//! 引擎服务单线程事件循环）。跨线程并发调用同一 `X1Engine*` = 数据竞争
-//!(RefCell already borrowed panic / Connection 别名 UB）。指针不得复制到其他线程。
+//! **线程契约（C ABI）**：Engine 内含 RefCell ×3 + rusqlite Connection
+//! （!Sync），**全部导出函数必须在同一线程调用**
+//!（mac = IMK 主线程；Windows = 单线程事件循环）。
+//! 跨线程并发调用同一 `X1Engine*` = 数据竞争（RefCell already borrowed
+//! panic / Connection 别名 UB）。指针不得复制到其他线程。
 //!
-//! 子模块划分：本 mod.rs 保留：
+//! 从原 ffi.rs 拆出 query / learning / config / dict_admin 四个子模块。
+//! 本 mod.rs 保留：
 //! - 不透明指针类型 X1Engine + panic 日志 helper log_panic
 //! - 生命周期函数（new / new_with_db / free / migrate_legacy_db_if_needed / flush / is_dirty / string_free）
 //! - 跨子模块共用的辅助函数（c_str_to_str / parse_user_word_json / candidates_to_json / features_to_json）
@@ -21,14 +23,14 @@ use core::ffi::c_char;
 
 use crate::engine::Engine;
 
-// 子模块声明。
+// 子模块声明（从 ffi.rs 拆出）。
 pub(crate) mod config;
 mod dict_admin;
 mod learning;
 pub(crate) mod query;
 /// 双库分离 FFI（引导链 + open_split，失败回退合并模式）。
 mod split;
-/// 输入统计 FFI（宿主前端采集器调用）。
+/// 输入统计 FFI（mac 侧采集器调用；存储与 Windows 同一标准）。
 mod stats;
 
 /// 不透明指针类型
@@ -36,9 +38,10 @@ pub struct X1Engine {
     pub(crate) inner: Engine,
 }
 
-/// 把 panic 信息写到文件（eprintln 在 IMK 沙盒被吞，必须写文件才能定位）。
+/// 把 panic 信息写到文件（图形/沙盒环境下 stderr 可能不可见，必须写文件才能定位）。
 ///
-/// 路径优先级（编译期平台分派，避免运行时按 HOME 探测在部分平台写错路径）：
+/// 路径优先级（原实现运行时按 HOME 探测——Windows 无 HOME 时日志静默丢失，
+/// Linux 有 HOME 则误写 mac 风格 `~/Library/...` 路径；改编译期平台分派）：
 /// 1. 环境变量 `X1_PANIC_LOG` 显式指定（任意平台，嵌入式/CI 场景逃生口）
 /// 2. 平台默认：
 ///    - Windows：`%APPDATA%\x1pinyin\rust_panic.log`
@@ -97,9 +100,8 @@ fn default_panic_log_path() -> Option<std::path::PathBuf> {
 
 /// FFI panic 护栏：catch_unwind + 统一 panic 日志，异常时返回 `fallback`。
 ///
-/// panic 穿越 `extern "C"` 边界 = 进程终止（宿主 app / 输入法进程直接死，
-/// 无 dump）。非平凡导出函数（含查询/提交主链与词库管理、学习入口）统一经
-/// 此护栏；纯 setter/getter 可豁免。
+/// panic 穿越 `extern "C"` 边界 = 进程终止（输入法进程直接死，
+/// 无 dump）。所有非平凡导出函数统一经此护栏（纯 setter/getter 可豁免）。
 pub(super) fn guard<T>(name: &'static str, fallback: T, f: impl FnOnce() -> T) -> T {
     match std::panic::catch_unwind(std::panic::AssertUnwindSafe(f)) {
         Ok(v) => v,
@@ -142,8 +144,8 @@ pub extern "C" fn x1_engine_new_with_db(db_path: *const c_char) -> *mut X1Engine
         Some(s) => s,
         None => return core::ptr::null_mut(),
     };
-    // 护栏：new_with_db 含 schema 迁移 + 全量加载，是最重的导出——
-    // panic 跨 extern "C" = 进程直接死。失败兜底 null（调用方
+    // 护栏：new_with_db 含 schema 迁移 + 全量加载，
+    // 是最重的导出——panic 跨 extern "C" = 进程直接死。失败兜底 null（调用方
     // 回退内存模式）。
     match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| Engine::new_with_db(path))) {
         Ok(Ok(engine)) => Box::into_raw(Box::new(X1Engine { inner: engine })),
@@ -157,7 +159,7 @@ pub extern "C" fn x1_engine_new_with_db(db_path: *const c_char) -> *mut X1Engine
 
 /// 旧加密 DB 一次性迁移（加密/混淆已整体移除）。
 ///
-/// 旧版的发布用户 DB 三表（x1dict_words.freq /
+/// 历史发布版用户 DB 三表（x1dict_words.freq /
 /// seed_bigram_counts.count / seed_trigram_counts.count）是 XOR 密文 + 标记
 /// `freq_encryption_version=v1`。加密代码已从引擎移除（无密钥可解），迁移策略
 /// 是**丢弃密文数据**：用 bundle 明文种子覆盖 x1dict_words.freq、清空种子
@@ -419,10 +421,11 @@ pub(super) fn parse_user_word_json(json: &str) -> Result<Vec<(String, String, u3
     Ok(out)
 }
 
-/// 单遍 JSON 字符串转义：替代 `.replace('\\',...).replace('"',...)` 的每候选
-/// 2 次中间 String 分配。转义 `\`、`"` 及全部控制字符（RFC 8259 禁止字符串含
-/// 裸 <0x20——TSV 可导入含 \n 等控制字符的词条，裸输出会让宿主前端候选
-/// JSON 整体解析失败，单条脏数据放大为打字不出词）。
+/// 单遍 JSON 字符串转义（替代 `.replace('\\',...).replace('"',...)`
+/// 的每候选 2 次中间 String 分配——病态输入单键最多 300 候选 × 2 字段 = 600 次分配）。
+/// 转义 `\`、`"` 及全部控制字符（RFC 8259 禁止字符串含裸 <0x20——
+/// 用户 TSV 可导入含 \n 等控制字符的词条，裸输出会让 Swift 侧候选 JSON
+/// 整体解析失败，单条脏数据放大为打字不出词）。
 pub(crate) fn push_json_escaped(out: &mut String, s: &str) {
     for ch in s.chars() {
         match ch {
@@ -489,7 +492,7 @@ pub(super) fn candidates_to_json(candidates: &[crate::dict::Candidate]) -> Strin
 /// 把 (text, ScoreBreakdown) 列表序列化为 JSON（供学习型排序器训练数据记录）。
 ///
 /// 格式：`[{"text":"...","features":{"base":N,"total_bonus":N,...,"total":N}}, ...]`
-/// 实现在 engine::features_to_json（各消费端格式契约单一来源）；
+/// 实现在 engine::features_to_json（格式契约单一来源）；
 /// 此处 re-export 保持子模块 `use super::features_to_json` 不变。
 pub(super) use crate::engine::features_to_json;
 
@@ -499,7 +502,7 @@ mod tests {
 
     /// 用户词导入 JSON 解析。
     ///
-    /// 守护 2026-10-24 实测发现的缺陷：定界符剥离顺序错误导致
+    /// 守护实测发现的缺陷：定界符剥离顺序错误导致
     /// ① 单条导入（头文档里的最小形态）整条落空；
     /// ② N 条数组只有最后一条进库（`split("},{")` 后仅末段以 `"` 开头）；
     /// ③ 对象最后一个字符串值残留引号（拼音被写坏）。

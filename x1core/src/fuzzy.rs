@@ -147,11 +147,11 @@ impl FuzzyConfig {
     /// 根因背景（「开了模糊音后简拼单字候选全消失 / 长简拼彻底断词」）：
     /// `query_single_chars_fuzzy` / `query_prefix_filtered_fuzzy` 的前缀参数是
     /// **裸声母**（"z"/"w"）或**半截音节**（trailing partial "r"、"zho"），
-    /// 而 expand_syllable 末尾的 `is_valid_syllable_pub` 过滤会把它们清空
+    /// 而 expand_syllable 末尾的 `is_valid_syllable_pub` 过滤把它们清空
     ///（"z" 不是完整音节）→ 模糊分支的 for 循环零次迭代 → 单字补充/尾部半截
     /// 候选在开启模糊音（z_zh / in_ing 任一对）后全部消失；纯简拼长串（无绿词
     /// 可拼时）表现为完全断词。未开模糊音的配置（is_empty 短路走直查分支）不受
-    /// 影响——因此该问题只在特定配置下暴露。
+    /// 影响——这就是 bug 长期潜藏、特定配置才暴露的原因。
     /// 前缀语义下变体本就不要求是完整音节（dict 侧按前缀匹配），不过滤正确；
     /// 顺带带来模糊音的预期行为：z_zh 开启后输入 "z" 的单字补充也会含 zh 系单字。
     pub(crate) fn expand_prefix(&self, s: &str) -> Vec<String> {
@@ -393,7 +393,7 @@ mod tests {
 
     #[test]
     fn test_expand_prefix_vs_syllable_semantics() {
-        // 语义分界守护：
+        // 语义分界（修复守护）：
         // · expand_syllable = 完整音节语义，非有效音节被过滤（"z" → 空）；
         // · expand_prefix = 前缀语义（裸声母/半截音节），不过滤，含自身 + 变体。
         // 简拼单字补充依赖后者——用错前者会整组清空。
@@ -454,8 +454,8 @@ mod tests {
         assert_eq!(cfg, parsed);
     }
 
-    /// 笛卡尔积上限守护：n/l 模糊音下长串歧义 token 会 2^n 无界增长
-    ///（30 个 n = 10 亿组合 → 主线程冻结/OOM）。
+    /// 笛卡尔积上限守护：n/l 模糊音下长串歧义 token
+    /// 曾 2^n 无界增长（30 个 n = 10 亿组合 → 主线程冻结/OOM）。
     /// 超限必须回退为不扩展的单元素原串，且正常长度（≤10 歧义 token）不受影响。
     #[test]
     fn test_expand_jianpin_initials_cap() {

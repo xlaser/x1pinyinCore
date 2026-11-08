@@ -9,8 +9,8 @@
 //! 查询策略说明：
 //! - 输入法热路径要求 <10ms 响应，SQL LIKE 扫描 12 万行不可接受。
 //! - 因此启动时一次性 SELECT 全表加载进内存 Trie（dict.rs），
-//!   SQLite 仅作为持久化层 + 用户词库层。例外：seed_trigram 按需 SQL
-//!   查询（trigram_count_with_seed，全量加载会多花 30~60ms 启动时间，故
+//!   SQLite 仅作为持久化层 + 用户词库层。**例外**：seed_trigram 按需 SQL
+//!   查询（trigram_count_with_seed，全量加载实测 +30~60ms 贴启动红线，故
 //!   查询路径走 prepare_cached 单条查询）与 collocation_freq 组合词查询——
 //!   这两条是仅存的逐键 SQL 路径。
 //! - 用户选词后更新内存 FreqModel + 标记 dirty，由定时器 / 退出时
@@ -61,13 +61,13 @@ pub struct UserWord {
 
 /// SQLite 存储管理器（双库分离）
 ///
-/// 角色化连接：
+/// **角色化连接**：
 /// - `dict`：系统词库连接 —— `x1dict_words` + `seed_bigram_counts` +
 ///   `seed_trigram_counts` + 种子侧 `db_meta`。可被种子母版整体覆盖。
 /// - `user`：用户库连接 —— 全部 `user_*` 表 + 用户侧 `db_meta`。
 ///   唯一不可再生资产，更新永不触碰。
 ///
-/// `user == None` 为合并模式（dict 与 user 同处一个文件，单连接）：
+/// `user == None` 为**合并模式**（dict 与 user 同处一个文件，单连接）：
 /// 存量单库工具与绝大部分测试走此路径，行为与拆分前逐位一致。
 /// 分离模式由 `open_split` 建立，运行时经 `user()` / `user_mut()` 取用户连接。
 pub struct Storage {
@@ -142,7 +142,7 @@ impl Storage {
     ///
     /// 自动初始化 schema（全部表）；若 x1dict_words 为空表，调用方需先导入 X1Dict。
     ///
-    /// 不在启动时做 DB 完整性检查/修复——保证启动秒开。
+    /// **不在启动时做 DB 完整性检查/修复**——遵守启动秒开红线。
     /// DB 备份 + REINDEX + VACUUM + 脏数据清理统一在部署期完成，不拖累运行时启动。
     /// 如遇 DB 损坏，运行时静默忽略错误，下次 install/覆盖修复。
     pub fn open<P: AsRef<Path>>(path: P) -> rusqlite::Result<Self> {
@@ -157,11 +157,11 @@ impl Storage {
         Ok(storage)
     }
 
-    /// 守护：测试禁止以可写方式打开仓库种子。
+    /// 仓库种子守护：测试禁止以可写方式打开仓库种子。
     ///
-    /// 背景：套件偶发出现「种子 db_meta 的 x1dict_sync_hash 被改写 +
+    /// 背景：套件曾偶发出现「种子 db_meta 的 x1dict_sync_hash 被改写 +
     /// assets/seed_bigram_cache.bin 被重写 + assets/*.arena_cache.bin 被生成」的
-    /// 写脏形态（触发点未锁定）。写脏链的起点
+    /// 写脏形态。写脏链的起点
     /// 恒为「可写打开仓库种子」：在这里直接 panic，肇事测试立即显形
     ///（线程名 = 测试名），且种子不会再被污染。副本（target/test-tmp）不受影响。
     #[cfg(test)]
@@ -188,10 +188,10 @@ impl Storage {
     fn open_raw(path: &Path) -> rusqlite::Result<Connection> {
         let conn = Connection::open(path)?;
         // SQLite mmap 上限默认 256MiB。X1_MMAP_SIZE 仅作调试/基准旋钮
-        //（无产品「内存模式」设置：Windows 实测关 mmap 不省
+        //（产品「内存模式」设置已移除：Windows 实测关 mmap 不省
         // 峰值内存——大头是 Trie 堆，而引擎启动全表扫描慢约 2 倍，恒用默认）。
         //
-        // WAL 调优（与统计库同标准）：60s 周期 flush 的 diff 事务
+        // WAL 调优：60s 周期 flush 的 diff 事务
         // 默认每 1000 页（4MB）自动 checkpoint 回拷一次；放宽到 2000 页 +
         // 8MB 截断上限——回拷频率减半，WAL 不随会话时长无界增长。双端共享
         // 本函数（mac 同走 open_raw）。
@@ -281,18 +281,19 @@ CREATE TABLE IF NOT EXISTS x1dict_words (
                 ON x1dict_words(pinyin);
             CREATE INDEX IF NOT EXISTS idx_x1dict_initials
                 ON x1dict_words(substr(pinyin, 1, 1));
-            -- freq 索引：无过滤列表 ORDER BY freq DESC 深 OFFSET 会全表扫描 +
-            -- 临时 B 树（18.8 万行第 3752 页 ≈308ms/次，首页 27ms）；索引后
-            -- 8ms（38 倍）。一次性建 ~110ms，幂等。只加速管理器查询，输入热路径不经过。
+            -- freq 索引（词库管理器深分页卡顿修复）：无过滤列表
+            -- ORDER BY freq DESC 深 OFFSET 曾全表扫描 + 临时 B 树（18.8 万行
+            -- 第 3752 页 ≈308ms/次，首页 27ms）；索引后 8ms（实测 38 倍）。
+            -- 一次性建 ~110ms，幂等。只加速管理器查询，输入热路径不经过。
             CREATE INDEX IF NOT EXISTS idx_x1dict_freq
                 ON x1dict_words(freq DESC);
 
-            -- 英文单词表（智能单词识别）：独立专用表，不与任何中文表混用；
-            -- 数据经种子分发，引擎不再编译内嵌——为后续翻译/词典等英文功能
-            -- 预留 pos/cn 列。word 主键 = 规范展示词形（IBM / iPhone /
-            -- Microsoft，大小写规范化）；查询一律走 lower(word)（输入大小写
-            -- 不敏感）。维护源为离线 TSV 批次（小写批次 + casing.tsv 覆盖
-            -- 规范词形）→ 导入种子。
+            -- 英文单词表（智能单词识别）：独立专用表，
+            -- 不与任何中文表混用；数据经种子分发，引擎不再编译内嵌——为后续
+            -- 翻译/词典等英文功能预留 pos/cn 列）。word 主键 = **规范展示词形**
+            -- （IBM / iPhone / Microsoft，大小写规范化）；查询一律
+            -- 走 lower(word)（输入大小写不敏感）。维护源 = scripts/english_words
+            -- （TSV，批次小写 + casing.tsv 覆盖规范词形）→ 导入种子。
             CREATE TABLE IF NOT EXISTS english_words (
                 word  TEXT PRIMARY KEY,
                 pos   TEXT NOT NULL DEFAULT '',
@@ -308,8 +309,8 @@ CREATE TABLE IF NOT EXISTS x1dict_words (
             -- 中译英词表（候选翻译副栏·中→英精确词典）：独立专用表，
             -- 同 english_words 走种子分发。zh 主键列 B 树点查（翻译只做精确词级
             -- 命中，不做前缀——中英对译无补全语义）；(zh, en) 主键 = 同词多译
-            -- 多行，freq 仅用于多译定序。维护源为离线 TSV 批次（→ 导入种子）。
-            -- 单字内容词收（水→water），虚词不收（的/了无对译）。
+            -- 多行，freq 仅用于多译定序。维护源 = scripts/zh_en_words（TSV 批次
+            -- → 导入种子）。单字内容词收（水→water），虚词不收（的/了无对译）。
             CREATE TABLE IF NOT EXISTS zh_en_words (
                 zh   TEXT NOT NULL,
                 en   TEXT NOT NULL,
@@ -318,7 +319,7 @@ CREATE TABLE IF NOT EXISTS x1dict_words (
                 PRIMARY KEY (zh, en)
             );
 
-            -- 中文词性资产（独立侧表，不碰
+            -- 中文词性资产（PFR 2014 挖掘；独立侧表，不碰
             -- x1dict_words 热路径/arena 缓存）。word → 词性位图 + 主词性 +
             -- 词性分布；pos_counts 形如 "n:120,v:30"。
             CREATE TABLE IF NOT EXISTS x1dict_pos (
@@ -427,10 +428,10 @@ CREATE TABLE IF NOT EXISTS user_words (
 
             -- 字级 bigram 已改为从词库双字词实时反推（纯内存派生，不落盘）。
             -- 计算与存储分离原则：char_bigram 是可计算的派生数据，
-            -- 不持久化到 DB。这里 DROP 老表（user_char_bigram_counts）。
+            -- 不持久化到 DB。这里 DROP 老表（早期误建的 user_char_bigram_counts）。
             DROP TABLE IF EXISTS user_char_bigram_counts;
 
-            -- 三阶上下文（trigram）：
+            -- 三阶上下文（trigram，上下文引擎 v2）：
             -- (prev2, prev1) → text → count。比 bigram 多一阶，捕捉三词框架（如 我·知道·你）。
             -- 冷启动为空，完全靠用户积累。idx_trigram_prev 支持 (prev2, prev1) 前缀查询。
             CREATE TABLE IF NOT EXISTS user_trigram_counts (
@@ -444,9 +445,9 @@ CREATE TABLE IF NOT EXISTS user_words (
             CREATE INDEX IF NOT EXISTS idx_trigram_prev
                 ON user_trigram_counts(prev2, prev1);
 
-            -- 用户选择次数：系统词 commit 后不写 user_words（避免两表重复），
-            -- 但 FreqModel.counts 只通过 pending_upserts→user_words 落盘，系统词
-            -- 被排除，重启后选择次数会全丢。
+            -- 用户选择次数（配合系统词去重）：
+            -- 系统词 commit 后不写 user_words（避免两表重复），但 FreqModel.counts
+            -- 只通过 pending_upserts→user_words 落盘，系统词被排除，重启后选择次数全丢。
             -- 此表独立持久化 counts（全量快照），让系统词的 freq 累积跨会话存活。
             CREATE TABLE IF NOT EXISTS user_counts (
                 text       TEXT PRIMARY KEY,
@@ -455,8 +456,8 @@ CREATE TABLE IF NOT EXISTS user_words (
             );
 
             -- 用户持久化黑名单：
-            -- 用户删除的词写入此表，跨会话/跨部署保留。
-            -- 部署脚本合并用户数据时跳过黑名单词，并在部署期清理种子 DB 同名词。
+            -- 用户删除键删除的词写入此表，跨会话/跨部署保留。
+            -- 部署合并用户数据时跳过黑名单词，部署期清理种子 DB 同名词。
             -- 解决「删除的垃圾词每次部署又回来」的核心痛点。
             CREATE TABLE IF NOT EXISTS user_blacklist (
                 text       TEXT PRIMARY KEY,
@@ -528,8 +529,8 @@ CREATE TABLE IF NOT EXISTS user_words (
         self.cleanup_user_words_letter_dirty_entries()?;
         // 迁移：user_words 同词多读音。UNIQUE(text) → UNIQUE(text, pinyin)。
         // 列级 UNIQUE 无法 ALTER 删除，走一次性建新表-拷贝-改名；旧表每 text 仅一行，
-        // 拷贝无 (text, pinyin) 冲突。同一字造词时不同读音（zhujiao→主角 造词后再造
-        // zhujue→主角）不能互相冲掉——输入不精确是常态，两种读音必须共存。
+        // 拷贝无 (text, pinyin) 冲突。背景：zhujiao→主角 造词后再造 zhujue→主角
+        // 会冲掉前者——输入不精确是常态，两种读音必须共存。
         self.migrate_user_words_multi_pinyin()?;
         Ok(())
     }
@@ -545,8 +546,8 @@ CREATE TABLE IF NOT EXISTS user_words (
         if migrated {
             return Ok(());
         }
-        // 检测旧表是否存在。注意：user_trigram_counts 表已重新启用，
-        // 但用全新 (prev2, prev1, text, count) 三列 schema。这里只 DROP 旧 schema 的表
+        // 检测旧表是否存在。注意：上下文引擎 v2 重新启用了 user_trigram_counts
+        // 表，但用全新 (prev2, prev1, text, count) 三列 schema。这里只 DROP 旧 schema 的表
         //（含 prev 列且不含 prev2 列），新 schema 表由 init_schema 创建并保留。
         // 用列模式区分新旧，避免误删新表。
         let has_old: bool = self.user().query_row(
@@ -881,8 +882,8 @@ CREATE TABLE IF NOT EXISTS user_words (
 // -----------------------------------------------------------------------------
 // 模块化拆分
 //
-// storage 按职责拆成以下子模块，每个 impl crate::storage::Storage
-// 块在编译期合并：
+// storage.rs 按职责拆成以下子模块，每个 impl crate::storage::Storage
+// 块在编译期合并。
 //
 // - x1dict.rs   : x1dict_words 系统词库 CRUD + 同步哈希 + 解密 + Trie 加载
 // - tsv.rs      : x1dict TSV 导入/导出 + 列识别辅助函数
@@ -891,7 +892,7 @@ CREATE TABLE IF NOT EXISTS user_words (
 // - tests.rs    : 单元测试块
 // -----------------------------------------------------------------------------
 pub(crate) mod dict_cache;
-/// 词性/语法资产侧表（随种子分发，独立于 x1dict_words）。
+/// 词性/语法资产侧表（PFR 挖掘；种子分发，独立于 x1dict_words）。
 mod grammar;
 /// DB 结构版本验证（自定义数据目录配套；只进部署期引导链）。
 pub mod schema;
@@ -905,7 +906,7 @@ mod tsv;
 mod user_words;
 mod x1dict;
 
-// 英文词条结构（词库管理器·英文词库用，配套 CRUD）。
+// 英文词条结构（词库管理器·英文词库用）。
 pub use self::x1dict::EnglishWord;
 
 // 让 tsv.rs 的列识别辅助函数（detect_tsv_column_map / ColumnMap）流入本模块作用域，

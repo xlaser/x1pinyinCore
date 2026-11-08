@@ -1,6 +1,6 @@
 //! 查询类 FFI 接口：候选生成 / 拼音分析 / 特征抽取。
 //!
-//! 从 ffi.rs 拆出，函数体零改动。
+//! 从 ffi.rs 拆出。
 
 use alloc::ffi::CString;
 use core::ffi::c_char;
@@ -49,7 +49,7 @@ pub unsafe extern "C" fn x1_engine_process(
     }
 }
 
-/// 带击键时序的查询（双击故障感知，宿主前端用）：
+/// 带击键时序的查询（双击故障感知，mac Swift 前端用）：
 /// `ms_since_prev_key` = 本次按键与上一次的间隔毫秒（u32::MAX = 未知/首键）。
 /// 间隔信息用于门控双写折叠纠错（详见 Engine::process_timed 与
 /// DOUBLE_FAULT_MS）。行为：未知间隔与 x1_engine_process 一致。
@@ -82,7 +82,7 @@ pub unsafe extern "C" fn x1_engine_process_timed(
         Ok(c) => c,
         Err(e) => {
             // 带上输入串，便于定位「排序全序违规」等只对特定输入
-            // 触发的 panic（仅函数名难以复现）。
+            // 触发的 panic（此前的日志只有函数名，无法复现）。
             let ctx = alloc::format!("process_timed(input={:?})", input_str);
             log_panic(&ctx, &*e);
             return core::ptr::null_mut();
@@ -97,14 +97,14 @@ pub unsafe extern "C" fn x1_engine_process_timed(
 }
 
 // 注：x1_engine_collect_candidates + x1_engine_set_semantic_bonuses 已移除。
-// NLEmbedding 神经重排序完全移除，两阶段 FFI 协议不再需要。
+// 实验性神经重排序已完全移除，两阶段 FFI 协议不再需要。
 
-/// 英文模式前缀补全查询（智能单词识别·英文模式；Windows 侧走 IPC
-/// `english_complete`，mac 无服务进程直接 FFI 查表）。
+/// 英文模式前缀补全查询（智能单词识别·英文模式；
+/// Windows 侧走 IPC `english_complete`，mac 直接 FFI 查表）。
 ///
 /// 返回格式：`[{"text":"morning","freq":1200}, ...]`——精确命中置顶，其余
-/// freq 降序，最多 `limit` 条；`smartWordEn` 关时返回 `[]`。与引擎服务侧
-/// EnglishComplete 响应的 json 字段同构（双端消费形状一致）。
+/// freq 降序，最多 `limit` 条；`smartWordEn` 关时返回 `[]`。与 Windows 侧
+/// EnglishComplete 响应的 json 字段同构（双端 Swift/C++ 消费形状一致）。
 /// 返回的字符串必须由 `x1_string_free` 释放。
 ///
 /// # Safety
@@ -292,7 +292,7 @@ pub unsafe extern "C" fn x1_engine_segment_buffer(
 
 /// 抽取给定 input 下所有候选的打分特征明细（学习型排序器训练数据记录用）。
 ///
-/// 宿主端在 commit 时调用：拿当时候选列表的特征 + 用户选择索引，写训练数据文件。
+/// Swift 在 commit 时调用：拿当时候选列表的特征 + 用户选择索引，写 selections.jsonl。
 /// 重新跑一次 process 取候选（低频路径，不影响 per-keystroke 热路径）。
 ///
 /// 返回 JSON（features_to_json 格式），调用方需用 x1_string_free 释放。
@@ -313,8 +313,8 @@ pub unsafe extern "C" fn x1_engine_extract_features(
         None => return core::ptr::null_mut(),
     };
     // catch_unwind 保护（与 x1_engine_process 一致）：extract_features 内部调 process
-    // → sort_by → candidate_score → score_breakdown，panic 须被拦截以防进程崩溃。
-    // 宿主端拿到 null 时退化为不记训练数据。
+    // → sort_by → candidate_score → score_breakdown，曾因 String::from_iter panic
+    // 致进程崩溃（用户偶发掉字）。Swift 侧拿到 null 时退化为不记训练数据。
     let features = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         engine.extract_features(input_str)
     })) {
@@ -333,7 +333,7 @@ pub unsafe extern "C" fn x1_engine_extract_features(
 
 /// 双拼全拼还原串（Windows 走 IPC Process 响应的
 /// full_display 字段，mac 直接 FFI 查询）。非双拼/临时全拼/解码失败返回
-/// 空字符串（非 null——空串 = 调用方回退原显示，null 走错误分支）。
+/// **空字符串**（非 null——空串 = 调用方回退原显示，null 走错误分支）。
 /// 偏好门控在显示侧（同 Windows：引擎无条件计算，前端按偏好决定是否展示）。
 ///
 /// # Safety
@@ -366,10 +366,10 @@ pub unsafe extern "C" fn x1_engine_shuangpin_full_display(
     }
 }
 
-/// 整句路径收集开关（宿主端 AI 整句重排层接线；与 Windows
-/// 引擎服务侧的 `want_paths` 同语义——见 engine.rs 消费侧）：
+/// 整句路径收集开关（mac AI 整句重排层接线；与 Windows
+/// 侧 `want_paths` 同语义——见 engine.rs 消费侧）：
 /// 开启后下一次 `x1_engine_process(_timed)` 的整句 DP 顺带把 top-K（≤12）
-/// 路径写入内部槽（引擎内双跑隔离：主候选与关闭时逐字节一致），
+/// 路径写入内部槽（引擎内双跑隔离：**主候选与关闭时逐字节一致**），
 /// 随后用 `x1_engine_take_sentence_paths` 取走。开关关时零开销。
 ///
 /// # Safety
@@ -382,7 +382,7 @@ pub unsafe extern "C" fn x1_engine_set_collect_sentence_paths(ptr: *mut X1Engine
     (*ptr).inner.set_collect_sentence_paths(on != 0);
 }
 
-/// 取走并清空最近一次收集的整句路径（宿主端 AI 重排层）：
+/// 取走并清空最近一次收集的整句路径（mac AI 重排层）：
 /// 返回 JSON `[{"text":"…","words":["…",…],"score":N},…]`（DP 分数降序）；
 /// 未开启收集/本键无整句路由 = `[]`。返回的字符串必须由 `x1_string_free` 释放。
 ///
@@ -517,7 +517,7 @@ mod english_complete_tests {
 
     /// FFI 层接线健全性（行为面由 engine::tests_english 全量守护）：
     /// ① 空指针守卫返回 null；② 内置模式（无 DB）返回空数组 JSON 而非 null
-    /// （宿主端按「空数组=无补全」解析，null 会让调用方走错误分支）。
+    /// （mac Swift 侧按「空数组=无补全」解析，null 会让调用方走错误分支）。
     #[test]
     fn english_complete_ffi_guards_and_empty_shape() {
         unsafe {

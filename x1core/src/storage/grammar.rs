@@ -1,6 +1,6 @@
 //! 中文词性/语法资产（种子侧表）。
 //!
-//! 三张表由标注语料离线挖掘，随种子分发：
+//! 三张表从 PFR 2014 语料挖掘，随种子分发：
 //! - `x1dict_pos`：词 → 词性位图 + 主词性 + 分布；
 //! - `x1pos_trans`：粗类词性转移计数（将来语法模型用）；
 //! - `x1func_ctx`：的/地/得 上下文计数（函数词消歧的第一消费面）。
@@ -60,36 +60,52 @@ impl Storage {
         )
     }
 
-    /// 词性表：`(word, pos_mask, pos_dominant)`。
-    ///
-    /// 表缺失/为空返回空 Vec（老库自然降级为“无词性”）。
-    /// 刻意不读 `pos_counts`（81k 行的长字符串，启动解码/分配大头；
-    /// 当前运行时只用 dominant 粗类，分布留作将来语法模型从 DB 重读）。
-    pub(crate) fn load_pos_entries(&self) -> rusqlite::Result<Vec<(String, u16, String)>> {
+    /// 词性表行数（缺表 = 0）。调用方据此一次性预留紧凑表容量，避免增长
+    /// 过程中产生可回收但 malloc 仍占用的旧缓冲。
+    pub(crate) fn pos_entry_count(&self) -> rusqlite::Result<usize> {
         let exists: bool = self.dict.query_row(
             "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='x1dict_pos')",
             [],
             |row| row.get(0),
         )?;
         if !exists {
-            return Ok(Vec::new());
+            return Ok(0);
+        }
+        let n: i64 = self
+            .dict
+            .query_row("SELECT COUNT(*) FROM x1dict_pos", [], |row| row.get(0))?;
+        Ok(n.max(0) as usize)
+    }
+
+    /// 流式遍历词性表：`(word, pos_mask, pos_dominant)`，按 `word` 升序。
+    ///
+    /// 不物化中间 `Vec<(String, ...)>`（81k 行会制造 16 万个短字符串，释放后
+    /// 仍被 malloc 攥成空闲页）；调用方直接构建紧凑表。
+    /// 刻意不读 `pos_counts`（81k 行的长字符串，启动解码/分配大头；
+    /// 当前运行时只用 dominant 粗类，分布留作将来语法模型从 DB 重读）。
+    pub(crate) fn for_each_pos_entry<F>(&self, mut f: F) -> rusqlite::Result<()>
+    where
+        F: FnMut(&str, u16, &str),
+    {
+        let exists: bool = self.dict.query_row(
+            "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='x1dict_pos')",
+            [],
+            |row| row.get(0),
+        )?;
+        if !exists {
+            return Ok(());
         }
         let mut stmt = self
             .dict
             .prepare("SELECT word, pos_mask, pos_dominant FROM x1dict_pos ORDER BY word")?;
-        let rows = stmt.query_map([], |row| {
-            let mask: i64 = row.get(1)?;
-            Ok((
-                row.get::<_, String>(0)?,
-                mask.clamp(0, u16::MAX as i64) as u16,
-                row.get::<_, String>(2)?,
-            ))
-        })?;
-        let mut out = Vec::new();
-        for r in rows {
-            out.push(r?);
+        let mut rows = stmt.query([])?;
+        while let Some(row) = rows.next()? {
+            let word = row.get_ref(0)?.as_str()?;
+            let mask = row.get::<_, i64>(1)?.clamp(0, u16::MAX as i64) as u16;
+            let dominant = row.get_ref(2)?.as_str()?;
+            f(word, mask, dominant);
         }
-        Ok(out)
+        Ok(())
     }
 
     /// 粗类多词性词的细分布：只取 `pos_mask` 多位的词（粗类真正多类，
