@@ -1,3 +1,4 @@
+# x1core CI：三平台 check/clippy/纯逻辑测试 + 种子全量 + FFI 编译链接
 name: CI
 
 on:
