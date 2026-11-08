@@ -1,0 +1,3672 @@
+# x1pinyin 中译英词表
+# zh<TAB>en<TAB>pos<TAB>freq —— 候选翻译副栏·中→英精确词典
+# zh 为中文词/短语（1..=12 汉字，单字虚词不收）；en 为规范英文对译（专名保大写）；
+# freq 由全局名次确定性赋值，仅用于同词多译定序（不与中文 freq 谱混用）
+# 词条与释义由 DeepSeek 生成后整理，不含第三方语料；勿手改本文件
+你好	hello	interj.	9999
+谢谢	thanks	interj.	9996
+再见	goodbye	interj.	9992
+欢迎	welcome	interj.	9989
+对不起	sorry	interj.	9986
+没关系	never mind	interj.	9983
+早安	good morning	interj.	9979
+晚安	good night	interj.	9976
+请问	excuse me	interj.	9973
+拜托	please	interj.	9970
+祝福	blessing	n.	9966
+恭喜	congratulations	interj.	9963
+生日	birthday	n.	9960
+快乐	happy	adj.	9957
+幸福	happiness	n.	9953
+爱情	love	n.	9950
+友谊	friendship	n.	9947
+家人	family	n.	9944
+家庭	family	n.	9940
+父母	parents	n.	9937
+父亲	father	n.	9934
+母亲	mother	n.	9931
+爸爸	dad	n.	9927
+妈妈	mom	n.	9924
+儿子	son	n.	9921
+女儿	daughter	n.	9918
+哥哥	elder brother	n.	9914
+姐姐	elder sister	n.	9911
+弟弟	younger brother	n.	9908
+妹妹	younger sister	n.	9905
+爷爷	grandpa	n.	9901
+奶奶	grandma	n.	9898
+孩子	child	n.	9895
+小孩	kid	n.	9892
+婴儿	baby	n.	9888
+朋友	friend	n.	9885
+同学	classmate	n.	9882
+同事	colleague	n.	9879
+邻居	neighbor	n.	9875
+客人	guest	n.	9872
+老板	boss	n.	9869
+员工	employee	n.	9866
+老师	teacher	n.	9862
+学生	student	n.	9859
+医生	doctor	n.	9856
+护士	nurse	n.	9853
+司机	driver	n.	9849
+警察	police	n.	9846
+律师	lawyer	n.	9843
+记者	reporter	n.	9840
+读者	reader	n.	9836
+观众	audience	n.	9833
+消费者	consumer	n.	9830
+乘客	passenger	n.	9827
+市民	citizen	n.	9823
+村民	villager	n.	9820
+专家	expert	n.	9817
+教授	professor	n.	9814
+院长	dean	n.	9810
+校长	principal	n.	9807
+主席	chairman	n.	9804
+总统	president	n.	9801
+总理	premier	n.	9797
+部长	minister	n.	9794
+局长	director	n.	9791
+主任	director	n.	9788
+经理	manager	n.	9784
+助理	assistant	n.	9781
+秘书	secretary	n.	9778
+农民	farmer	n.	9775
+工人	worker	n.	9772
+军人	soldier	n.	9768
+演员	actor	n.	9765
+歌手	singer	n.	9762
+作家	writer	n.	9759
+画家	painter	n.	9755
+导演	director	n.	9752
+主编	editor	n.	9749
+网友	netizen	n.	9746
+时间	time	n.	9742
+时候	moment	n.	9739
+时代	era	n.	9736
+今天	today	n.	9733
+明天	tomorrow	n.	9729
+昨天	yesterday	n.	9726
+早上	morning	n.	9723
+上午	morning	n.	9720
+中午	noon	n.	9716
+下午	afternoon	n.	9713
+晚上	evening	n.	9710
+夜里	night	n.	9707
+周末	weekend	n.	9703
+月份	month	n.	9700
+今年	this year	n.	9697
+去年	last year	n.	9694
+明年	next year	n.	9690
+现在	now	n.	9687
+刚才	just now	n.	9684
+以后	afterwards	adv.	9681
+以前	before	adv.	9678
+未来	future	n.	9674
+过去	past	n.	9671
+历史	history	n.	9668
+世界	world	n.	9665
+国家	country	n.	9661
+城市	city	n.	9658
+农村	countryside	n.	9655
+家乡	hometown	n.	9652
+地方	place	n.	9648
+地区	region	n.	9645
+中心	center	n.	9642
+广场	square	n.	9639
+街道	street	n.	9635
+马路	road	n.	9632
+公路	highway	n.	9629
+铁路	railway	n.	9626
+地铁	subway	n.	9623
+车站	station	n.	9619
+机场	airport	n.	9616
+港口	port	n.	9613
+公司	company	n.	9610
+企业	enterprise	n.	9606
+工厂	factory	n.	9603
+商店	shop	n.	9600
+超市	supermarket	n.	9597
+市场	market	n.	9593
+银行	bank	n.	9590
+医院	hospital	n.	9587
+学校	school	n.	9584
+大学	university	n.	9580
+学院	college	n.	9577
+图书馆	library	n.	9574
+博物馆	museum	n.	9571
+电影院	cinema	n.	9568
+剧院	theater	n.	9564
+公园	park	n.	9561
+饭店	restaurant	n.	9558
+酒店	hotel	n.	9555
+旅馆	hotel	n.	9551
+房子	house	n.	9548
+房间	room	n.	9545
+客厅	living room	n.	9542
+卧室	bedroom	n.	9538
+厨房	kitchen	n.	9535
+卫生间	bathroom	n.	9532
+阳台	balcony	n.	9529
+楼梯	stairs	n.	9526
+电梯	elevator	n.	9522
+大门	gate	n.	9519
+窗户	window	n.	9516
+桌子	table	n.	9513
+椅子	chair	n.	9509
+沙发	sofa	n.	9506
+床	bed	n.	9503
+柜子	cabinet	n.	9500
+灯	lamp	n.	9496
+电话	phone	n.	9493
+手机	phone	n.	9490
+电脑	computer	n.	9487
+电视	television	n.	9484
+电影	movie	n.	9480
+音乐	music	n.	9477
+歌曲	song	n.	9474
+照片	photo	n.	9471
+图片	picture	n.	9467
+视频	video	n.	9464
+新闻	news	n.	9461
+消息	news	n.	9458
+信息	information	n.	9455
+报纸	newspaper	n.	9451
+杂志	magazine	n.	9448
+书	book	n.	9445
+笔记本	notebook	n.	9442
+笔	pen	n.	9438
+纸	paper	n.	9435
+包	bag	n.	9432
+衣服	clothes	n.	9429
+鞋	shoes	n.	9425
+帽子	hat	n.	9422
+眼镜	glasses	n.	9419
+伞	umbrella	n.	9416
+钟表	clock	n.	9413
+礼物	gift	n.	9409
+玩具	toy	n.	9406
+球	ball	n.	9403
+游戏	game	n.	9400
+运动	sports	n.	9396
+比赛	game	n.	9393
+食物	food	n.	9390
+米饭	rice	n.	9387
+面条	noodles	n.	9384
+面包	bread	n.	9380
+鸡蛋	egg	n.	9377
+牛奶	milk	n.	9374
+水	water	n.	9371
+茶	tea	n.	9367
+咖啡	coffee	n.	9364
+酒	alcohol	n.	9361
+肉	meat	n.	9358
+鱼	fish	n.	9355
+蔬菜	vegetables	n.	9351
+水果	fruit	n.	9348
+苹果	apple	n.	9345
+橘子	orange	n.	9342
+香蕉	banana	n.	9339
+早餐	breakfast	n.	9335
+午餐	lunch	n.	9332
+晚餐	dinner	n.	9329
+钱	money	n.	9326
+价格	price	n.	9322
+工作	work	n.	9319
+职业	job	n.	9316
+任务	task	n.	9313
+会议	meeting	n.	9310
+报告	report	n.	9306
+计划	plan	n.	9303
+项目	project	n.	9300
+产品	product	n.	9297
+服务	service	n.	9293
+质量	quality	n.	9290
+品牌	brand	n.	9287
+合同	contract	n.	9284
+协议	agreement	n.	9281
+订单	order	n.	9277
+发票	invoice	n.	9274
+账户	account	n.	9271
+密码	password	n.	9268
+文件	document	n.	9265
+资料	material	n.	9261
+数据	data	n.	9258
+网络	network	n.	9255
+网站	website	n.	9252
+软件	software	n.	9248
+系统	system	n.	9245
+技术	technology	n.	9242
+科学	science	n.	9239
+知识	knowledge	n.	9236
+文化	culture	n.	9232
+艺术	art	n.	9229
+教育	education	n.	9226
+课程	course	n.	9223
+考试	exam	n.	9220
+成绩	grade	n.	9216
+问题	problem	n.	9213
+方法	method	n.	9210
+方式	way	n.	9207
+办法	solution	n.	9203
+原因	reason	n.	9200
+结果	result	n.	9197
+目的	purpose	n.	9194
+过程	process	n.	9191
+情况	situation	n.	9187
+条件	condition	n.	9184
+机会	opportunity	n.	9181
+经验	experience	n.	9178
+能力	ability	n.	9175
+水平	level	n.	9171
+标准	standard	n.	9168
+规定	rule	n.	9165
+制度	system	n.	9162
+政策	policy	n.	9159
+法律	law	n.	9155
+权利	right	n.	9152
+责任	responsibility	n.	9149
+义务	duty	n.	9146
+安全	safety	n.	9143
+危险	danger	n.	9139
+环境	environment	n.	9136
+污染	pollution	n.	9133
+能源	energy	n.	9130
+资源	resource	n.	9126
+经济	economy	n.	9123
+金融	finance	n.	9120
+投资	investment	n.	9117
+保险	insurance	n.	9114
+税	tax	n.	9110
+收入	income	n.	9107
+工资	salary	n.	9104
+成本	cost	n.	9101
+利润	profit	n.	9098
+销售	sales	n.	9094
+管理	management	n.	9091
+组织	organization	n.	9088
+机构	institution	n.	9085
+部门	department	n.	9082
+政府	government	n.	9078
+社会	society	n.	9075
+人民	people	n.	9072
+群众	public	n.	9069
+人口	population	n.	9066
+生命	life	n.	9062
+身体	body	n.	9059
+健康	health	n.	9056
+疾病	disease	n.	9053
+药	medicine	n.	9050
+治疗	treatment	n.	9046
+手术	surgery	n.	9043
+空气	air	n.	9040
+天气	weather	n.	9037
+太阳	sun	n.	9034
+月亮	moon	n.	9030
+星星	star	n.	9027
+天空	sky	n.	9024
+海	sea	n.	9021
+河	river	n.	9018
+山	mountain	n.	9014
+树	tree	n.	9011
+花	flower	n.	9008
+草	grass	n.	9005
+动物	animal	n.	9002
+狗	dog	n.	8998
+猫	cat	n.	8995
+鸟	bird	n.	8992
+马	horse	n.	8989
+汽车	car	n.	8986
+火车	train	n.	8982
+飞机	plane	n.	8979
+自行车	bike	n.	8976
+公交车	bus	n.	8973
+出租车	taxi	n.	8970
+船	ship	n.	8966
+路	road	n.	8963
+桥	bridge	n.	8960
+是	be	v.	8957
+有	have	v.	8954
+做	do	v.	8950
+去	go	v.	8947
+来	come	v.	8944
+看	look	v.	8941
+看见	see	v.	8938
+听	listen	v.	8934
+说	speak	v.	8931
+讲	talk	v.	8928
+告诉	tell	v.	8925
+问	ask	v.	8922
+回答	answer	v.	8918
+想	think	v.	8915
+知道	know	v.	8912
+认识	know	v.	8909
+学习	learn	v.	8906
+学习	learning	n.	8902
+学	study	v.	8899
+教	teach	v.	8896
+读	read	v.	8893
+写	write	v.	8890
+生活	live	v.	8887
+住	live	v.	8883
+吃	eat	v.	8880
+喝	drink	v.	8877
+睡	sleep	v.	8874
+起床	get up	v.	8871
+走路	walk	v.	8867
+跑	run	v.	8864
+坐	sit	v.	8861
+站	stand	v.	8858
+飞	fly	v.	8855
+游泳	swim	v.	8851
+玩	play	v.	8848
+笑	laugh	v.	8845
+哭	cry	v.	8842
+买	buy	v.	8839
+卖	sell	v.	8835
+付	pay	v.	8832
+花费	spend	v.	8829
+给	give	v.	8826
+拿	take	v.	8823
+带	bring	v.	8820
+送	send	v.	8816
+收	receive	v.	8813
+找	find	v.	8810
+找到	find	v.	8807
+丢	lose	v.	8804
+失去	lose	v.	8800
+得到	get	v.	8797
+获得	obtain	v.	8794
+开始	start	v.	8791
+结束	end	v.	8788
+完成	finish	v.	8784
+继续	continue	v.	8781
+停止	stop	v.	8778
+改变	change	v.	8775
+变成	become	v.	8772
+成为	become	v.	8769
+发展	develop	v.	8765
+提高	improve	v.	8762
+增加	increase	v.	8759
+减少	reduce	v.	8756
+降低	reduce	v.	8753
+提升	improve	v.	8749
+改善	improve	v.	8746
+建设	build	v.	8743
+建立	establish	v.	8740
+成立	establish	v.	8737
+创造	create	v.	8733
+生产	produce	v.	8730
+制造	make	v.	8727
+制作	make	v.	8724
+使用	use	v.	8721
+利用	use	v.	8718
+帮助	help	v.	8714
+支持	support	v.	8711
+参加	join	v.	8708
+参与	participate	v.	8705
+合作	cooperate	v.	8702
+交流	communicate	v.	8698
+讨论	discuss	v.	8695
+商量	discuss	v.	8692
+决定	decide	v.	8689
+选择	choose	v.	8686
+挑选	choose	v.	8683
+准备	prepare	v.	8679
+安排	arrange	v.	8676
+组织	organize	v.	8673
+管理	manage	v.	8670
+控制	control	v.	8667
+保持	keep	v.	8664
+保护	protect	v.	8660
+保存	save	v.	8657
+存	save	v.	8654
+检查	check	v.	8651
+调查	investigate	v.	8648
+研究	study	v.	8644
+分析	analyze	v.	8641
+比较	compare	v.	8638
+发现	discover	v.	8635
+发明	invent	v.	8632
+出现	appear	v.	8629
+发生	happen	v.	8625
+存在	exist	v.	8622
+具有	have	v.	8619
+包括	include	v.	8616
+包含	contain	v.	8613
+属于	belong	v.	8609
+需要	need	v.	8606
+应该	should	v.	8603
+必须	must	v.	8600
+可以	can	v.	8597
+能	can	v.	8594
+会	can	v.	8590
+愿意	willing	v.	8587
+希望	hope	v.	8584
+想	want	v.	8581
+要	want	v.	8578
+喜欢	like	v.	8575
+爱	love	v.	8571
+讨厌	hate	v.	8568
+害怕	afraid	v.	8565
+担心	worry	v.	8562
+生气	angry	v.	8559
+高兴	glad	v.	8556
+开心	happy	v.	8552
+满意	satisfied	adj.	8549
+失望	disappointed	adj.	8546
+感动	moved	adj.	8543
+感谢	thank	v.	8540
+祝贺	congratulate	v.	8537
+道歉	apologize	v.	8533
+原谅	forgive	v.	8530
+相信	believe	v.	8527
+信任	trust	v.	8524
+怀疑	doubt	v.	8521
+同意	agree	v.	8517
+反对	oppose	v.	8514
+拒绝	refuse	v.	8511
+接受	accept	v.	8508
+承认	admit	v.	8505
+否认	deny	v.	8502
+记得	remember	v.	8498
+忘记	forget	v.	8495
+了解	understand	v.	8492
+理解	understand	v.	8489
+明白	understand	v.	8486
+解释	explain	v.	8483
+说明	explain	v.	8479
+介绍	introduce	v.	8476
+推荐	recommend	v.	8473
+建议	suggest	v.	8470
+提出	propose	v.	8467
+提供	provide	v.	8464
+给予	give	v.	8460
+授予	award	v.	8457
+通知	notify	v.	8454
+宣布	announce	v.	8451
+公布	publish	v.	8448
+发表	publish	v.	8445
+显示	show	v.	8441
+表明	show	v.	8438
+证明	prove	v.	8435
+反映	reflect	v.	8432
+代表	represent	v.	8429
+表示	express	v.	8426
+表达	express	v.	8422
+描述	describe	v.	8419
+描写	describe	v.	8416
+记录	record	v.	8413
+登记	register	v.	8410
+报名	sign up	v.	8407
+申请	apply	v.	8404
+提交	submit	v.	8400
+发布	release	v.	8397
+推出	launch	v.	8394
+开发	develop	v.	8391
+设计	design	v.	8388
+制造	manufacture	v.	8385
+安装	install	v.	8381
+修理	repair	v.	8378
+洗	wash	v.	8375
+打扫	clean	v.	8372
+整理	tidy	v.	8369
+放	put	v.	8366
+打开	open	v.	8362
+关闭	close	v.	8359
+关	close	v.	8356
+开	open	v.	8353
+推	push	v.	8350
+拉	pull	v.	8347
+举	lift	v.	8343
+搬	move	v.	8340
+运	carry	v.	8337
+驾驶	drive	v.	8334
+骑	ride	v.	8331
+爬	climb	v.	8328
+跳	jump	v.	8325
+走	go	v.	8321
+离开	leave	v.	8318
+到达	arrive	v.	8315
+抵达	arrive	v.	8312
+回	return	v.	8309
+返回	return	v.	8306
+进入	enter	v.	8302
+出来	exit	v.	8299
+出去	go out	v.	8296
+经过	pass	v.	8293
+穿过	cross	v.	8290
+超过	surpass	v.	8287
+通过	pass	v.	8283
+达到	reach	v.	8280
+实现	achieve	v.	8277
+解决	solve	v.	8274
+处理	handle	v.	8271
+应对	respond	v.	8268
+回复	reply	v.	8265
+打电话	call	v.	8261
+接	answer	v.	8258
+挂	hang	v.	8255
+按	press	v.	8252
+点击	click	v.	8249
+输入	input	v.	8246
+输出	output	v.	8242
+打印	print	v.	8239
+复制	copy	v.	8236
+粘贴	paste	v.	8233
+删除	delete	v.	8230
+下载	download	v.	8227
+上传	upload	v.	8224
+搜索	search	v.	8220
+查找	search	v.	8217
+浏览	browse	v.	8214
+查看	view	v.	8211
+观察	observe	v.	8208
+欣赏	appreciate	v.	8205
+享受	enjoy	v.	8202
+旅行	travel	v.	8198
+旅游	travel	v.	8195
+参观	visit	v.	8192
+访问	visit	v.	8189
+拜访	visit	v.	8186
+见面	meet	v.	8183
+遇到	meet	v.	8179
+邀请	invite	v.	8176
+请	invite	v.	8173
+好	good	adj.	8170
+坏	bad	adj.	8167
+大	big	adj.	8164
+小	small	adj.	8161
+多	many	adj.	8157
+少	few	adj.	8154
+高	tall	adj.	8151
+低	low	adj.	8148
+长	long	adj.	8145
+短	short	adj.	8142
+新	new	adj.	8139
+旧	old	adj.	8135
+快	fast	adj.	8132
+慢	slow	adj.	8129
+早	early	adj.	8126
+晚	late	adj.	8123
+热	hot	adj.	8120
+冷	cold	adj.	8117
+暖	warm	adj.	8113
+凉	cool	adj.	8110
+干	dry	adj.	8107
+湿	wet	adj.	8104
+干净	clean	adj.	8101
+脏	dirty	adj.	8098
+安静	quiet	adj.	8095
+吵	noisy	adj.	8091
+忙	busy	adj.	8088
+闲	free	adj.	8085
+累	tired	adj.	8082
+饿	hungry	adj.	8079
+渴	thirsty	adj.	8076
+饱	full	adj.	8073
+困	sleepy	adj.	8069
+痛	painful	adj.	8066
+舒服	comfortable	adj.	8063
+困难	difficult	adj.	8060
+容易	easy	adj.	8057
+简单	simple	adj.	8054
+复杂	complex	adj.	8051
+重要	important	adj.	8047
+主要	main	adj.	8044
+次要	secondary	adj.	8041
+必要	necessary	adj.	8038
+可能	possible	adj.	8035
+不可能	impossible	adj.	8032
+一定	certain	adj.	8029
+肯定	sure	adj.	8025
+正确	correct	adj.	8022
+错误	wrong	adj.	8019
+对	right	adj.	8016
+错	wrong	adj.	8013
+真	true	adj.	8010
+假	false	adj.	8007
+真实	real	adj.	8003
+漂亮	beautiful	adj.	8000
+美丽	beautiful	adj.	7997
+丑	ugly	adj.	7994
+可爱	cute	adj.	7991
+帅	handsome	adj.	7988
+聪明	smart	adj.	7985
+笨	silly	adj.	7982
+勤	diligent	adj.	7978
+懒	lazy	adj.	7975
+认真	serious	adj.	7972
+仔细	careful	adj.	7969
+粗心	careless	adj.	7966
+严格	strict	adj.	7963
+松	loose	adj.	7960
+紧	tight	adj.	7956
+厚	thick	adj.	7953
+薄	thin	adj.	7950
+重	heavy	adj.	7947
+轻	light	adj.	7944
+强	strong	adj.	7941
+弱	weak	adj.	7938
+硬	hard	adj.	7935
+软	soft	adj.	7931
+亮	bright	adj.	7928
+暗	dark	adj.	7925
+清楚	clear	adj.	7922
+模糊	vague	adj.	7919
+详细	detailed	adj.	7916
+丰富	rich	adj.	7913
+穷	poor	adj.	7909
+富	rich	adj.	7906
+贵	expensive	adj.	7903
+便宜	cheap	adj.	7900
+免费	free	adj.	7897
+安全	safe	adj.	7894
+危险	dangerous	adj.	7891
+稳定	stable	adj.	7888
+普通	ordinary	adj.	7884
+特殊	special	adj.	7881
+特别	especially	adv.	7878
+正常	normal	adj.	7875
+奇怪	strange	adj.	7872
+有趣	interesting	adj.	7869
+无聊	boring	adj.	7866
+精彩	wonderful	adj.	7863
+棒	great	adj.	7859
+优秀	excellent	adj.	7856
+差	poor	adj.	7853
+糟糕	terrible	adj.	7850
+不满	dissatisfied	adj.	7847
+流行	popular	adj.	7844
+著名	famous	adj.	7841
+专业	professional	adj.	7838
+正式	formal	adj.	7834
+公共	public	adj.	7831
+私人	private	adj.	7828
+直接	direct	adj.	7825
+间接	indirect	adj.	7822
+积极	positive	adj.	7819
+消极	negative	adj.	7816
+主动	active	adj.	7813
+自动	automatic	adj.	7809
+共同	common	adj.	7806
+不同	different	adj.	7803
+一样	same	adj.	7800
+同样	same	adj.	7797
+类似	similar	adj.	7794
+相关	related	adj.	7791
+有关	related	adj.	7788
+所有	all	adj.	7784
+整个	whole	adj.	7781
+完全	completely	adv.	7778
+十分	very	adv.	7775
+非常	very	adv.	7772
+太	too	adv.	7769
+更	more	adv.	7766
+最	most	adv.	7763
+很	very	adv.	7759
+挺	rather	adv.	7756
+比较	relatively	adv.	7753
+相当	quite	adv.	7750
+几乎	almost	adv.	7747
+已经	already	adv.	7744
+还在	still	adv.	7741
+仍然	still	adv.	7738
+依然	still	adv.	7734
+突然	suddenly	adv.	7731
+渐渐	gradually	adv.	7728
+慢慢	slowly	adv.	7725
+快速	quickly	adv.	7722
+马上	immediately	adv.	7719
+立刻	immediately	adv.	7716
+终于	finally	adv.	7713
+最后	finally	adv.	7710
+首先	first	adv.	7706
+然后	then	adv.	7703
+接着	next	adv.	7700
+经常	often	adv.	7697
+总是	always	adv.	7694
+从来	ever	adv.	7691
+有时	sometimes	adv.	7688
+偶尔	occasionally	adv.	7685
+一般	generally	adv.	7681
+通常	usually	adv.	7678
+一起	together	adv.	7675
+分别	separately	adv.	7672
+互相	each other	adv.	7669
+彼此	each other	adv.	7666
+自己	oneself	pron.	7663
+别人	others	pron.	7660
+大家	everyone	pron.	7657
+我们	we	pron.	7653
+你们	you	pron.	7650
+他们	they	pron.	7647
+她们	they	pron.	7644
+它们	they	pron.	7641
+咱们	we	pron.	7638
+自己	self	pron.	7635
+这	this	pron.	7632
+那	that	pron.	7629
+这些	these	pron.	7625
+那些	those	pron.	7622
+这里	here	adv.	7619
+那里	there	adv.	7616
+哪里	where	adv.	7613
+什么	what	pron.	7610
+为什么	why	adv.	7607
+怎么	how	adv.	7604
+怎样	how	adv.	7601
+多少	how much	adj.	7597
+几	how many	adj.	7594
+一个	one	num.	7591
+第一	first	num.	7588
+第二	second	num.	7585
+第三	third	num.	7582
+一半	half	n.	7579
+全部	all	n.	7576
+部分	part	n.	7573
+一些	some	adj.	7569
+许多	many	adj.	7566
+很多	a lot	adj.	7563
+不少	quite a few	adj.	7560
+更多	more	adj.	7557
+大多数	most	adj.	7554
+每个	every	adj.	7551
+任何	any	adj.	7548
+其他	other	adj.	7545
+另外	besides	adv.	7542
+而且	moreover	conj.	7538
+但是	but	conj.	7535
+可是	but	conj.	7532
+不过	however	conj.	7529
+虽然	although	conj.	7526
+尽管	although	conj.	7523
+因为	because	conj.	7520
+所以	so	conj.	7517
+因此	therefore	conj.	7514
+如果	if	conj.	7510
+假如	if	conj.	7507
+除非	unless	conj.	7504
+或者	or	conj.	7501
+还是	or	conj.	7498
+和	and	conj.	7495
+与	and	conj.	7492
+以及	and	conj.	7489
+并且	and	conj.	7486
+接着	then	conj.	7483
+为了	in order to	prep.	7479
+由于	due to	prep.	7476
+关于	about	prep.	7473
+对于	for	prep.	7470
+根据	according to	prep.	7467
+按照	according to	prep.	7464
+通过	through	prep.	7461
+随着	along with	prep.	7458
+除了	except	prep.	7455
+包括	including	prep.	7452
+中国	China	n.	7448
+北京	Beijing	n.	7445
+上海	Shanghai	n.	7442
+广州	Guangzhou	n.	7439
+深圳	Shenzhen	n.	7436
+天津	Tianjin	n.	7433
+重庆	Chongqing	n.	7430
+成都	Chengdu	n.	7427
+武汉	Wuhan	n.	7424
+西安	Xi'an	n.	7421
+南京	Nanjing	n.	7417
+杭州	Hangzhou	n.	7414
+苏州	Suzhou	n.	7411
+青岛	Qingdao	n.	7408
+厦门	Xiamen	n.	7405
+长沙	Changsha	n.	7402
+郑州	Zhengzhou	n.	7399
+济南	Jinan	n.	7396
+合肥	Hefei	n.	7393
+福州	Fuzhou	n.	7390
+沈阳	Shenyang	n.	7387
+大连	Dalian	n.	7383
+哈尔滨	Harbin	n.	7380
+长春	Changchun	n.	7377
+石家庄	Shijiazhuang	n.	7374
+太原	Taiyuan	n.	7371
+南昌	Nanchang	n.	7368
+兰州	Lanzhou	n.	7365
+西宁	Xining	n.	7362
+银川	Yinchuan	n.	7359
+乌鲁木齐	Urumqi	n.	7356
+拉萨	Lhasa	n.	7352
+呼和浩特	Hohhot	n.	7349
+南宁	Nanning	n.	7346
+海口	Haikou	n.	7343
+贵阳	Guiyang	n.	7340
+昆明	Kunming	n.	7337
+桂林	Guilin	n.	7334
+三亚	Sanya	n.	7331
+香港	Hong Kong	n.	7328
+澳门	Macau	n.	7325
+台北	Taipei	n.	7322
+台湾	Taiwan	n.	7318
+美国	America	n.	7315
+英国	Britain	n.	7312
+法国	France	n.	7309
+德国	Germany	n.	7306
+意大利	Italy	n.	7303
+西班牙	Spain	n.	7300
+葡萄牙	Portugal	n.	7297
+俄罗斯	Russia	n.	7294
+日本	Japan	n.	7291
+韩国	Korea	n.	7288
+朝鲜	North Korea	n.	7284
+印度	India	n.	7281
+泰国	Thailand	n.	7278
+越南	Vietnam	n.	7275
+新加坡	Singapore	n.	7272
+马来西亚	Malaysia	n.	7269
+印尼	Indonesia	n.	7266
+菲律宾	Philippines	n.	7263
+澳大利亚	Australia	n.	7260
+新西兰	New Zealand	n.	7257
+加拿大	Canada	n.	7254
+墨西哥	Mexico	n.	7251
+巴西	Brazil	n.	7247
+阿根廷	Argentina	n.	7244
+埃及	Egypt	n.	7241
+南非	South Africa	n.	7238
+瑞士	Switzerland	n.	7235
+瑞典	Sweden	n.	7232
+挪威	Norway	n.	7229
+芬兰	Finland	n.	7226
+丹麦	Denmark	n.	7223
+荷兰	Netherlands	n.	7220
+比利时	Belgium	n.	7217
+奥地利	Austria	n.	7214
+希腊	Greece	n.	7210
+土耳其	Turkey	n.	7207
+以色列	Israel	n.	7204
+沙特	Saudi Arabia	n.	7201
+伊朗	Iran	n.	7198
+伊拉克	Iraq	n.	7195
+联合国	United Nations	n.	7192
+世界卫生组织	WHO	n.	7189
+早上好	good morning	interj.	7186
+下午好	good afternoon	interj.	7183
+晚上好	good evening	interj.	7180
+好久不见	long time no see	interj.	7177
+最近好吗	how have you been	interj.	7173
+认识你很高兴	nice to meet you	interj.	7170
+很高兴认识你	nice to meet you	interj.	7167
+辛苦了	thanks for your hard work	interj.	7164
+麻烦你	excuse me	interj.	7161
+打扰一下	excuse me	interj.	7158
+不好意思	sorry	interj.	7155
+别客气	you are welcome	interj.	7152
+不客气	you are welcome	interj.	7149
+没问题	no problem	interj.	7146
+当然可以	of course	interj.	7143
+随便	whatever	adj.	7140
+回头见	see you later	interj.	7137
+明天见	see you tomorrow	interj.	7133
+慢走	take care	interj.	7130
+保重	take care	v.	7127
+一路顺风	have a safe trip	interj.	7124
+节日快乐	happy holidays	interj.	7121
+新年快乐	happy new year	interj.	7118
+生日快乐	happy birthday	interj.	7115
+恭喜发财	wish you prosperity	interj.	7112
+身体健康	good health	interj.	7109
+一切顺利	all the best	interj.	7106
+祝你好运	good luck	interj.	7103
+加油	keep it up	interj.	7100
+放心	rest assured	v.	7097
+别担心	don't worry	interj.	7093
+没关系	it's okay	interj.	7090
+算了	forget it	interj.	7087
+太好啦	great	interj.	7084
+太棒了	awesome	interj.	7081
+真的吗	really	interj.	7078
+当然	of course	adv.	7075
+也许	maybe	adv.	7072
+大概	probably	adv.	7069
+差不多	almost	adv.	7066
+菜单	menu	n.	7063
+买单	pay the bill	v.	7060
+结账	check out	v.	7057
+多少钱	how much	interj.	7054
+便宜点	cheaper please	interj.	7050
+打折	discount	n.	7047
+优惠	discount	n.	7044
+外卖	takeout	n.	7041
+打包	pack up	v.	7038
+预订	book	v.	7035
+预约	make an appointment	v.	7032
+排队	line up	v.	7029
+座位	seat	n.	7026
+包厢	private room	n.	7023
+筷子	chopsticks	n.	7020
+勺子	spoon	n.	7017
+刀子	knife	n.	7014
+叉子	fork	n.	7011
+碗	bowl	n.	7008
+盘子	plate	n.	7004
+杯子	cup	n.	7001
+瓶子	bottle	n.	6998
+冰箱	fridge	n.	6995
+微波炉	microwave	n.	6992
+烤箱	oven	n.	6989
+炉子	stove	n.	6986
+炒	stir-fry	v.	6983
+炸	fry	v.	6980
+烤	roast	v.	6977
+蒸	steam	v.	6974
+煮	boil	v.	6971
+切	cut	v.	6968
+味道	taste	n.	6965
+好吃	delicious	adj.	6962
+难吃	terrible	adj.	6958
+辣	spicy	adj.	6955
+甜	sweet	adj.	6952
+酸	sour	adj.	6949
+苦	bitter	adj.	6946
+咸	salty	adj.	6943
+香	fragrant	adj.	6940
+淡	bland	adj.	6937
+新鲜	fresh	adj.	6934
+熟食	cooked food	n.	6931
+零食	snacks	n.	6928
+饮料	drinks	n.	6925
+果汁	juice	n.	6922
+汽水	soda	n.	6919
+啤酒	beer	n.	6916
+红酒	red wine	n.	6913
+白酒	baijiu	n.	6909
+蛋糕	cake	n.	6906
+甜点	dessert	n.	6903
+冰淇淋	ice cream	n.	6900
+巧克力	chocolate	n.	6897
+糖果	candy	n.	6894
+饼干	cookies	n.	6891
+汉堡	hamburger	n.	6888
+披萨	pizza	n.	6885
+寿司	sushi	n.	6882
+饺子	dumplings	n.	6879
+包子	steamed buns	n.	6876
+馒头	steamed bread	n.	6873
+粥	porridge	n.	6870
+汤	soup	n.	6867
+牛肉	beef	n.	6864
+猪肉	pork	n.	6861
+羊肉	lamb	n.	6857
+鸡肉	chicken	n.	6854
+鸭肉	duck	n.	6851
+虾	shrimp	n.	6848
+蟹	crab	n.	6845
+豆腐	tofu	n.	6842
+土豆	potato	n.	6839
+番茄	tomato	n.	6836
+黄瓜	cucumber	n.	6833
+白菜	Chinese cabbage	n.	6830
+油菜	rape	n.	6827
+芹菜	celery	n.	6824
+菠菜	spinach	n.	6821
+萝卜	radish	n.	6818
+茄子	eggplant	n.	6815
+辣椒	chili	n.	6812
+葱	scallion	n.	6809
+姜	ginger	n.	6806
+蒜	garlic	n.	6802
+盐	salt	n.	6799
+糖	sugar	n.	6796
+油	oil	n.	6793
+醋	vinegar	n.	6790
+酱油	soy sauce	n.	6787
+胡椒	pepper	n.	6784
+大米	rice	n.	6781
+面粉	flour	n.	6778
+黄油	butter	n.	6775
+奶酪	cheese	n.	6772
+酸奶	yogurt	n.	6769
+飞机票	plane ticket	n.	6766
+火车票	train ticket	n.	6763
+高铁	high-speed rail	n.	6760
+动车	bullet train	n.	6757
+硬座	hard seat	n.	6754
+卧铺	sleeper	n.	6751
+靠窗	window seat	n.	6748
+过道	aisle	n.	6745
+登机牌	boarding pass	n.	6741
+护照	passport	n.	6738
+签证	visa	n.	6735
+行李	luggage	n.	6732
+背包	backpack	n.	6729
+行李箱	suitcase	n.	6726
+地图	map	n.	6723
+导航	navigation	n.	6720
+方向	direction	n.	6717
+左边	left	n.	6714
+右边	right	n.	6711
+直走	go straight	v.	6708
+转弯	turn	v.	6705
+十字路口	intersection	n.	6702
+红绿灯	traffic light	n.	6699
+斑马线	crosswalk	n.	6696
+人行道	sidewalk	n.	6693
+高速公路	expressway	n.	6690
+收费站	toll station	n.	6687
+停车场	parking lot	n.	6684
+加油站	gas station	n.	6681
+自行车	bicycle	n.	6678
+电动车	e-bike	n.	6674
+摩托车	motorcycle	n.	6671
+三轮车	tricycle	n.	6668
+校车	school bus	n.	6665
+救护车	ambulance	n.	6662
+消防车	fire truck	n.	6659
+轮船	ship	n.	6656
+地铁站	subway station	n.	6653
+公交站	bus stop	n.	6650
+候车室	waiting room	n.	6647
+月台	platform	n.	6644
+出口	exit	n.	6641
+入口	entrance	n.	6638
+挂号	register	v.	6635
+门诊	outpatient	n.	6632
+急诊	emergency	n.	6629
+住院	hospitalize	v.	6626
+出院	discharge	v.	6623
+病历	medical record	n.	6620
+处方	prescription	n.	6617
+药店	pharmacy	n.	6614
+口罩	mask	n.	6611
+体温	temperature	n.	6608
+发烧	fever	n.	6605
+感冒	cold	n.	6602
+咳嗽	cough	v.	6598
+头疼	headache	n.	6595
+肚子疼	stomachache	n.	6592
+牙疼	toothache	n.	6589
+过敏	allergy	n.	6586
+炎症	inflammation	n.	6583
+病毒	virus	n.	6580
+细菌	bacteria	n.	6577
+疫苗	vaccine	n.	6574
+打针	injection	n.	6571
+吃药	take medicine	v.	6568
+体检	physical exam	n.	6565
+康复	recover	v.	6562
+恢复	recover	v.	6559
+健康	healthy	adj.	6556
+锻炼	exercise	v.	6553
+散步	take a walk	v.	6550
+跑步	running	n.	6547
+瑜伽	yoga	n.	6544
+健身房	gym	n.	6541
+游泳	swimming	n.	6538
+睡眠	sleep	n.	6535
+熬夜	stay up late	v.	6532
+早睡	early to bed	v.	6529
+压力	pressure	n.	6526
+放松	relax	v.	6523
+休息	rest	v.	6520
+假期	vacation	n.	6517
+旅游	tourism	n.	6514
+风景	scenery	n.	6511
+景点	attraction	n.	6507
+海滩	beach	n.	6504
+帐篷	tent	n.	6501
+露营	camping	n.	6498
+相机	camera	n.	6495
+门票	ticket	n.	6492
+纪念品	souvenir	n.	6489
+明信片	postcard	n.	6486
+面试	interview	n.	6483
+简历	resume	n.	6480
+招聘	recruit	v.	6477
+入职	join the company	v.	6474
+辞职	quit	v.	6471
+加班	work overtime	v.	6468
+出差	business trip	n.	6465
+上班	go to work	v.	6462
+下班	get off work	v.	6459
+开会	have a meeting	v.	6456
+汇报	report	v.	6453
+总结	summarize	v.	6450
+截止日期	deadline	n.	6447
+同事	workmate	n.	6444
+上司	boss	n.	6441
+下属	subordinate	n.	6438
+团队	team	n.	6435
+合作	cooperation	n.	6432
+客户	customer	n.	6429
+供应商	supplier	n.	6426
+签约	sign a contract	v.	6423
+谈判	negotiate	v.	6420
+报价	quote	n.	6417
+预算	budget	n.	6414
+财务	finance	n.	6411
+会计	accountant	n.	6408
+审计	audit	n.	6405
+报销	reimburse	v.	6402
+工资卡	payroll card	n.	6399
+奖金	bonus	n.	6396
+福利	benefits	n.	6393
+退休	retire	v.	6390
+创业	start a business	v.	6386
+融资	financing	n.	6383
+上市	go public	v.	6380
+股票	stock	n.	6377
+基金	fund	n.	6374
+债券	bond	n.	6371
+利率	interest rate	n.	6368
+汇率	exchange rate	n.	6365
+通货膨胀	inflation	n.	6362
+开学	school starts	v.	6359
+放学	school ends	v.	6356
+课程表	class schedule	n.	6353
+作业	homework	n.	6350
+复习	review	v.	6347
+预习	preview	v.	6344
+补习	tutor	v.	6341
+辅导	tutor	v.	6338
+学费	tuition	n.	6335
+奖学金	scholarship	n.	6332
+毕业	graduate	v.	6329
+学位	degree	n.	6326
+本科	undergraduate	n.	6323
+研究生	graduate student	n.	6320
+博士	doctor	n.	6317
+硕士	master	n.	6314
+论文	thesis	n.	6311
+答辩	defense	n.	6308
+实验	experiment	n.	6305
+实验室	lab	n.	6302
+词典	dictionary	n.	6299
+语法	grammar	n.	6296
+单词	word	n.	6293
+句子	sentence	n.	6290
+段落	paragraph	n.	6287
+作文	essay	n.	6284
+翻译	translate	v.	6281
+口译	interpreting	n.	6278
+笔译	translation	n.	6275
+外语	foreign language	n.	6272
+英语	English	n.	6269
+中文	Chinese	n.	6266
+日语	Japanese	n.	6263
+法语	French	n.	6260
+德语	German	n.	6257
+韩语	Korean	n.	6254
+俄语	Russian	n.	6251
+西班牙语	Spanish	n.	6248
+数学	math	n.	6245
+物理	physics	n.	6242
+化学	chemistry	n.	6239
+生物	biology	n.	6236
+地理	geography	n.	6233
+政治	politics	n.	6230
+经济	economics	n.	6227
+计算机	computer	n.	6224
+编程	programming	n.	6221
+代码	code	n.	6218
+程序	program	n.	6215
+算法	algorithm	n.	6212
+数据库	database	n.	6209
+网络	internet	n.	6206
+人工智能	artificial intelligence	n.	6203
+人工智能	AI	n.	6200
+机器学习	machine learning	n.	6197
+大数据	big data	n.	6194
+云计算	cloud computing	n.	6191
+区块链	blockchain	n.	6188
+信息安全	information security	n.	6185
+难过	sad	adj.	6182
+伤心	heartbroken	adj.	6179
+孤独	lonely	adj.	6176
+寂寞	lonely	adj.	6173
+紧张	nervous	adj.	6170
+放松	relaxed	adj.	6167
+害怕	scared	adj.	6164
+恐惧	fear	n.	6161
+愤怒	angry	adj.	6158
+烦躁	irritable	adj.	6155
+焦虑	anxious	adj.	6152
+抑郁	depressed	adj.	6149
+兴奋	excited	adj.	6146
+激动	thrilled	adj.	6143
+惊喜	surprise	n.	6140
+惊讶	surprised	adj.	6137
+感动	touched	adj.	6134
+感激	grateful	adj.	6131
+感谢	gratitude	n.	6128
+骄傲	proud	adj.	6125
+自豪	proud	adj.	6122
+自信	confident	adj.	6119
+自卑	inferior	adj.	6116
+羡慕	envious	adj.	6113
+嫉妒	jealous	adj.	6110
+后悔	regretful	adj.	6107
+遗憾	regret	n.	6104
+无奈	helpless	adj.	6101
+委屈	aggrieved	adj.	6098
+辛苦	hard	adj.	6095
+疲惫	exhausted	adj.	6092
+无聊	bored	adj.	6089
+充实	fulfilling	adj.	6086
+满足	satisfied	adj.	6083
+幸福	happy	adj.	6080
+浪漫	romantic	adj.	6077
+温柔	gentle	adj.	6074
+体贴	considerate	adj.	6071
+善良	kind	adj.	6068
+诚实	honest	adj.	6065
+勇敢	brave	adj.	6062
+勤奋	hardworking	adj.	6059
+自私	selfish	adj.	6056
+大方	generous	adj.	6053
+小气	stingy	adj.	6050
+有趣	funny	adj.	6047
+无趣	dull	adj.	6044
+晴天	sunny day	n.	6041
+阴天	cloudy day	n.	6038
+雨天	rainy day	n.	6035
+雪天	snowy day	n.	6032
+刮风	windy	adj.	6029
+台风	typhoon	n.	6026
+暴雨	rainstorm	n.	6023
+大雪	heavy snow	n.	6020
+雾	fog	n.	6017
+霜	frost	n.	6014
+彩虹	rainbow	n.	6011
+闪电	lightning	n.	6008
+雷	thunder	n.	6005
+潮湿	humid	adj.	6002
+干燥	dry	adj.	5999
+气温	temperature	n.	5996
+温度	temperature	n.	5993
+预报	forecast	n.	5990
+春天	spring	n.	5987
+夏天	summer	n.	5984
+秋天	autumn	n.	5981
+冬天	winter	n.	5978
+季节	season	n.	5975
+植树节	Arbor Day	n.	5972
+春节	Spring Festival	n.	5969
+中秋节	Mid-Autumn Festival	n.	5966
+端午节	Dragon Boat Festival	n.	5963
+清明节	Qingming Festival	n.	5960
+元宵节	Lantern Festival	n.	5957
+国庆节	National Day	n.	5954
+劳动节	Labor Day	n.	5951
+儿童节	Children's Day	n.	5948
+教师节	Teachers' Day	n.	5945
+圣诞节	Christmas	n.	5942
+感恩节	Thanksgiving	n.	5939
+万圣节	Halloween	n.	5936
+情人节	Valentine's Day	n.	5933
+家具	furniture	n.	5930
+床垫	mattress	n.	5927
+枕头	pillow	n.	5924
+被子	quilt	n.	5921
+毛巾	towel	n.	5918
+香皂	soap	n.	5915
+洗发水	shampoo	n.	5912
+牙刷	toothbrush	n.	5909
+牙膏	toothpaste	n.	5906
+梳子	comb	n.	5903
+镜子	mirror	n.	5900
+吹风机	hair dryer	n.	5897
+洗衣机	washing machine	n.	5894
+空调	air conditioner	n.	5891
+风扇	fan	n.	5888
+暖气	heating	n.	5886
+加湿器	humidifier	n.	5883
+吸尘器	vacuum cleaner	n.	5880
+拖把	mop	n.	5877
+扫帚	broom	n.	5874
+垃圾桶	trash can	n.	5871
+剪刀	scissors	n.	5868
+针线	needle and thread	n.	5865
+纽扣	button	n.	5862
+拉链	zipper	n.	5859
+衣架	hanger	n.	5856
+衣柜	wardrobe	n.	5853
+抽屉	drawer	n.	5850
+书架	bookshelf	n.	5847
+相框	photo frame	n.	5844
+蜡烛	candle	n.	5841
+打火机	lighter	n.	5838
+钥匙	key	n.	5835
+锁	lock	n.	5832
+门铃	doorbell	n.	5829
+地毯	carpet	n.	5826
+窗帘	curtains	n.	5823
+盆栽	potted plant	n.	5820
+花瓶	vase	n.	5817
+谈恋爱	date	v.	5814
+分手	break up	v.	5811
+结婚	get married	v.	5808
+离婚	divorce	v.	5805
+怀孕	pregnant	adj.	5802
+生孩子	give birth	v.	5799
+庆祝	celebrate	v.	5796
+聚会	party	n.	5793
+宴会	banquet	n.	5790
+婚礼	wedding	n.	5787
+葬礼	funeral	n.	5784
+礼物	present	n.	5781
+拥抱	hug	v.	5778
+亲吻	kiss	v.	5775
+牵手	hold hands	v.	5772
+微笑	smile	v.	5770
+皱眉	frown	v.	5767
+点头	nod	v.	5764
+摇头	shake one's head	v.	5761
+挥手	wave	v.	5758
+鼓掌	clap	v.	5755
+鞠躬	bow	v.	5752
+打招呼	greet	v.	5749
+自我介绍	self-introduction	n.	5746
+交朋友	make friends	v.	5743
+保持联系	keep in touch	v.	5740
+想念	miss	v.	5737
+思念	miss	v.	5734
+牵挂	worry about	v.	5731
+在乎	care about	v.	5728
+关心	care about	v.	5725
+体贴	be considerate	v.	5722
+包容	tolerate	v.	5719
+鼓励	encourage	v.	5716
+安慰	comfort	v.	5713
+陪伴	accompany	v.	5710
+分享	share	v.	5707
+背叛	betray	v.	5704
+欺骗	cheat	v.	5701
+撒谎	lie	v.	5698
+吵架	quarrel	v.	5695
+和好	make up	v.	5692
+智能手机	smartphone	n.	5689
+平板	tablet	n.	5686
+笔记本电脑	laptop	n.	5684
+台式机	desktop	n.	5681
+显示器	monitor	n.	5678
+键盘	keyboard	n.	5675
+鼠标	mouse	n.	5672
+打印机	printer	n.	5669
+扫描仪	scanner	n.	5666
+路由器	router	n.	5663
+服务器	server	n.	5660
+硬盘	hard disk	n.	5657
+内存	memory	n.	5654
+处理器	processor	n.	5651
+芯片	chip	n.	5648
+屏幕	screen	n.	5645
+电池	battery	n.	5642
+充电器	charger	n.	5639
+耳机	headphones	n.	5636
+音箱	speaker	n.	5633
+麦克风	microphone	n.	5630
+摄像头	camera	n.	5627
+数据线	data cable	n.	5624
+软件应用	app	n.	5621
+操作系统	operating system	n.	5618
+窗口	window	n.	5615
+桌面	desktop	n.	5613
+文件夹	folder	n.	5610
+图标	icon	n.	5607
+账户名	username	n.	5604
+用户名	username	n.	5601
+验证码	captcha	n.	5598
+二维码	QR code	n.	5595
+浏览器	browser	n.	5592
+网页	webpage	n.	5589
+链接	link	n.	5586
+邮件	email	n.	5583
+附件	attachment	n.	5580
+垃圾邮件	spam	n.	5577
+社交软件	social app	n.	5574
+搜索引擎	search engine	n.	5571
+朋友圈	moments	n.	5568
+短视频	short video	n.	5565
+直播	live streaming	n.	5562
+弹幕	bullet comments	n.	5559
+点赞	like	v.	5556
+转发	forward	v.	5553
+关注	follow	v.	5551
+粉丝	fans	n.	5548
+博主	blogger	n.	5545
+网红	influencer	n.	5542
+市场份额	market share	n.	5539
+竞争对手	competitor	n.	5536
+商业模式	business model	n.	5533
+战略	strategy	n.	5530
+目标市场	target market	n.	5527
+营销	marketing	n.	5524
+广告	advertisement	n.	5521
+品牌形象	brand image	n.	5518
+售后服务	after-sales service	n.	5515
+客户服务	customer service	n.	5512
+用户体验	user experience	n.	5509
+产品质量	product quality	n.	5506
+供应链	supply chain	n.	5503
+物流	logistics	n.	5500
+仓库	warehouse	n.	5497
+库存	inventory	n.	5495
+批发	wholesale	n.	5492
+零售	retail	n.	5489
+电子商务	e-commerce	n.	5486
+网购	online shopping	n.	5483
+电子支付	electronic payment	n.	5480
+移动支付	mobile payment	n.	5477
+数字货币	digital currency	n.	5474
+虚拟货币	virtual currency	n.	5471
+加密货币	cryptocurrency	n.	5468
+风险投资	venture capital	n.	5465
+天使投资	angel investment	n.	5462
+盈利能力	profitability	n.	5459
+现金流	cash flow	n.	5456
+资产负债表	balance sheet	n.	5453
+损益表	income statement	n.	5450
+股东大会	shareholders' meeting	n.	5447
+董事会	board of directors	n.	5444
+首席执行官	CEO	n.	5442
+首席财务官	CFO	n.	5439
+首席技术官	CTO	n.	5436
+创始人	founder	n.	5433
+合伙人	partner	n.	5430
+股东	shareholder	n.	5427
+投资者	investor	n.	5424
+民主	democracy	n.	5421
+自由	freedom	n.	5418
+平等	equality	n.	5415
+正义	justice	n.	5412
+公平	fairness	n.	5409
+法治	rule of law	n.	5406
+宪法	constitution	n.	5403
+议会	parliament	n.	5400
+选举	election	n.	5397
+投票	vote	v.	5395
+政党	party	n.	5392
+政府官员	official	n.	5389
+外交	diplomacy	n.	5386
+大使	ambassador	n.	5383
+领事馆	consulate	n.	5380
+条约	treaty	n.	5377
+同盟	alliance	n.	5374
+战争	war	n.	5371
+和平	peace	n.	5368
+冲突	conflict	n.	5365
+恐怖主义	terrorism	n.	5362
+难民	refugee	n.	5359
+贫困	poverty	n.	5356
+贫富差距	wealth gap	n.	5353
+社会福利	social welfare	n.	5351
+医疗保健	healthcare	n.	5348
+养老保险	pension insurance	n.	5345
+失业	unemployment	n.	5342
+就业	employment	n.	5339
+人口老龄化	aging population	n.	5336
+城市化	urbanization	n.	5333
+全球化	globalization	n.	5330
+气候变化	climate change	n.	5327
+碳排放	carbon emissions	n.	5324
+新能源	new energy	n.	5321
+可持续发展	sustainable development	n.	5318
+环境保护	environmental protection	n.	5315
+生态平衡	ecological balance	n.	5312
+生物多样性	biodiversity	n.	5310
+可再生能源	renewable energy	n.	5307
+概念	concept	n.	5304
+理论	theory	n.	5301
+原则	principle	n.	5298
+规律	law	n.	5295
+现象	phenomenon	n.	5292
+本质	essence	n.	5289
+特征	feature	n.	5286
+特点	characteristic	n.	5283
+性质	nature	n.	5280
+功能	function	n.	5277
+结构	structure	n.	5274
+机制	mechanism	n.	5271
+模式	pattern	n.	5269
+框架	framework	n.	5266
+体系	system	n.	5263
+范畴	category	n.	5260
+类型	type	n.	5257
+类别	category	n.	5254
+种类	kind	n.	5251
+形式	form	n.	5248
+内容	content	n.	5245
+意义	meaning	n.	5242
+价值	value	n.	5239
+作用	function	n.	5236
+影响	influence	n.	5233
+效果	effect	n.	5231
+效率	efficiency	n.	5228
+效益	benefit	n.	5225
+优势	advantage	n.	5222
+劣势	disadvantage	n.	5219
+机会	chance	n.	5216
+挑战	challenge	n.	5213
+风险	risk	n.	5210
+问题	issue	n.	5207
+矛盾	contradiction	n.	5204
+差异	difference	n.	5201
+区别	difference	n.	5198
+联系	connection	n.	5196
+关系	relationship	n.	5193
+关联	correlation	n.	5190
+趋势	trend	n.	5187
+目标	goal	n.	5184
+策略	strategy	n.	5181
+步骤	step	n.	5178
+阶段	stage	n.	5175
+过程	course	n.	5172
+细节	detail	n.	5169
+整体	whole	n.	5166
+局部	part	n.	5163
+重点	priority	n.	5161
+核心	core	n.	5158
+关键	key	n.	5155
+基础	basis	n.	5152
+前提	premise	n.	5149
+因素	factor	n.	5146
+原因	cause	n.	5143
+结果	consequence	n.	5140
+后果	consequence	n.	5137
+目的	aim	n.	5134
+动机	motive	n.	5131
+理由	reason	n.	5129
+证据	evidence	n.	5126
+事实	fact	n.	5123
+真相	truth	n.	5120
+现实	reality	n.	5117
+理想	ideal	n.	5114
+信念	belief	n.	5111
+观点	viewpoint	n.	5108
+看法	opinion	n.	5105
+态度	attitude	n.	5102
+立场	position	n.	5099
+努力	hardworking	adj.	5097
+认真	conscientious	adj.	5094
+负责	responsible	adj.	5091
+可靠	reliable	adj.	5088
+值得信赖	trustworthy	adj.	5085
+高效	efficient	adj.	5082
+有创造力	creative	adj.	5079
+有想象力	imaginative	adj.	5076
+有天赋	talented	adj.	5073
+有能力	capable	adj.	5070
+有经验	experienced	adj.	5067
+成熟	mature	adj.	5065
+稳重	steady	adj.	5062
+灵活	flexible	adj.	5059
+严谨	rigorous	adj.	5056
+周密	thorough	adj.	5053
+周到	thoughtful	adj.	5050
+耐心	patient	adj.	5047
+细心	attentive	adj.	5044
+大胆	bold	adj.	5041
+谨慎	cautious	adj.	5038
+冷静	calm	adj.	5036
+理智	rational	adj.	5033
+感性	emotional	adj.	5030
+客观	objective	adj.	5027
+主观	subjective	adj.	5024
+公正	fair	adj.	5021
+中立	neutral	adj.	5018
+明确	explicit	adj.	5015
+清晰	clear	adj.	5012
+具体	concrete	adj.	5009
+抽象	abstract	adj.	5007
+深刻	profound	adj.	5004
+浅显	simple	adj.	5001
+全面	comprehensive	adj.	4998
+系统	systematic	adj.	4995
+完整	complete	adj.	4992
+准确	accurate	adj.	4989
+精确	precise	adj.	4986
+大致	roughly	adv.	4983
+合理	reasonable	adj.	4980
+科学	scientific	adj.	4978
+有效	effective	adj.	4975
+有用	useful	adj.	4972
+无用	useless	adj.	4969
+可行	feasible	adj.	4966
+现实	realistic	adj.	4963
+理想化	idealized	adj.	4960
+一举两得	kill two birds with one stone	idiom	4957
+一帆风顺	smooth sailing	idiom	4954
+一路平安	safe journey	idiom	4951
+一见钟情	love at first sight	idiom	4949
+万事如意	all the best	idiom	4946
+心想事成	may your wishes come true	idiom	4943
+年年有余	abundance year after year	idiom	4940
+岁岁平安	peace all year round	idiom	4937
+马到成功	success upon arrival	idiom	4934
+龙马精神	full of energy	idiom	4931
+自强不息	never stop improving	idiom	4928
+学以致用	learn to apply	idiom	4925
+温故知新	review the old and learn the new	idiom	4923
+熟能生巧	practice makes perfect	idiom	4920
+三人行必有我师	always something to learn from others	idiom	4917
+世上无难事	nothing is impossible	idiom	4914
+只要功夫深	with enough effort	idiom	4911
+铁杵磨成针	persistence pays off	idiom	4908
+一日之计在于晨	the morning plans the day	idiom	4905
+一年之计在于春	spring plans the year	idiom	4902
+一寸光阴一寸金	time is precious	idiom	4899
+机不可失	opportunity knocks but once	idiom	4897
+时不再来	time waits for no one	idiom	4894
+争分夺秒	race against time	idiom	4891
+千方百计	by every possible means	idiom	4888
+想方设法	find a way	idiom	4885
+全力以赴	go all out	idiom	4882
+尽心尽力	do one's best	idiom	4879
+一丝不苟	meticulous	idiom	4876
+脚踏实地	down-to-earth	idiom	4873
+坚持不懈	persevere	idiom	4871
+持之以恒	persistent	idiom	4868
+锲而不舍	never give up	idiom	4865
+半途而废	give up halfway	idiom	4862
+有始有终	finish what you start	idiom	4859
+自食其力	stand on one's own feet	idiom	4856
+自力更生	self-reliance	idiom	4853
+各自为政	each does things his own way	idiom	4850
+同心协力	work together	idiom	4847
+众志成城	unity is strength	idiom	4845
+团结一致	united as one	idiom	4842
+互帮互助	help each other	idiom	4839
+共同进步	progress together	idiom	4836
+取长补短	learn from each other	idiom	4833
+互相学习	learn from each other	idiom	4830
+共同发展	develop together	idiom	4827
+合作共赢	win-win cooperation	idiom	4824
+互利共赢	mutual benefit	idiom	4822
+和平共处	peaceful coexistence	idiom	4819
+求同存异	seek common ground	idiom	4816
+和而不同	harmony in diversity	idiom	4813
+天人合一	harmony between man and nature	idiom	4810
+道法自然	follow the way of nature	idiom	4807
+上善若水	the highest good is like water	idiom	4804
+厚德载物	great virtue carries all things	idiom	4801
+没有	not have	v.	4799
+进行	conduct	v.	4796
+要求	require	v.	4793
+认为	believe	v.	4790
+实施	implement	v.	4787
+看到	see	v.	4784
+开展	carry out	v.	4781
+加强	strengthen	v.	4778
+推进	advance	v.	4775
+落实	implement	v.	4773
+指出	point out	v.	4770
+坚持	persist	v.	4767
+造成	cause	v.	4764
+执行	execute	v.	4761
+导致	lead to	v.	4758
+规划	plan	v.	4755
+行动	action	v.	4752
+觉得	feel	v.	4750
+采访	interview	v.	4747
+举行	hold	v.	4744
+无法	unable	v.	4741
+调整	adjust	v.	4738
+形成	form	v.	4735
+透露	reveal	v.	4732
+监督	supervise	v.	4730
+曝光	expose	v.	4727
+购买	purchase	v.	4724
+能够	able	v.	4721
+加快	accelerate	v.	4718
+来自	come from	v.	4715
+位于	locate	v.	4712
+制定	formulate	v.	4709
+支付	pay	v.	4707
+部署	deploy	v.	4704
+作出	make	v.	4701
+面对	face	v.	4698
+出台	introduce	v.	4695
+下降	decline	v.	4692
+实行	implement	v.	4689
+打造	construct	v.	4686
+注意	pay attention	v.	4684
+提醒	remind	v.	4681
+突出	stand out	v.	4678
+改造	transform	v.	4675
+主持	host	v.	4672
+拍摄	shoot	v.	4669
+拥有	own	v.	4666
+接到	receive	v.	4664
+投入	invest	v.	4661
+收费	charge	v.	4658
+整治	rectify	v.	4655
+上涨	rise	v.	4652
+涉及	involve	v.	4649
+增强	enhance	v.	4646
+强化	reinforce	v.	4643
+购票	buy ticket	v.	4641
+保证	guarantee	v.	4638
+相比	compare	v.	4635
+连续	consecutive	v.	4632
+消防	firefighting	v.	4629
+审批	approve	v.	4626
+结合	combine	v.	4623
+通报	notify	v.	4621
+符合	conform	v.	4618
+升级	upgrade	v.	4615
+前往	head to	v.	4612
+重视	value	v.	4609
+提前	ahead	v.	4606
+出行	travel	v.	4603
+施工	construct	v.	4601
+做出	make	v.	4598
+维护	maintain	v.	4595
+考虑	consider	v.	4592
+担任	serve as	v.	4589
+举办	hold	v.	4586
+出席	attend	v.	4583
+采用	adopt	v.	4581
+围绕	revolve around	v.	4578
+建成	build	v.	4575
+承担	bear	v.	4572
+评价	evaluate	v.	4569
+扩大	expand	v.	4566
+指导	guide	v.	4563
+实践	practice	v.	4561
+质疑	question	v.	4558
+举报	report	v.	4555
+赶到	rush to	v.	4552
+体现	embodied	v.	4549
+遭遇	encounter	v.	4546
+协调	coordinate	v.	4543
+不再	no longer	v.	4541
+违规	violate	v.	4538
+播出	broadcast	v.	4535
+用于	use for	v.	4532
+意识	realize	v.	4529
+救助	aid	v.	4526
+感到	feel	v.	4524
+做到	achieve	v.	4521
+吸引	attract	v.	4518
+处罚	punish	v.	4515
+设立	establish	v.	4512
+巡视	inspect	v.	4509
+监控	monitor	v.	4506
+查处	investigate	v.	4504
+面临	face	v.	4501
+爆炸	explode	v.	4498
+难以	hard to	v.	4495
+贡献	contribute	v.	4492
+移动	move	v.	4489
+展开	unfold	v.	4487
+诈骗	fraud	v.	4484
+开放	open	v.	4481
+期待	expect	v.	4478
+转型	transform	v.	4475
+发放	issue	v.	4472
+担负	take on	v.	4469
+人员	personnel	n.	4467
+目前	currently	n.	4464
+报道	report	n.	4461
+活动	activity	n.	4458
+现场	scene	n.	4455
+中央	central	n.	4452
+媒体	media	n.	4450
+警方	police	n.	4447
+方面	aspect	n.	4444
+单位	unit	n.	4441
+改革	reform	n.	4438
+行为	behavior	n.	4435
+交通	traffic	n.	4432
+标题	title	n.	4430
+期间	period	n.	4427
+精神	spirit	n.	4424
+产业	industry	n.	4421
+工作人员	staff	n.	4418
+民警	police	n.	4415
+女士	lady	n.	4413
+节目	program	n.	4410
+干部	cadre	n.	4407
+老人	elder	n.	4404
+机关	agency	n.	4401
+领导	leader	n.	4398
+负责人	leader	n.	4396
+基本	basic	n.	4393
+工程	engineering	n.	4390
+居民	resident	n.	4387
+保障	guarantee	n.	4384
+资金	funds	n.	4381
+案件	case	n.	4379
+事件	incident	n.	4376
+先生	mister	n.	4373
+创新	innovation	n.	4370
+委员	commissioner	n.	4367
+严重	serious	n.	4364
+旅客	passenger	n.	4362
+小时	hour	n.	4359
+措施	measure	n.	4356
+食品	food	n.	4353
+车辆	vehicle	n.	4350
+书记	secretary	n.	4347
+犯罪	crime	n.	4345
+意见	opinion	n.	4342
+行政	administration	n.	4339
+集团	group	n.	4336
+分钟	minute	n.	4333
+人们	people	n.	4330
+法院	court	n.	4328
+附近	vicinity	n.	4325
+土地	land	n.	4322
+平台	platform	n.	4319
+完善	perfection	n.	4316
+女性	female	n.	4313
+女子	woman	n.	4311
+社区	community	n.	4308
+国内	domestic	n.	4305
+科技	technology	n.	4302
+经营	manage	n.	4299
+行业	industry	n.	4297
+首次	first time	n.	4294
+综合	comprehensive	n.	4291
+男人	man	n.	4288
+事故	accident	n.	4285
+大量	large amount	n.	4282
+消费	consumption	n.	4280
+当天	that day	n.	4277
+医疗	medical	n.	4274
+业务	business	n.	4271
+强调	emphasis	n.	4268
+妻子	wife	n.	4265
+车票	ticket	n.	4263
+人士	personage	n.	4260
+生态	ecology	n.	4257
+道路	road	n.	4254
+持续	sustainability	n.	4251
+死亡	death	n.	4249
+事情	matter	n.	4246
+宣传	propaganda	n.	4243
+委员会	committee	n.	4240
+区域	region	n.	4237
+新年	new year	n.	4234
+回应	response	n.	4232
+确定	determine	n.	4229
+实际	actual	n.	4226
+游客	tourist	n.	4223
+预计	expect	n.	4220
+女人	woman	n.	4218
+双方	both sides	n.	4215
+传统	tradition	n.	4212
+执法	law enforcement	n.	4209
+对方	other side	n.	4206
+变化	change	n.	4203
+需求	demand	n.	4201
+年度	annual	n.	4198
+公里	kilometer	n.	4195
+小区	neighborhood	n.	4192
+方案	scheme	n.	4189
+领域	field	n.	4187
+美元	dollar	n.	4184
+治理	governance	n.	4181
+每年	every year	n.	4178
+派出所	police station	n.	4175
+监管	regulation	n.	4172
+明星	celebrity	n.	4170
+身份	identity	n.	4167
+公务员	civil servant	n.	4164
+全球	global	n.	4161
+办公室	office	n.	4158
+联合	union	n.	4156
+费用	fee	n.	4153
+设施	facility	n.	4150
+登记	registration	n.	4147
+建筑	architecture	n.	4144
+基础	foundation	n.	4142
+人民币	RMB	n.	4139
+表现	performance	n.	4136
+交易	transaction	n.	4133
+规范	specification	n.	4130
+运输	transport	n.	4128
+财政	finance	n.	4125
+截至	as of	n.	4122
+力度	intensity	n.	4119
+规模	scale	n.	4116
+农业	agriculture	n.	4114
+嫌疑人	suspect	n.	4111
+事业	career	n.	4108
+卫生	hygiene	n.	4105
+养生	health preservation	n.	4102
+解放军	PLA	n.	4100
+国务院	State Council	n.	4097
+高速	expressway	n.	4094
+央视	CCTV	n.	4091
+面积	area	n.	4088
+比如	for example	n.	4085
+官方	official	n.	4083
+儿童	children	n.	4080
+后来	later	n.	4077
+住房	housing	n.	4074
+各地	everywhere	n.	4071
+感觉	feeling	n.	4069
+广大	vast	n.	4066
+东西	thing	n.	4063
+基地	base	n.	4060
+用户	user	n.	4057
+力量	strength	n.	4055
+部队	troops	n.	4052
+状态	state	n.	4049
+平均	average	n.	4046
+身份证	ID card	n.	4044
+数量	quantity	n.	4041
+军事	military	n.	4038
+同志	comrade	n.	4035
+程度	degree	n.	4032
+高度	height	n.	4030
+男性	male	n.	4027
+官员	official	n.	4024
+利益	interest	n.	4021
+肯定	affirm	n.	4018
+条例	regulation	n.	4016
+基层	grassroots	n.	4013
+现代	modern	n.	4010
+工业	industry	n.	4007
+营养	nutrition	n.	4004
+患者	patient	n.	4002
+统计	statistics	n.	3999
+新型	new type	n.	3996
+大会	conference	n.	3993
+成员	member	n.	3990
+公众	public	n.	3988
+设备	equipment	n.	3985
+家里	home	n.	3982
+长期	long term	n.	3979
+思想	thought	n.	3976
+模式	mode	n.	3974
+养老	elderly care	n.	3971
+交警	traffic police	n.	3968
+培训	training	n.	3965
+文明	civilization	n.	3963
+公安局	police bureau	n.	3960
+专项	special task	n.	3957
+突破	breakthrough	n.	3954
+特色	feature	n.	3951
+范围	scope	n.	3949
+根本	fundamental	n.	3946
+丈夫	husband	n.	3943
+电子	electronic	n.	3940
+状况	status	n.	3937
+自治区	autonomous region	n.	3935
+作品	works	n.	3932
+自然	nature	n.	3929
+材料	material	n.	3926
+文章	article	n.	3924
+海军	navy	n.	3921
+古城	ancient city	n.	3918
+人才	talent	n.	3915
+空间	space	n.	3912
+故事	story	n.	3910
+除夕	New Year's Eve	n.	3907
+列车	train	n.	3904
+娱乐	entertainment	n.	3901
+女孩	girl	n.	3899
+教师	teacher	n.	3896
+职业	occupation	n.	3893
+原来	originally	n.	3890
+即将	soon	n.	3887
+年龄	age	n.	3885
+来源	source	n.	3882
+药品	medicine	n.	3879
+损失	loss	n.	3876
+成果	achievement	n.	3874
+火灾	fire	n.	3871
+时期	period	n.	3868
+职务	official duty	n.	3865
+专门	specialization	n.	3862
+说法	statement	n.	3860
+周边	surroundings	n.	3857
+公交	bus	n.	3854
+受伤	injury	n.	3851
+房地产	real estate	n.	3849
+作风	style	n.	3846
+坚决	firm	n.	3843
+维生素	vitamin	n.	3840
+试点	pilot program	n.	3837
+不足	shortage	n.	3835
+民众	public	n.	3832
+体制	system	n.	3829
+小学	primary school	n.	3826
+方便	convenient	n.	3824
+腐败	corruption	n.	3821
+最低	lowest	n.	3818
+亚洲	Asia	n.	3815
+年轻人	young people	n.	3813
+队伍	team	n.	3810
+位置	position	n.	3807
+形象	image	n.	3804
+初步	preliminary	n.	3801
+夫妻	couple	n.	3799
+年底	year end	n.	3796
+人数	headcount	n.	3793
+意外	accident	n.	3790
+讲话	speech	n.	3788
+人体	human body	n.	3785
+对象	target	n.	3782
+文物	cultural relic	n.	3779
+家长	parent	n.	3777
+职工	employee	n.	3774
+比例	ratio	n.	3771
+元旦	New Year's Day	n.	3768
+环节	link	n.	3766
+贷款	loan	n.	3763
+协会	association	n.	3760
+家属	family	n.	3757
+商品	commodity	n.	3754
+平时	usual	n.	3752
+提案	proposal	n.	3749
+一切	everything	n.	3746
+当前	current	n.	3743
+互联网	internet	n.	3741
+河北	Hebei	n.	3738
+浙江	Zhejiang	n.	3735
+湖南	Hunan	n.	3732
+福建	Fujian	n.	3730
+安徽	Anhui	n.	3727
+四川	Sichuan	n.	3724
+陕西	Shaanxi	n.	3721
+新疆	Xinjiang	n.	3719
+春运	spring festival travel rush	n.	3716
+民生	people's livelihood	n.	3713
+近日	recently	n.	3710
+昨日	yesterday	n.	3708
+今日	today	n.	3705
+就是	exactly	adv.	3702
+同时	meanwhile	adv.	3699
+其中	among which	adv.	3697
+这样	so	adv.	3694
+全国	nationwide	adv.	3691
+作为	as	prep.	3688
+不是	is not	v.	3686
+不能	cannot	v.	3683
+都是	all are	v.	3680
+一直	always	adv.	3677
+正在	in progress	adv.	3675
+也是	also is	v.	3672
+还有	also have	v.	3669
+之后	after that	adv.	3666
+这种	this kind	pron.	3663
+进一步	further	adv.	3661
+当时	at that time	adv.	3658
+这是	this is	v.	3655
+一是	firstly	adv.	3652
+甚至	even	adv.	3650
+不断	continuously	adv.	3647
+不会	will not	v.	3644
+是否	whether	conj.	3642
+公开	publicly	adv.	3639
+随后	subsequently	adv.	3636
+不仅	not only	adv.	3633
+此外	besides	adv.	3631
+以来	since	prep.	3628
+如何	how	adv.	3625
+网上	online	adv.	3622
+最大	biggest	adj.	3620
+每天	every day	adv.	3617
+其实	actually	adv.	3614
+之前	before that	adv.	3611
+那么	so	adv.	3609
+更加	more	adv.	3606
+只是	merely	adv.	3603
+最高	highest	adj.	3600
+带来	bring	v.	3598
+不要	don't	v.	3595
+也有	also have	v.	3592
+及时	timely	adv.	3589
+明显	obvious	adj.	3587
+再次	again	adv.	3584
+针对	aim at	prep.	3581
+并不	not	adv.	3578
+违法	illegal	adj.	3576
+这么	so	adv.	3573
+有些	some	adv.	3570
+依法	according to law	adv.	3567
+取得	obtain	v.	3565
+产生	produce	v.	3562
+涉嫌	be suspected of	v.	3559
+做好	do well	v.	3556
+确保	ensure	v.	3554
+多次	many times	adv.	3551
+获知	learn	v.	3548
+越来越	more and more	adv.	3546
+引发	trigger	v.	3543
+才能	only then	adv.	3540
+位于	located at	v.	3537
+充分	fully	adv.	3535
+加大	increase	v.	3532
+以下	below	adv.	3529
+只能	can only	adv.	3526
+深入	in-depth	adv.	3524
+将会	will	adv.	3521
+就会	then will	adv.	3518
+最近	recently	adv.	3515
+立即	immediately	adv.	3513
+都会	will	adv.	3510
+然而	however	conj.	3507
+真正	truly	adv.	3505
+如今	nowadays	adv.	3502
+整个	entire	adj.	3499
+一下	a little	adv.	3496
+先后	successively	adv.	3494
+如此	so	adv.	3491
+只要	as long as	conj.	3488
+相比	compared with	prep.	3485
+各项	each item	adv.	3483
+多年	many years	adv.	3480
+而是	instead	conj.	3477
+也不	neither	adv.	3475
+各级	all levels	adv.	3472
+并无	none	adv.	3469
+下来	come down	adv.	3466
+迅速	rapidly	adv.	3464
+很大	very big	adv.	3461
+尽管	even though	conj.	3458
+尤其	especially	adv.	3455
+始终	all along	adv.	3453
+暂时	temporarily	adv.	3450
+显然	obviously	adv.	3447
+倒是	on the contrary	adv.	3445
+难怪	no wonder	adv.	3442
+万一	just in case	conj.	3439
+既然	since	conj.	3436
+无论	no matter	conj.	3434
+哪怕	even if	conj.	3431
+跟随	follow	v.	3428
+探索	explore	v.	3426
+追求	pursue	v.	3423
+奋斗	strive	v.	3420
+努力	effort	v.	3417
+争取	strive for	v.	3415
+设法	manage to	v.	3412
+试图	try to	v.	3409
+尽量	as much as possible	v.	3407
+充当	serve as	v.	3404
+人	person	n.	3401
+口	mouth	n.	3398
+手	hand	n.	3396
+眼	eye	n.	3393
+耳	ear	n.	3390
+鼻	nose	n.	3388
+发	hair	n.	3385
+脸	face	n.	3382
+头	head	n.	3379
+身	body	n.	3377
+心	heart	n.	3374
+血	blood	n.	3371
+骨	bone	n.	3369
+皮	skin	n.	3366
+牙	tooth	n.	3363
+舌	tongue	n.	3360
+脖	neck	n.	3358
+肚	belly	n.	3355
+腿	leg	n.	3352
+脚	foot	n.	3350
+肩	shoulder	n.	3347
+臂	arm	n.	3344
+背	back	n.	3341
+胸	chest	n.	3339
+火	fire	n.	3336
+土	earth	n.	3333
+木	wood	n.	3331
+金	metal	n.	3328
+石	stone	n.	3325
+沙	sand	n.	3322
+泥	mud	n.	3320
+灰	ash	n.	3317
+烟	smoke	n.	3314
+冰	ice	n.	3312
+雪	snow	n.	3309
+雨	rain	n.	3306
+风	wind	n.	3304
+云	cloud	n.	3301
+电	electricity	n.	3298
+光	light	n.	3295
+声	sound	n.	3293
+色	color	n.	3290
+味	taste	n.	3287
+气	air	n.	3285
+天	sky	n.	3282
+地	ground	n.	3279
+日	sun	n.	3277
+月	moon	n.	3274
+星	star	n.	3271
+湖	lake	n.	3268
+江	river	n.	3266
+田	field	n.	3263
+房	house	n.	3260
+门	door	n.	3258
+窗	window	n.	3255
+墙	wall	n.	3252
+桌	table	n.	3250
+椅	chair	n.	3247
+箱	box	n.	3244
+袋	bag	n.	3241
+盒	box	n.	3239
+杯	cup	n.	3236
+瓶	bottle	n.	3233
+刀	knife	n.	3231
+枪	gun	n.	3228
+车	car	n.	3225
+船	boat	n.	3223
+机	machine	n.	3220
+衣	clothes	n.	3217
+帽	hat	n.	3215
+鞋	shoe	n.	3212
+裤	pants	n.	3209
+裙	skirt	n.	3206
+布	cloth	n.	3204
+线	thread	n.	3201
+针	needle	n.	3198
+本	notebook	n.	3196
+字	character	n.	3193
+词	word	n.	3190
+句	sentence	n.	3188
+页	page	n.	3185
+图	picture	n.	3182
+画	painting	n.	3180
+音	sound	n.	3177
+乐	music	n.	3174
+歌	song	n.	3172
+舞	dance	n.	3169
+戏	play	n.	3166
+棋	chess	n.	3164
+牌	card	n.	3161
+牛	cow	n.	3158
+羊	sheep	n.	3155
+猪	pig	n.	3153
+鸡	chicken	n.	3150
+鸭	duck	n.	3147
+虫	insect	n.	3145
+蛇	snake	n.	3142
+兔	rabbit	n.	3139
+鼠	mouse	n.	3137
+虎	tiger	n.	3134
+狮	lion	n.	3131
+象	elephant	n.	3129
+熊	bear	n.	3126
+狼	wolf	n.	3123
+鹿	deer	n.	3121
+林	forest	n.	3118
+果	fruit	n.	3115
+叶	leaf	n.	3113
+根	root	n.	3110
+种	seed	n.	3107
+米	rice	n.	3105
+面	flour	n.	3102
+菜	vegetable	n.	3099
+酒	wine	n.	3097
+病	illness	n.	3094
+伤	injury	n.	3091
+痛	pain	n.	3089
+兵	soldier	n.	3086
+民	civilians	n.	3083
+官	official	n.	3081
+王	king	n.	3078
+城	city	n.	3075
+村	village	n.	3073
+镇	town	n.	3070
+省	province	n.	3067
+国	country	n.	3065
+县	county	n.	3062
+街	street	n.	3059
+店	shop	n.	3057
+厂	factory	n.	3054
+校	school	n.	3051
+馆	hall	n.	3049
+站	station	n.	3046
+港	port	n.	3043
+场	field	n.	3041
+塔	tower	n.	3038
+楼	building	n.	3035
+层	floor	n.	3033
+室	room	n.	3030
+厅	hall	n.	3027
+走	walk	v.	3025
+游	swim	v.	3022
+爬	crawl	v.	3019
+躺	lie	v.	3017
+醒	wake	v.	3014
+咬	bite	v.	3011
+吹	blow	v.	3009
+喊	shout	v.	3006
+唱	sing	v.	3003
+讲	tell	v.	3001
+画	draw	v.	2998
+看	see	v.	2995
+听	hear	v.	2993
+闻	smell	v.	2990
+摸	feel	v.	2987
+拿	hold	v.	2985
+抓	grab	v.	2982
+提	lift	v.	2979
+打	hit	v.	2977
+敲	knock	v.	2974
+挖	dig	v.	2971
+种	plant	v.	2969
+借	borrow	v.	2966
+找	seek	v.	2963
+烧	burn	v.	2961
+倒	pour	v.	2958
+修	fix	v.	2955
+造	build	v.	2953
+折	fold	v.	2950
+盖	cover	v.	2947
+跟	follow	v.	2945
+追	chase	v.	2942
+逃	escape	v.	2940
+藏	hide	v.	2937
+用	use	v.	2934
+怕	fear	v.	2932
+粗	thick	adj.	2929
+细	thin	adj.	2926
+宽	wide	adj.	2924
+深	deep	adj.	2921
+浅	shallow	adj.	2918
+温	warm	adj.	2916
+老	old	adj.	2913
+真	real	adj.	2910
+美	beautiful	adj.	2908
+臭	smelly	adj.	2905
+清	clear	adj.	2902
+黑	black	adj.	2900
+白	white	adj.	2897
+红	red	adj.	2895
+黄	yellow	adj.	2892
+蓝	blue	adj.	2889
+绿	green	adj.	2887
+灰	gray	adj.	2884
+紫	purple	adj.	2881
+我	I	pron.	2879
+我	me	pron.	2876
+你	you	pron.	2873
+他	he	pron.	2871
+他	him	pron.	2868
+她	she	pron.	2865
+她	her	pron.	2863
+它	it	pron.	2860
+谁	who	pron.	2858
+谁	whom	pron.	2855
+谁的	whose	pron.	2852
+其	its	pron.	2850
+之	of	prep.	2847
+者	person	n.	2844
+该	that	adj.	2842
+此	this	pron.	2839
+某	certain	adj.	2836
+每	every	adj.	2834
+各	each	adj.	2831
+众	many	adj.	2829
+一	one	num.	2826
+二	two	num.	2823
+三	three	num.	2821
+四	four	num.	2818
+五	five	num.	2815
+六	six	num.	2813
+七	seven	num.	2810
+八	eight	num.	2808
+九	nine	num.	2805
+十	ten	num.	2802
+百	hundred	num.	2800
+千	thousand	num.	2797
+万	ten thousand	num.	2794
+亿	hundred million	num.	2792
+加	add	v.	2789
+减	subtract	v.	2787
+乘	multiply	v.	2784
+除	divide	v.	2781
+等	equal	v.	2779
+爸	dad	n.	2776
+妈	mom	n.	2773
+哥	brother	n.	2771
+姐	sister	n.	2768
+弟	younger brother	n.	2766
+妹	younger sister	n.	2763
+儿	son	n.	2760
+子	child	n.	2758
+女	woman	n.	2755
+友	friend	n.	2752
+师	teacher	n.	2750
+工	worker	n.	2747
+医	doctor	n.	2745
+农	farmer	n.	2742
+后	queen	n.	2739
+主	host	n.	2737
+公	public	n.	2734
+台	platform	n.	2731
+家	home	n.	2729
+家	family	n.	2726
+换	exchange	v.	2724
+变	change	v.	2721
+报	report	v.	2718
+选	choose	v.	2716
+赢	win	v.	2713
+输	lose	v.	2711
+救	save	v.	2708
+陪	accompany	v.	2705
+让	let	v.	2703
+叫	call	v.	2700
+使	make	v.	2697
+需	need	v.	2695
+须	must	v.	2692
+念	read	v.	2690
+考	test	v.	2687
+查	check	v.	2684
+租	rent	v.	2682
+补	mend	v.	2679
+测	measure	v.	2677
+摆	place	v.	2674
+插	insert	v.	2671
+装	install	v.	2669
+转	turn	v.	2666
+连	connect	v.	2664
+编	edit	v.	2661
+译	translate	v.	2658
+解	solve	v.	2656
+试	try	v.	2653
+练	practice	v.	2651
+赛	compete	v.	2648
+举	raise	v.	2645
+争	argue	v.	2643
+育	nurture	v.	2640
+养	raise	v.	2638
+喂	feed	v.	2635
+刻	carve	v.	2632
+印	print	v.	2630
+烫	scald	v.	2627
+冻	freeze	v.	2625
+融	melt	v.	2622
+泡	soak	v.	2619
+浇	water	v.	2617
+填	fill	v.	2614
+锯	saw	v.	2612
+磨	grind	v.	2609
+钓	fish	v.	2606
+捕	catch	v.	2604
+猎	hunt	v.	2601
+罚	punish	v.	2599
+奖	reward	v.	2596
+赔	compensate	v.	2593
+赚	earn	v.	2591
+亏	lose money	v.	2588
+省	save	v.	2586
+攒	save up	v.	2583
+数	count	v.	2580
+量	measure	v.	2578
+称	weigh	v.	2575
+点	dot	v.	2573
+划	row	v.	2570
+游	travel	v.	2567
+漂	float	v.	2565
+沉	sink	v.	2562
+浮	float	v.	2560
+炸	explode	v.	2557
+射	shoot	v.	2555
+投	throw	v.	2552
+掷	throw	v.	2549
+弹	play	v.	2547
+拉	draw	v.	2544
+扯	pull	v.	2542
+拔	pull	v.	2539
+摘	pick	v.	2536
+采	pick	v.	2534
+割	cut	v.	2531
+砍	chop	v.	2529
+劈	split	v.	2526
+剥	peel	v.	2523
+撕	tear	v.	2521
+揉	rub	v.	2518
+搓	rub	v.	2516
+捏	pinch	v.	2513
+压	press	v.	2511
+托	hold up	v.	2508
+捧	hold	v.	2505
+搂	hug	v.	2503
+挎	carry	v.	2500
+扛	carry	v.	2498
+挑	pick	v.	2495
+担	carry	v.	2493
+抬	lift	v.	2490
+撑	support	v.	2487
+扶	support	v.	2485
+拖	drag	v.	2482
+拽	pull	v.	2480
+顶	push up	v.	2477
+踩	step	v.	2475
+踏	step	v.	2472
+踢	kick	v.	2469
+跺	stamp	v.	2467
+蹲	squat	v.	2464
+靠	lean	v.	2462
+倚	lean	v.	2459
+挨	suffer	v.	2457
+遭	suffer	v.	2454
+负	bear	v.	2451
+担	bear	v.	2449
+屋	house	n.	2446
+宅	residence	n.	2444
+院	courtyard	n.	2441
+野	wild	n.	2439
+郊	suburb	n.	2436
+乡	countryside	n.	2433
+市	city	n.	2431
+京	capital	n.	2428
+州	state	n.	2426
+邦	nation	n.	2423
+群	group	n.	2421
+队	team	n.	2418
+组	group	n.	2415
+班	class	n.	2413
+排	row	n.	2410
+营	camp	n.	2408
+团	group	n.	2405
+军	army	n.	2403
+将	general	n.	2400
+君	lord	n.	2398
+臣	minister	n.	2395
+伴	companion	n.	2392
+侣	partner	n.	2390
+朋	friend	n.	2387
+情	feeling	n.	2385
+意	meaning	n.	2382
+念	thought	n.	2380
+志	ambition	n.	2377
+梦	dream	n.	2375
+感	feeling	n.	2372
+觉	sense	n.	2369
+知	knowledge	n.	2367
+识	knowledge	n.	2364
+慧	wisdom	n.	2362
+才	talent	n.	2359
+技	skill	n.	2357
+艺	art	n.	2354
+术	technique	n.	2352
+法	method	n.	2349
+律	law	n.	2346
+规	rule	n.	2344
+礼	etiquette	n.	2341
+俗	custom	n.	2339
+风	custom	n.	2336
+尚	fashion	n.	2334
+潮	trend	n.	2331
+流	flow	n.	2329
+派	faction	n.	2326
+系	system	n.	2323
+宗	sect	n.	2321
+教	religion	n.	2318
+道	way	n.	2316
+理	principle	n.	2313
+义	justice	n.	2311
+德	virtue	n.	2308
+品	quality	n.	2306
+事	matter	n.	2303
+物	thing	n.	2301
+件	item	n.	2298
+项	item	n.	2296
+例	example	n.	2293
+题	topic	n.	2290
+课	lesson	n.	2288
+章	chapter	n.	2285
+篇	piece	n.	2283
+段	section	n.	2280
+语	language	n.	2278
+文	text	n.	2275
+像	image	n.	2273
+形	shape	n.	2270
+状	shape	n.	2268
+态	state	n.	2265
+势	momentum	n.	2263
+力	force	n.	2260
+精	spirit	n.	2257
+神	god	n.	2255
+魂	soul	n.	2252
+魄	soul	n.	2250
+性	nature	n.	2247
+命	life	n.	2245
+寿	lifespan	n.	2242
+龄	age	n.	2240
+世	lifetime	n.	2237
+生	life	n.	2235
+死	death	n.	2232
+亡	death	n.	2230
+灾	disaster	n.	2227
+难	difficulty	n.	2225
+祸	misfortune	n.	2222
+福	blessing	n.	2220
+吉	luck	n.	2217
+凶	ominous	n.	2214
+祥	auspicious	n.	2212
+话	words	n.	2209
+声	voice	n.	2207
+影	shadow	n.	2204
+迹	trace	n.	2202
+痕	mark	n.	2199
+尘	dirt	n.	2197
+雾	mist	n.	2194
+露	dew	n.	2192
+雹	hail	n.	2189
+净	clean	adj.	2187
+妙	wonderful	adj.	2184
+佳	fine	adj.	2182
+优	excellent	adj.	2179
+劣	inferior	adj.	2177
+凡	ordinary	adj.	2174
+特	special	adj.	2172
+殊	special	adj.	2169
+全	complete	adj.	2167
+双	double	adj.	2164
+单	single	adj.	2162
+复	complex	adj.	2159
+杂	mixed	adj.	2156
+纯	pure	adj.	2154
+污	dirty	adj.	2151
+乱	messy	adj.	2149
+整	neat	adj.	2146
+歪	crooked	adj.	2144
+斜	slanted	adj.	2141
+平	flat	adj.	2139
+弯	curved	adj.	2136
+直	straight	adj.	2134
+虚	empty	adj.	2131
+实	solid	adj.	2129
+空	empty	adj.	2126
+满	full	adj.	2124
+泛	broad	adj.	2121
+专	special	adj.	2119
+兼	both	adj.	2116
+仅	only	adv.	2114
+唯	only	adv.	2111
+独	alone	adj.	2109
+孤	alone	adj.	2106
+健	healthy	adj.	2104
+康	healthy	adj.	2101
+壮	strong	adj.	2099
+富	wealthy	adj.	2096
+贱	cheap	adj.	2094
+雅	elegant	adj.	2091
+俗	vulgar	adj.	2089
+俏	pretty	adj.	2086
+俊	handsome	adj.	2084
+萌	cute	adj.	2081
+憨	naive	adj.	2079
+倔	stubborn	adj.	2076
+犟	stubborn	adj.	2074
+蛮	rough	adj.	2071
+横	unreasonable	adj.	2069
+烫	hot	adj.	2066
+冰	icy	adj.	2064
+只有	only	conj.	2061
+别的	other	adj.	2059
+其它	other	adj.	2056
+这个	this one	pron.	2054
+那个	that one	pron.	2051
+这样	like this	pron.	2049
+那样	like that	pron.	2046
+我的	my	adj.	2044
+你的	your	adj.	2041
+他的	his	adj.	2039
+她的	her	adj.	2036
+本人	oneself	pron.	2034
+本身	itself	pron.	2031
+自身	oneself	pron.	2029
+他人	others	pron.	2026
+其余	the rest	adj.	2024
+水杯	water cup	n.	2021
+茶杯	tea cup	n.	2019
+酒杯	wine glass	n.	2017
+碗筷	bowls and chopsticks	n.	2014
+锅	pot	n.	2012
+灶	stove	n.	2009
+厨具	kitchenware	n.	2007
+脸盆	washbasin	n.	2004
+马桶	toilet	n.	2002
+凳子	stool	n.	1999
+架子	shelf	n.	1997
+窗帘	curtain	n.	1994
+床单	bed sheet	n.	1992
+褥子	mattress pad	n.	1989
+席子	mat	n.	1987
+电灯	electric light	n.	1984
+台灯	desk lamp	n.	1982
+吊扇	ceiling fan	n.	1979
+插座	outlet	n.	1977
+开关	switch	n.	1974
+门锁	door lock	n.	1972
+邮箱	mailbox	n.	1969
+门牌	doorplate	n.	1967
+晾衣架	clothes rack	n.	1964
+胶水	glue	n.	1962
+绳子	rope	n.	1959
+塑料袋	plastic bag	n.	1957
+纸巾	tissue	n.	1955
+抹布	rag	n.	1952
+洗衣粉	detergent	n.	1950
+肥皂	soap	n.	1947
+沐浴露	body wash	n.	1945
+润肤露	lotion	n.	1942
+熨斗	iron	n.	1940
+缝纫机	sewing machine	n.	1937
+工具箱	toolbox	n.	1935
+螺丝刀	screwdriver	n.	1932
+钳子	pliers	n.	1930
+扳子	wrench	n.	1927
+钉子	nail	n.	1925
+螺丝	screw	n.	1922
+锤子	hammer	n.	1920
+锯子	saw	n.	1918
+梯子	ladder	n.	1915
+桔子	tangerine	n.	1913
+橙子	orange	n.	1910
+柚子	pomelo	n.	1908
+桃子	peach	n.	1905
+梨子	pear	n.	1903
+柿子	persimmon	n.	1900
+石榴	pomegranate	n.	1898
+葡萄	grape	n.	1895
+草莓	strawberry	n.	1893
+蓝莓	blueberry	n.	1890
+西瓜	watermelon	n.	1888
+哈密瓜	hami melon	n.	1886
+芒果	mango	n.	1883
+菠萝	pineapple	n.	1881
+猕猴桃	kiwi	n.	1878
+樱桃	cherry	n.	1876
+枇杷	loquat	n.	1873
+荔枝	lychee	n.	1871
+龙眼	longan	n.	1868
+杏子	apricot	n.	1866
+李子	plum	n.	1863
+梅子	plum	n.	1861
+枣子	jujube	n.	1859
+核桃	walnut	n.	1856
+栗子	chestnut	n.	1854
+杏仁	almond	n.	1851
+花生	peanut	n.	1849
+瓜子	melon seeds	n.	1846
+松子	pine nut	n.	1844
+腰果	cashew	n.	1841
+开心果	pistachio	n.	1839
+椰子	coconut	n.	1837
+榴莲	durian	n.	1834
+山楂	hawthorn	n.	1832
+火龙果	dragon fruit	n.	1829
+百香果	passion fruit	n.	1827
+桑葚	mulberry	n.	1824
+无花果	fig	n.	1822
+稀饭	congee	n.	1819
+包子	steamed bun	n.	1817
+馒头	steamed bun	n.	1815
+花卷	steamed roll	n.	1812
+油条	fried dough stick	n.	1810
+豆浆	soy milk	n.	1807
+豆腐脑	tofu pudding	n.	1805
+粽子	zongzi	n.	1802
+汤圆	sweet dumplings	n.	1800
+月饼	mooncake	n.	1797
+春卷	spring roll	n.	1795
+炒饭	fried rice	n.	1793
+炒面	fried noodles	n.	1790
+盖饭	rice bowl	n.	1788
+拉面	ramen	n.	1785
+刀削面	sliced noodles	n.	1783
+米线	rice noodles	n.	1780
+米粉	rice flour	n.	1778
+酸辣粉	hot and sour noodles	n.	1776
+火锅	hot pot	n.	1773
+烧烤	barbecue	n.	1771
+麻辣烫	malatang	n.	1768
+快餐	fast food	n.	1766
+盒饭	boxed meal	n.	1763
+便当	bento	n.	1761
+点心	dim sum	n.	1759
+糕点	pastry	n.	1756
+饼干	cookie	n.	1754
+吐司	toast	n.	1751
+三明治	sandwich	n.	1749
+热狗	hot dog	n.	1746
+沙拉	salad	n.	1744
+咸菜	pickles	n.	1742
+泡菜	kimchi	n.	1739
+榨菜	preserved vegetable	n.	1737
+豆芽	bean sprouts	n.	1734
+粉丝	vermicelli	n.	1732
+海带	kelp	n.	1729
+紫菜	seaweed	n.	1727
+木耳	wood ear	n.	1725
+香菇	shiitake	n.	1722
+蘑菇	mushroom	n.	1720
+衬衫	shirt	n.	1717
+外套	coat	n.	1715
+夹克	jacket	n.	1713
+毛衣	sweater	n.	1710
+卫衣	hoodie	n.	1708
+背心	vest	n.	1705
+内衣	underwear	n.	1703
+睡衣	pajamas	n.	1700
+雨衣	raincoat	n.	1698
+风衣	trench coat	n.	1696
+羽绒服	down jacket	n.	1693
+棉袄	cotton coat	n.	1691
+裤子	pants	n.	1688
+牛仔裤	jeans	n.	1686
+短裤	shorts	n.	1684
+内裤	underpants	n.	1681
+袜子	socks	n.	1679
+手套	gloves	n.	1676
+围巾	scarf	n.	1674
+领带	necktie	n.	1672
+腰带	belt	n.	1669
+皮鞋	leather shoes	n.	1667
+运动鞋	sneakers	n.	1664
+拖鞋	slippers	n.	1662
+凉鞋	sandals	n.	1659
+靴子	boots	n.	1657
+书包	schoolbag	n.	1655
+钱包	wallet	n.	1652
+手表	watch	n.	1650
+项链	necklace	n.	1647
+戒指	ring	n.	1645
+耳环	earrings	n.	1643
+太阳镜	sunglasses	n.	1640
+雨伞	umbrella	n.	1638
+手帕	handkerchief	n.	1635
+头发	hair	n.	1633
+眉毛	eyebrows	n.	1631
+睫毛	eyelashes	n.	1628
+耳朵	ears	n.	1626
+鼻子	nose	n.	1623
+嘴巴	mouth	n.	1621
+舌头	tongue	n.	1619
+牙齿	teeth	n.	1616
+脖子	neck	n.	1614
+肩膀	shoulders	n.	1612
+胳膊	arm	n.	1609
+肘子	elbow	n.	1607
+手指	fingers	n.	1604
+手掌	palm	n.	1602
+手腕	wrist	n.	1600
+胸口	chest	n.	1597
+肚子	belly	n.	1595
+屁股	buttocks	n.	1592
+大腿	thigh	n.	1590
+膝盖	knee	n.	1588
+小腿	calf	n.	1585
+脚踝	ankle	n.	1583
+脚趾	toes	n.	1580
+皮肤	skin	n.	1578
+骨头	bone	n.	1576
+肌肉	muscle	n.	1573
+肚脐	navel	n.	1571
+眉毛	eyebrow	n.	1569
+嗓子	throat	n.	1566
+心脏	heart	n.	1564
+肝脏	liver	n.	1561
+肾脏	kidney	n.	1559
+肠胃	intestines	n.	1557
+说话	speak	v.	1554
+读书	read	v.	1552
+写字	write	v.	1550
+唱歌	sing	v.	1547
+跳舞	dance	v.	1545
+看书	read a book	v.	1542
+听歌	listen to music	v.	1540
+做饭	cook	v.	1538
+洗衣	do laundry	v.	1535
+扫地	sweep the floor	v.	1533
+擦窗	clean the window	v.	1531
+遛狗	walk the dog	v.	1528
+跑步	run	v.	1526
+刷牙	brush teeth	v.	1523
+洗脸	wash face	v.	1521
+洗澡	take a bath	v.	1519
+理发	haircut	v.	1516
+化妆	makeup	v.	1514
+穿衣	get dressed	v.	1512
+出门	go out	v.	1509
+回家	go home	v.	1507
+上学	go to school	v.	1505
+放学	leave school	v.	1502
+上课	attend class	v.	1500
+下课	end class	v.	1497
+及格	pass an exam	v.	1495
+挂科	fail a course	v.	1493
+找工作	job hunting	v.	1490
+请假	ask for leave	v.	1488
+加薪	raise salary	v.	1486
+涨价	price rise	v.	1483
+砍价	bargain	v.	1481
+还价	haggle	v.	1479
+点菜	order dishes	v.	1476
+倒水	pour water	v.	1474
+泡茶	make tea	v.	1472
+冲咖啡	brew coffee	v.	1469
+红色	red	n.	1467
+黄色	yellow	n.	1464
+蓝色	blue	n.	1462
+绿色	green	n.	1460
+黑色	black	n.	1457
+白色	white	n.	1455
+灰色	gray	n.	1453
+紫色	purple	n.	1450
+粉色	pink	n.	1448
+棕色	brown	n.	1446
+橙色	orange	n.	1443
+米色	beige	n.	1441
+青色	cyan	n.	1439
+金色	golden	n.	1436
+银色	silver	n.	1434
+中间	middle	n.	1432
+旁边	beside	n.	1429
+对面	opposite	n.	1427
+周围	surroundings	n.	1425
+上面	above	n.	1422
+下面	below	n.	1420
+前面	front	n.	1418
+后面	back	n.	1415
+里面	inside	n.	1413
+外面	outside	n.	1411
+正面	front side	n.	1408
+反面	back side	n.	1406
+表面	surface	n.	1404
+角落	corner	n.	1401
+尽头	end	n.	1399
+边缘	edge	n.	1397
+前天	day before yesterday	n.	1394
+后天	day after tomorrow	n.	1392
+前年	year before last	n.	1390
+后年	year after next	n.	1387
+半夜	midnight	n.	1385
+深夜	late night	n.	1383
+黄昏	dusk	n.	1380
+傍晚	evening	n.	1378
+月初	beginning of month	n.	1376
+月底	end of month	n.	1373
+年初	beginning of year	n.	1371
+从前	long ago	n.	1369
+将来	future	n.	1366
+课本	textbook	n.	1364
+教材	teaching material	n.	1362
+讲义	handout	n.	1359
+作业本	homework book	n.	1357
+草稿纸	draft paper	n.	1355
+橡皮	eraser	n.	1352
+尺子	ruler	n.	1350
+圆规	compass	n.	1348
+文具盒	pencil case	n.	1345
+粉笔	chalk	n.	1343
+白板	whiteboard	n.	1341
+讲台	podium	n.	1338
+课桌	school desk	n.	1336
+学期	semester	n.	1334
+寒假	winter vacation	n.	1331
+暑假	summer vacation	n.	1329
+站台	platform	n.	1327
+换乘	transfer	v.	1324
+堵车	traffic jam	n.	1322
+红灯	red light	n.	1320
+绿灯	green light	n.	1318
+车位	parking space	n.	1315
+开车	drive a car	v.	1313
+骑车	ride a bike	v.	1311
+打车	take a taxi	v.	1308
+晕车	carsick	adj.	1306
+晚点	delayed	adj.	1304
+准点	on time	adj.	1301
+多云	cloudy	adj.	1299
+小雨	light rain	n.	1297
+中雨	moderate rain	n.	1294
+大雨	heavy rain	n.	1292
+阵雨	shower	n.	1290
+雷阵雨	thunderstorm	n.	1288
+雾霾	smog	n.	1285
+沙尘	sandstorm	n.	1283
+高温	high temperature	n.	1281
+低温	low temperature	n.	1278
+降温	cooling down	n.	1276
+回暖	warming up	v.	1274
+凉快	cool	adj.	1272
+暖和	warm	adj.	1269
+难受	uncomfortable	adj.	1267
+犯困	sleepy	adj.	1265
+饥饿	hungry	adj.	1262
+干渴	thirsty	adj.	1260
+头晕	dizzy	adj.	1258
+恶心	nauseous	adj.	1255
+耳鸣	ringing ears	n.	1253
+打喷嚏	sneeze	v.	1251
+打哈欠	yawn	v.	1249
+打嗝	hiccup	v.	1246
+发抖	tremble	v.	1244
+出汗	sweat	v.	1242
+感冒	catch a cold	v.	1239
+发烧	run a fever	v.	1237
+流鼻涕	runny nose	n.	1235
+失眠	insomnia	n.	1233
+做噩梦	have a nightmare	v.	1230
+落枕	stiff neck	n.	1228
+抽筋	cramp	n.	1226
+扭伤	sprain	v.	1223
+擦伤	scratch	v.	1221
+割伤	cut	v.	1219
+淤青	bruise	n.	1217
+起泡	blister	v.	1214
+中暑	heatstroke	n.	1212
+冻伤	frostbite	n.	1210
+问好	say hello	v.	1208
+道谢	say thanks	v.	1205
+道别	say goodbye	v.	1203
+款待	entertain	v.	1201
+送礼	give a gift	v.	1198
+回礼	return a gift	v.	1196
+串门	visit	v.	1194
+做客	be a guest	v.	1192
+请客	treat someone	v.	1189
+凑钱	pool money	v.	1187
+赞助	sponsor	v.	1185
+捐款	donate	v.	1183
+问候	greet	v.	1180
+祝福	bless	v.	1178
+探望	visit	v.	1176
+接风	welcome banquet	n.	1173
+饯行	farewell dinner	n.	1171
+寒暄	small talk	v.	1169
+客气	polite	adj.	1167
+见外	treat as outsider	v.	1164
+劳驾	excuse me	interj.	1162
+失陪	excuse myself	interj.	1160
+久仰	I've heard so much	interj.	1158
+发火	get angry	v.	1155
+动怒	get angry	v.	1153
+掉泪	shed tears	v.	1151
+流泪	weep	v.	1149
+大笑	laugh out loud	v.	1146
+傻笑	giggle	v.	1144
+偷笑	snicker	v.	1142
+嘲笑	ridicule	v.	1140
+讥笑	sneer	v.	1137
+恭维	flatter	v.	1135
+夸奖	praise	v.	1133
+表扬	praise	v.	1131
+批评	criticize	v.	1128
+训斥	scold	v.	1126
+责怪	blame	v.	1124
+抱怨	complain	v.	1122
+发牢骚	grumble	v.	1119
+叹气	sigh	v.	1117
+发呆	zone out	v.	1115
+走神	get distracted	v.	1113
+回神	come to one's senses	v.	1110
+出神	absorbed	adj.	1108
+入迷	fascinated	adj.	1106
+上瘾	addicted	adj.	1104
+沉迷	indulge	v.	1101
+迷恋	obsess	v.	1099
+好看	good-looking	adj.	1097
+难看	ugly	adj.	1095
+耐看	good-looking	adj.	1092
+时髦	fashionable	adj.	1090
+落伍	outdated	adj.	1088
+土气	unfashionable	adj.	1086
+阔气	luxurious	adj.	1084
+寒酸	shabby	adj.	1081
+落魄	down and out	adj.	1079
+懂事	sensible	adj.	1077
+听话	obedient	adj.	1075
+乖巧	well-behaved	adj.	1072
+调皮	naughty	adj.	1070
+淘气	naughty	adj.	1068
+捣蛋	mischievous	adj.	1066
+撒娇	act spoiled	v.	1063
+任性	willful	adj.	1061
+固执	stubborn	adj.	1059
+死板	rigid	adj.	1057
+圆滑	slick	adj.	1055
+狡猾	cunning	adj.	1052
+奸诈	treacherous	adj.	1050
+阴险	sinister	adj.	1048
+狠毒	vicious	adj.	1046
+贤惠	virtuous	adj.	1043
+孝顺	filial	adj.	1041
+尊敬	respect	v.	1039
+爱戴	love and esteem	v.	1037
+敬佩	adore	v.	1035
+佩服	admire	v.	1032
+崇拜	worship	v.	1030
+礼貌	polite	adj.	1028
+粗鲁	rude	adj.	1026
+谦虚	modest	adj.	1024
+骄傲	arrogant	adj.	1021
+自大	arrogant	adj.	1019
+逞强	show off	v.	1017
+逞能	show off	v.	1015
+卖弄	show off	v.	1012
+出丑	make a fool of oneself	v.	1010
+丢脸	lose face	v.	1008
+露脸	show one's face	v.	1006
+争气	live up to expectations	v.	1004
+泄气	lose heart	v.	1001
+打气	cheer up	v.	999
+争光	win honor	v.	997
+丢人	be disgraced	v.	995
+不要紧	it doesn't matter	interj.	993
+无所谓	whatever	interj.	990
+了不起	amazing	adj.	988
+不得了	extremely	adv.	986
+伤脑筋	troublesome	adj.	984
+出风头	show off	v.	982
+拍马屁	flatter	v.	979
+走后门	backdoor deal	v.	977
+碰钉子	get rebuffed	v.	975
+泼冷水	pour cold water	v.	973
+穿小鞋	make things hard	v.	971
+背黑锅	take the blame	v.	969
+挑大梁	play the lead	v.	966
+敲边鼓	back up	v.	964
+开绿灯	give the green light	v.	962
+铁饭碗	iron rice bowl	n.	960
+马后炮	hindsight	n.	958
+露马脚	give oneself away	v.	955
+走过场	go through the motions	v.	953
+打圆场	smooth things over	v.	951
+和稀泥	compromise	v.	949
+磨洋工	dawdle	v.	947
+钻空子	exploit loopholes	v.	945
+捅娄子	make a mess	v.	942
+吃老本	live off past gains	v.	940
+丢面子	lose face	v.	938
+给面子	give face	v.	936
+赏脸	do me the honor	v.	934
+开夜车	work late into the night	v.	931
+打瞌睡	doze off	v.	929
+睡懒觉	sleep in	v.	927
+说梦话	talk in one's sleep	v.	925
+磨牙齿	grind teeth	v.	923
+伸懒腰	stretch	v.	921
+打篮球	play basketball	v.	918
+踢足球	play soccer	v.	916
+打羽毛球	play badminton	v.	914
+打游戏	play games	v.	912
+玩手机	play with the phone	v.	910
+上网冲浪	surf the internet	v.	908
+刷视频	watch short videos	v.	905
+拍照	take photos	v.	903
+录像	record video	v.	901
+充电	charge	v.	899
+关机	turn off	v.	897
+开机	turn on	v.	895
+重启	restart	v.	892
+死机	crash	v.	890
+卡顿	lag	v.	888
+黑屏	black screen	n.	886
+蓝屏	blue screen	n.	884
+截图	screenshot	n.	882
+复制粘贴	copy and paste	v.	880
+扫码	scan the code	v.	877
+付款	pay	v.	875
+退款	refund	v.	873
+退货	return goods	v.	871
+换货	exchange goods	v.	869
+包邮	free shipping	n.	867
+免运费	free shipping	n.	864
+下单	place an order	v.	862
+发货	ship	v.	860
+收货	receive goods	v.	858
+快递	delivery	n.	856
+包裹	parcel	n.	854
+驿站	delivery station	n.	852
+取件	pick up a package	v.	849
+签收	sign for	v.	847
+差评	bad review	n.	845
+好评	good review	n.	843
+追评	follow-up review	n.	841
+晒单	share a purchase	v.	839
+评论	comment	v.	837
+私信	private message	v.	835
+拉黑	block	v.	832
+举报	whistleblow	v.	830
+取证	collect evidence	v.	828
+备案	file a record	v.	826
+晾衣绳	clothesline	n.	824
+车库	garage	n.	822
+地下室	basement	n.	820
+阁楼	attic	n.	817
+走廊	corridor	n.	815
+楼道	stairwell	n.	813
+门卫	guard	n.	811
+保安	security	n.	809
+保洁	cleaning staff	n.	807
+物业	property management	n.	805
+物业费	property fee	n.	803
+水电费	utility bill	n.	801
+房租	rent	n.	798
+押金	deposit	n.	796
+房本	house deed	n.	794
+中介	agent	n.	792
+看房	view a house	v.	790
+搬家	move	v.	788
+装修	renovate	v.	786
+家电	home appliance	n.	784
+保修	warranty	n.	782
+维修	repair	v.	779
+投诉	complaint	n.	777
+客服	customer service	n.	775
+跑腿	errand	n.	773
+代购	proxy shopping	n.	771
+拼团	group buy	v.	769
+秒杀	flash sale	n.	767
+抢购	panic buying	v.	765
+预售	presale	n.	763
+你们俩	you two	pron.	760
+咱们俩	the two of us	pron.	758
+他们俩	the two of them	pron.	756
+两者	both	pron.	754
+独自	alone	adv.	752
+热水器	water heater	n.	750
+电饭煲	rice cooker	n.	748
+抽油烟机	range hood	n.	746
+被罩	quilt cover	n.	744
+枕套	pillowcase	n.	742
+靠垫	cushion	n.	740
+沙发垫	sofa cushion	n.	737
+地板	floor	n.	735
+瓷砖	tile	n.	733
+壁纸	wallpaper	n.	731
+吊顶	suspended ceiling	n.	729
+飘窗	bay window	n.	727
+玄关	entrance	n.	725
+跑步机	treadmill	n.	723
+瑜伽垫	yoga mat	n.	721
+哑铃	dumbbell	n.	719
+钥匙扣	keychain	n.	717
+手机壳	phone case	n.	715
+耳机套	earphone case	n.	713
+充电宝	power bank	n.	710
+插头	plug	n.	708
+插板	power strip	n.	706
+眼镜盒	glasses case	n.	704
+早饭	breakfast	n.	702
+午饭	lunch	n.	700
+晚饭	dinner	n.	698
+宵夜	late-night snack	n.	696
+加餐	snack	n.	694
+下午茶	afternoon tea	n.	692
+矿泉水	mineral water	n.	690
+可乐	cola	n.	688
+奶茶	milk tea	n.	686
+姥爷	grandfather	n.	684
+姥姥	grandmother	n.	682
+舅舅	uncle	n.	679
+叔叔	uncle	n.	677
+阿姨	aunt	n.	675
+姑姑	aunt	n.	673
+表哥	cousin	n.	671
+堂姐	cousin	n.	669
+侄子	nephew	n.	667
+外甥	nephew	n.	665
+孙女	granddaughter	n.	663
+孙子	grandson	n.	661
+儿媳	daughter-in-law	n.	659
+女婿	son-in-law	n.	657
+公公	father-in-law	n.	655
+婆婆	mother-in-law	n.	653
+岳父	father-in-law	n.	651
+岳母	mother-in-law	n.	649
+亲家	in-laws	n.	647
+班主任	class adviser	n.	645
+同桌	deskmate	n.	643
+校友	alumnus	n.	641
+学长	senior student	n.	639
+学妹	junior student	n.	637
+导师	mentor	n.	635
+保姆	nanny	n.	632
+理发师	barber	n.	630
+快递员	courier	n.	628
+外卖员	delivery rider	n.	626
+程序员	programmer	n.	624
+设计师	designer	n.	622
+销售员	salesperson	n.	620
+收银员	cashier	n.	618
+服务员	waiter	n.	616
+厨师	chef	n.	614
+门卫	doorman	n.	612
+工作日	workday	n.	610
+双休日	weekend	n.	608
+节假日	holiday	n.	606
+端午	Dragon Boat Festival	n.	604
+中秋	Mid-Autumn Festival	n.	602
+七夕	Qixi Festival	n.	600
+腊八	Laba Festival	n.	598
+大年	New Year	n.	596
+篮球	basketball	n.	594
+足球	soccer	n.	592
+羽毛球	badminton	n.	590
+乒乓球	table tennis	n.	588
+网球	tennis	n.	586
+排球	volleyball	n.	584
+游泳池	swimming pool	n.	582
+滑雪	skiing	n.	580
+滑冰	ice skating	n.	578
+爬山	mountain climbing	n.	576
+钓鱼	fishing	n.	574
+跳绳	jump rope	n.	572
+踢毽子	kick shuttlecock	v.	570
+放风筝	fly a kite	v.	568
+捉迷藏	hide and seek	v.	566
+感冒药	cold medicine	n.	564
+创可贴	band-aid	n.	562
+体温计	thermometer	n.	560
+纱布	gauze	n.	558
+棉签	cotton swab	n.	556
+碘伏	iodine	n.	554
+退烧药	fever medicine	n.	552
+止痛药	painkiller	n.	550
+消炎药	anti-inflammatory	n.	548
+眼药水	eye drops	n.	546
+药膏	ointment	n.	544
+药片	pill	n.	542
+胶囊	capsule	n.	540
+药方	prescription	n.	538
+输液	IV drip	n.	536
+换药	change dressing	v.	535
+拆线	remove stitches	v.	533
+银行卡	bank card	n.	531
+信用卡	credit card	n.	529
+社保卡	social security card	n.	527
+户口本	household register	n.	525
+驾照	driver's license	n.	523
+行驶证	vehicle license	n.	521
+公积金	housing fund	n.	519
+转账	transfer money	v.	517
+汇款	remittance	v.	515
+存款	deposit	v.	513
+取款	withdraw	v.	511
+理财	financial management	n.	509
+期货	futures	n.	507
+理赔	claim	n.	505
+开户	open an account	v.	503
+销户	close an account	v.	501
+挂失	report loss	v.	499
+密码错误	wrong password	n.	497
+天桥	overpass	n.	495
+地下通道	underpass	n.	493
+环岛	roundabout	n.	492
+高速路	expressway	n.	490
+服务区	service area	n.	488
+停车费	parking fee	n.	486
+过路费	toll	n.	484
+罚单	fine	n.	482
+限速	speed limit	n.	480
+护发素	conditioner	n.	478
+洗面奶	facial cleanser	n.	476
+防晒霜	sunscreen	n.	474
+口红	lipstick	n.	472
+眼影	eyeshadow	n.	470
+睫毛膏	mascara	n.	468
+粉底液	foundation	n.	466
+香水	perfume	n.	465
+卸妆油	makeup remover	n.	463
+面膜	face mask	n.	461
+护手霜	hand cream	n.	459
+指甲油	nail polish	n.	457
+胸罩	bra	n.	455
+卫生巾	sanitary pad	n.	453
+纸尿裤	diaper	n.	451
+湿巾	wet wipes	n.	449
+尿布	diaper	n.	447
+奶瓶	baby bottle	n.	445
+尿不湿	diaper	n.	444
+安抚奶嘴	pacifier	n.	442
+婴儿车	stroller	n.	440
+奶嘴	nipple	n.	438
+奶粉	milk powder	n.	436
+辅食	baby food	n.	434
+微信	WeChat	n.	432
+支付宝	Alipay	n.	430
+抖音	TikTok	n.	428
+快手	Kuaishou	n.	426
+淘宝	Taobao	n.	425
+京东	JD	n.	423
+拼多多	Pinduoduo	n.	421
+美团	Meituan	n.	419
+饿了么	Eleme	n.	417
+高德	Amap	n.	415
+滴滴	Didi	n.	413
+知乎	Zhihu	n.	411
+微博	Weibo	n.	410
+小红书	Xiaohongshu	n.	408
+哔哩哔哩	Bilibili	n.	406
+群聊	group chat	n.	404
+红包	red envelope	n.	402
+扫一扫	scan	v.	400
+摇一摇	shake	v.	398
+附近的人	people nearby	n.	396
+药房	pharmacy	n.	395
+挂号费	registration fee	n.	393
+住院费	hospitalization fee	n.	391
+手术费	surgery fee	n.	389
+医保	medical insurance	n.	387
+工伤	work injury	n.	385
+急救	first aid	n.	384
+担架	stretcher	n.	382
+血型	blood type	n.	380
+献血	donate blood	v.	378
+验血	blood test	v.	376
+打疫苗	get vaccinated	v.	374
+开发环境	development environment	n.	372
+输入法	input method	n.	371
+水瓶	water bottle	n.	369
+售卖	sell	v.	367
+瘦	thin	adj.	365
+胖	fat	adj.	363
+信息学	informatics	n.	361
+微软	Microsoft	n.	360
+智能	smart	adj.	358
+智能	intelligent	adj.	356
+智能	intelligence	n.	354
+集成	integrate	v.	352
+集成	integrated	adj.	350
+集成	integration	n.	349
+集成开发环境	integrated development environment	n.	347
+集成开发环境	IDE	n.	345
+集成电路	integrated circuit	n.	343
+运行环境	runtime environment	n.	341
+保温杯	thermos	n.	340
+哲学	philosophy	n.	338
+医学	medicine	n.	336
+体育	physical education	n.	334
+美术	fine arts	n.	332
+地理学	geography	n.	331
+统计学	statistics	n.	329
+生物学	biology	n.	327
+政治学	political science	n.	325
+语言学	linguistics	n.	323
+心理学	psychology	n.	322
+社会学	sociology	n.	320
+天文学	astronomy	n.	318
+地质学	geology	n.	316
+气象学	meteorology	n.	315
+生态学	ecology	n.	313
+遗传学	genetics	n.	311
+考古学	archaeology	n.	309
+人类学	anthropology	n.	307
+逻辑学	logic	n.	306
+伦理学	ethics	n.	304
+美学	aesthetics	n.	302
+工程学	engineering	n.	300
+建筑学	architecture	n.	299
+教育学	pedagogy	n.	297
+金融学	finance	n.	295
+会计学	accounting	n.	293
+学科	subject	n.	292
+学科	discipline	n.	290
+教室	classroom	n.	288
+课堂	class	n.	286
+编译	compile	v.	285
+编译	compilation	n.	283
+调试	debug	v.	281
+调试	debugging	n.	279
+缓存	cache	n.	278
+显卡	graphics card	n.	276
+声卡	sound card	n.	274
+主板	motherboard	n.	272
+机箱	computer case	n.	271
+散热器	heat sink	n.	269
+电源	power supply	n.	267
+驱动	driver	n.	265
+插件	plugin	n.	264
+补丁	patch	n.	262
+漏洞	vulnerability	n.	260
+防火墙	firewall	n.	259
+加密	encryption	n.	257
+加密	encrypt	v.	255
+解密	decryption	n.	253
+解密	decrypt	v.	252
+权限	permission	n.	250
+默认	default	adj.	248
+自定义	customize	v.	247
+快捷键	shortcut	n.	245
+快捷键	keyboard shortcut	n.	243
+状态栏	status bar	n.	242
+任务栏	taskbar	n.	240
+回收站	recycle bin	n.	238
+标签页	tab	n.	237
+书签	bookmark	n.	235
+历史记录	history	n.	233
+登录	log in	v.	232
+登录	login	n.	230
+登出	log out	v.	228
+注册	register	v.	227
+订阅	subscribe	v.	225
+订阅	subscription	n.	223
+阅读	reading	n.	222
+写作	writing	n.	220
+听力	listening	n.	218
+口语	spoken English	n.	217
+发音	pronunciation	n.	215
+发音	pronounce	v.	213
+词汇	vocabulary	n.	212
+作者	author	n.	210
+出版社	publisher	n.	208
+出版社	publishing house	n.	207
+编辑	editor	n.	205
+编辑	edit	v.	204
+失败	failure	n.	202
+失败	fail	v.	200
+增长	growth	n.	199
+增长	grow	v.	197
+成功	success	n.	195
+成功	succeed	v.	194
+促进	promote	v.	192
+推动	drive	v.	191
+引起	cause	v.	189
+采取	take	v.	187
+启动	launch	v.	186
+启动	start	v.	184
+发挥	exert	v.	183
+贯彻	implement	v.	181
+避免	avoid	v.	179
+经历	experience	n.	178
+经历	go through	v.	176
+训练	training	n.	175
+训练	train	v.	173
+集中	concentrate	v.	172
+集中	focus	v.	170
+办理	handle	v.	168
+办理	process	v.	167
+报警	call the police	v.	165
+统一	unify	v.	164
+统一	unified	adj.	162
+重大	major	adj.	161
+重大	significant	adj.	159
+当地	local	adj.	158
+最终	eventually	adv.	156
+国际	international	adj.	155
+个人	personal	adj.	153
+个人	individual	n.	152
+顺利	smooth	adj.	150
+良好	good	adj.	148
+最新	latest	adj.	147
+年轻	young	adj.	145
+巨大	huge	adj.	144
+巨大	enormous	adj.	142
+确实	indeed	adv.	141
+确实	really	adv.	139
+大型	large-scale	adj.	138
+非法	illegal	adj.	137
+凌晨	early morning	n.	135
+沙龙	salon	n.	134
+电视台	TV station	n.	132
+电视剧	TV series	n.	131
+主持人	host	n.	129
+发言人	spokesperson	n.	128
+发布会	press conference	n.	126
+养老金	pension	n.	125
+火车站	railway station	n.	123
+火车站	train station	n.	122
+大学生	college student	n.	121
+大学生	university student	n.	119
+幼儿园	kindergarten	n.	118
+老百姓	ordinary people	n.	116
+总经理	general manager	n.	115
+秘书长	secretary-general	n.	113
+机动车	motor vehicle	n.	112
+农民工	migrant worker	n.	111
+城镇化	urbanization	n.	109
+通信	communication	n.	108
+出售	sell	v.	106
+顾客	customer	n.	105
+商场	shopping mall	n.	104
+餐馆	restaurant	n.	102
+桥梁	bridge	n.	101
+房屋	house	n.	100
+住宅	residence	n.	98
+住宅	housing	n.	97
+公寓	apartment	n.	96
+别墅	villa	n.	94
+婚姻	marriage	n.	93
+子女	children	n.	92
+兄弟	brother	n.	90
+姐妹	sister	n.	89
+亲戚	relative	n.	88
+主管	supervisor	n.	86
+友情	friendship	n.	85
+亲情	family bond	n.	84
+感情	feeling	n.	83
+情绪	emotion	n.	81
+心情	mood	n.	80
+性格	personality	n.	79
+品质	character	n.	78
+品质	quality	n.	76
+道德	morality	n.	75
+道德	moral	adj.	74
+规则	rule	n.	73
+秩序	order	n.	72
+教训	lesson	n.	70
+技能	skill	n.	69
+进步	progress	n.	68
+竞争	competition	n.	67
+竞争	compete	v.	66
+剃须刀	razor	n.	65
+裙子	skirt	n.	64
+大衣	overcoat	n.	63
+大衣	coat	n.	61
+箱子	box	n.	60
+信件	letter	n.	59
+邮票	stamp	n.	58
+邮局	post office	n.	57
+卡片	card	n.	56
+现金	cash	n.	55
+利息	interest	n.	54
+增长率	growth rate	n.	54
+失业率	unemployment rate	n.	53
+老龄化	population aging	n.	52
+环境污染	environmental pollution	n.	51
+全球变暖	global warming	n.	50
+节能减排	energy conservation and emission reduction	n.	50

@@ -1,0 +1,25 @@
+# 构建产物
+/target
+
+# 本地词库/运行时数据（种子 DB 不随源码分发，运行时副产物与缓存不入库）
+*.db
+*.db-shm
+*.db-wal
+*.bin
+
+# 维护脚本的回滚备份
+backups/
+
+# Python 字节码缓存
+__pycache__/
+
+# 本地工具与编辑器状态
+.mimosa/
+.claude/
+.zcode/
+.idea/
+.vscode/
+
+# 系统杂物
+.DS_Store
+Thumbs.db

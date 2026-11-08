@@ -1,0 +1,68 @@
+# 同音歧义 / 上下文证据评测集（tune）
+# 格式：family<TAB>context<TAB>input<TAB>gold<TAB>note
+# context：上屏词用 | 分隔；- 表示无上文。input：本次输入的拼音串。gold：期望首候选文本。
+#
+# 读数字的纪律：
+# - note 分类决定这个用例在测什么，报告必须按 note 分开看：
+#   context-evidence-strong  = 种子有强证据（计数≥8 且多字内容词）→ 期望翻转
+#   no-evidence-default      = 无可用证据 → 期望保持默认（防误翻）
+#   lowcount-guard           = 种子低计数（<8）→ 期望**不**翻转（防跨义项噪声）
+#   functionword-guard       = 单字虚词关联（在→出发=12）→ 期望**不**翻转
+#   coverage-gap             = 语义上期望该读法但没有证据 → 记录缺口
+#   baseline-only            = 无上文，只记录默认
+# - 只有「gold ≠ 无上文默认」的用例才有鉴别力；overall 数字包含基线分，勿单看。
+#
+# ── mashangchufa：句中歧义（DP 第二段）────────────────────────────────
+# 目标：语境词在句首、歧义词在句中，仍能影响读法。
+chu-fa	机场|我们	mashangchufa	马上出发	context-evidence-strong
+chu-fa	机场	mashangchufa	马上出发	context-evidence-strong
+chu-fa	-	mashangchufa	马上处罚	baseline-only
+# 反事实对：同一输入，不同上文，不同 gold（这一对是核心证据）
+chu-fa	机场|我们	mashangchufa	马上出发	pair-A-positive
+chu-fa	领导|说	mashangchufa	马上处罚	pair-A-negative
+# 低计数与虚词守卫：语义相似但证据不合格，必须保持默认
+chu-fa	处理|结果	mashangchufa	马上处罚	lowcount-guard
+chu-fa	我们|在	mashangchufa	马上处罚	functionword-guard
+# 无证据的处罚语境：期望保持默认（防误翻）
+chu-fa	公司|决定	mashangchufa	马上处罚	no-evidence-default
+chu-fa	违规|员工	mashangchufa	马上处罚	no-evidence-default
+chu-fa	员工|被	mashangchufa	马上处罚	no-evidence-default
+chu-fa	罚款|并	mashangchufa	马上处罚	no-evidence-default
+chu-fa	情节|严重	mashangchufa	马上处罚	no-evidence-default
+chu-fa	必须|严厉	mashangchufa	马上处罚	no-evidence-default
+chu-fa	警告|之后	mashangchufa	马上处罚	no-evidence-default
+# 语义上合理但没有种子证据的出发语境：记录缺口（M2 语料 / M4 AI 的输入）
+chu-fa	车站|大家	mashangchufa	马上出发	coverage-gap
+chu-fa	天亮|我们	mashangchufa	马上出发	coverage-gap
+chu-fa	会议|结束	mashangchufa	马上出发	coverage-gap
+chu-fa	行李|收拾好	mashangchufa	马上出发	coverage-gap
+chu-fa	队伍|集合	mashangchufa	马上出发	coverage-gap
+chu-fa	假期|开始	mashangchufa	马上出发	coverage-gap
+chu-fa	大家|准备好	mashangchufa	马上出发	coverage-gap
+chu-fa	时间|不早	mashangchufa	马上出发	coverage-gap
+chu-fa	通知|接到	mashangchufa	马上出发	coverage-gap
+# 触发语境：全部无种子证据（触发在 2014 语料仅 36 token）
+chu-fa	灵感|突然	mashangchufa	马上触发	coverage-gap
+chu-fa	警报|自动	mashangchufa	马上触发	coverage-gap
+chu-fa	机制|一旦	mashangchufa	马上触发	coverage-gap
+chu-fa	条件|满足	mashangchufa	马上触发	coverage-gap
+chu-fa	按钮|一按	mashangchufa	马上触发	coverage-gap
+# ── chufa：单词候选（既有 context_bonus 通道）────────────────────────
+chufa-word	机场|我们	chufa	出发	context-evidence-strong
+chufa-word	机场	chufa	出发	context-evidence-strong
+chufa-word	-	chufa	处罚	baseline-only
+chufa-word	领导|说	chufa	处罚	no-evidence-default
+chufa-word	公司|决定	chufa	处罚	no-evidence-default
+chufa-word	违规|员工	chufa	处罚	no-evidence-default
+chufa-word	会议|结束	chufa	出发	coverage-gap
+chufa-word	灵感|突然	chufa	触发	coverage-gap
+chufa-word	警报|自动	chufa	触发	coverage-gap
+chufa-word	机制|一旦	chufa	触发	coverage-gap
+# ── 其他同音族（词级，非本例专属）──────────────────────────────────
+shihou	那	shihou	时候	baseline-only
+shihou	老人|需要	shihou	侍候	coverage-gap
+yishi	没有|安全	yishi	意识	baseline-only
+anjian	警察|调查	anjian	案件	baseline-only
+anjian	机场|排队	anjian	安检	context-evidence-strong
+anjian	键盘|按下	anjian	按键	coverage-gap
+jishi	问题|发现	jishichuli	及时处理	baseline-only

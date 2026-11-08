@@ -1,0 +1,514 @@
+# x1pinyin 整句正确率评测语料
+# 格式（TSV，制表符分隔）：category	input	expected	note
+# category：分类标签（口语/书面/网络/多音字/长句），JSON 报告按此聚合
+# input：用户输入的连写小写拼音（无声调，lü 写作 lv）；expected：期望整句首候选（严格相等判定）
+# note：可选备注（多音字陷阱说明等）
+# 自建语料：全部句子由项目作者原创撰写，非外部数据集，不引用任何第三方语料
+# 固定句集：用于跨轮基准对比，改动语料应在提交说明中记录
+# 冷启动视角：基于种子词库、无用户历史，反映首装用户体验
+# 预期句不得是词库整词（扩库会使评测虚高），由守护测试校验；input 必须能由 expected 按词库切分拼出
+# ---------- 口语（300）：日常对话高频短句 ----------
+口语	nihaoma	你好吗	
+口语	wochibaole	我吃饱了	
+口语	nichilema	你吃了吗	
+口语	jintiantianqibucuo	今天天气不错	
+口语	mingtianxuexiaojian	明天学校见	
+口语	womenchifanquba	我们吃饭去吧	
+口语	nizaiganshenme	你在干什么	
+口语	woxiangheshui	我想喝水	
+口语	zhegedongxiduoshaoqian	这个东西多少钱	
+口语	keyipianyiyidianma	可以便宜一点吗	
+口语	zhegewobuhui	这个我不会	
+口语	zheshimeiwentide	这事没问题的	
+口语	bieshengqi	别生气	
+口语	biejimanmanlai	别急慢慢来	
+口语	mafandengyixia	麻烦等一下	
+口语	womashangdao	我马上到	
+口语	nikuaidian	你快点	
+口语	jintiantaibangle	今天太棒了	
+口语	zhendema	真的吗	
+口语	nadangranle	那当然了	
+口语	suibianni	随便你	
+口语	wodaoshiwusuowei	我倒是无所谓	
+口语	nishuodedui	你说得对	得 de 而非 de/di
+口语	wowanquantongyi	我完全同意	
+口语	zhendebuyongxie	真的不用谢	
+口语	duibuqiwolaiwanle	对不起我来晚了	
+口语	zheshimeiguanxide	这事没关系的	
+口语	xiacizenmeban	下次怎么办	
+口语	womenzainajianmian	我们在哪见面	
+口语	ditiezainali	地铁在哪里	
+口语	qingwencesuozaina	请问厕所在哪	
+口语	woyaoqujichang	我要去机场	
+口语	bangwokaiyizhangfapiao	帮我开一张发票	
+口语	zhegezenmeyong	这个怎么用	
+口语	nihuishuoyingwenma	你会说英文吗	
+口语	wotingbudong	我听不懂	
+口语	nizaishuoyibianba	你再说一遍吧	
+口语	wodeshoujimeidianle	我的手机没电了	
+口语	nengjiewodianqianma	能借我点钱吗	
+口语	jintianwanshangchishenme	今天晚上吃什么	
+口语	womenqunaliwan	我们去哪里玩	
+口语	zhoumoyoushijianma	周末有时间吗	
+口语	yiqikanchangdianyingba	一起看场电影吧	
+口语	woxiangchihuoguo	我想吃火锅	
+口语	tianqitairele	天气太热了	
+口语	xiayulejidedaisan	下雨了记得带伞	
+口语	wanglewenni	忘了问你	
+口语	nixianzaizainali	你现在在哪里	
+口语	wozailushang	我在路上	
+口语	zanmenhaojiubujian	咱们好久不见	
+口语	nizhaowo	你找我	
+口语	wozhaoniyoushi	我找你有事	
+口语	youshima	有事吗	
+口语	meishijiushiwenwen	没事就是问问	
+口语	nixianzaimangma	你现在忙吗	
+口语	wozhenghaoxianzhe	我正好闲着	
+口语	chulaihebeichaba	出来喝杯茶吧	
+口语	zanmenjiangemianba	咱们见个面吧	
+口语	niyuedaochelema	你约到车了吗	
+口语	wozijikaiche	我自己开车	
+口语	zhegedifangzhennanzhao	这个地方真难找	
+口语	zhaolebantiancaizhaodao	找了半天才找到	
+口语	zhongwuchishenmehao	中午吃什么好	
+口语	waimianfenghaoda	外面风好大	
+口语	tiankuaiheile	天快黑了	
+口语	nidekuaididaole	你的快递到了	
+口语	womashangjiuchumen	我马上就出门	
+口语	biecuoguole	别错过了	
+口语	zuoguoleyizhan	坐过了一站	
+口语	zhetangcherenhaoduo	这趟车人好多	
+口语	wanghoutuiyidian	往后退一点	
+口语	jizhulema	记住了吗	
+口语	chadianwangle	差点忘了	
+口语	geiwofagedingwei	给我发个定位	
+口语	nishouyixia	你收一下	
+口语	dengwowufenzhong	等我五分钟	
+口语	mashangjiuhao	马上就好	
+口语	kuaiyidianyaochidaole	快一点要迟到了	
+口语	jinlaikanyiyan	进来看一眼	
+口语	youkongyiqijuju	有空一起聚聚	
+口语	womenmingtianqukankan	我们明天去看看	
+口语	xiankanzaishuo	先看再说	
+口语	xianbieji	先别急	
+口语	chenzhuqimanmanshuo	沉住气慢慢说	
+口语	nitingwoshuowan	你听我说完	
+口语	zheshibuguaini	这事不怪你	
+口语	womenhaohaoshuo	我们好好说	
+口语	youshenmexinshima	有什么心事吗	
+口语	haolegaosuwo	好了告诉我	
+口语	gaodinglemei	搞定了没	
+口语	nijiaojiaowo	你教教我	
+口语	wozijixuezhenong	我自己学着弄	
+口语	zhegeyixuejiuhui	这个一学就会	
+口语	mafannizhaokanxia	麻烦你照看下	
+口语	nijinguanfangxin	你尽管放心	
+口语	fangxinjiaogeiwo	放心交给我	
+口语	wobaozhengnonghao	我保证弄好	
+口语	chucuolesuanwode	出错了算我的	
+口语	zhegezhuyihao	这个主意好	
+口语	jiuzhemedingle	就这么定了	
+口语	zanmenyiyanweiding	咱们一言为定	
+口语	zanshuohuasuanshu	咱说话算数	
+口语	huilaiwoqingni	回来我请你	
+口语	yaochidaolekuaizou	要迟到了快走	
+口语	shuaitenglemeiyou	摔疼了没有	
+口语	dihuaxiaoxindian	地滑小心点	
+口语	zoulukanzhedian	走路看着点	
+口语	cheduoxiaoxin	车多小心	
+口语	resirenle	热死人了	
+口语	kaikongtiaoma	开空调吗	
+口语	bachuanghudakai	把窗户打开	
+口语	tongtongfeng	通通风	
+口语	yixiajiuliangkuaile	一下就凉快了	
+口语	wochuqusansanbu	我出去散散步	
+口语	yiqisanbuquma	一起散步去吗	
+口语	zaoshangpaopaobu	早上跑跑步	
+口语	jianchiduanlianshenti	坚持锻炼身体	
+口语	woshoubuliaole	我受不了了	
+口语	tainanweiqingle	太难为情了	
+口语	guaibuhaoyiside	怪不好意思的	
+口语	nitaikeqile	你太客气了	
+口语	doushiyinggaide	都是应该的	
+口语	zhebuguoshijushouzhilao	这不过是举手之劳	
+口语	buguoshixiaoshiyizhuang	不过是小事一桩	
+口语	meishadabuliao	没啥大不了	
+口语	buyaojinde	不要紧的	
+口语	huailejiuhuan	坏了就换	
+口语	hainengyongjiuliuzhe	还能用就留着	
+口语	renglekexi	扔了可惜	
+口语	liugejinian	留个纪念	
+口语	woqumaipingshui	我去买瓶水	
+口语	bangwoshaopingshui	帮我捎瓶水	
+口语	shunbianmaidianyan	顺便买点盐	
+口语	jialimeiyanle	家里没盐了	
+口语	weijingyekuaimeile	味精也快没了	
+口语	mingtianquchaoshibudian	明天去超市补点	
+口语	chaoshiguanmenlema	超市关门了吗	
+口语	jiudiankaimen	九点开门	
+口语	xiankaizheba	先开着吧	
+口语	najiudengdeng	那就等等	
+口语	buchazheyishi	不差这一时	
+口语	wopalaibuji	我怕来不及	
+口语	ganjinshanglou	赶紧上楼	
+口语	diantihuailema	电梯坏了吗	
+口语	zouloutishangquba	走楼梯上去吧	
+口语	jiloulaizhe	几楼来着	
+口语	sanlouzuoce	三楼左侧	
+口语	jintounajian	尽头那间	
+口语	zhaodaolemeiyou	找到了没有	
+口语	jiuzaiguaijiao	就在拐角	
+口语	guolemalujiushi	过了马路就是	
+口语	chumenwangyouzou	出门往右走	
+口语	wangqiansanbaimi	往前三百米	
+口语	zoulushifenzhongjiudao	走路十分钟就到	
+口语	haishizuocheba	还是坐车吧	
+口语	zheduanlutingdu	这段路挺堵	
+口语	gaofengqidudelihai	高峰期堵得厉害	
+口语	huantiaoluzou	换条路走	
+口语	xiaolujin	小路近	
+口语	daluhaozou	大路好走	
+口语	ninqunagefangxiang	您去哪个方向	
+口语	wowangdongbian	我往东边	
+口语	zhetangchedaoma	这趟车到吗	
+口语	zhongdianzhanxia	终点站下	
+口语	daolejiaowo	到了叫我	
+口语	wodaole	我到了	
+口语	nidaonale	你到哪了	
+口语	wokuaidaole	我快到了	
+口语	chukoujian	出口见	
+口语	wozaichukoudengni	我在出口等你	
+口语	kanjianwolema	看见我了吗	
+口语	wohuihuishou	我挥挥手	
+口语	zhebianzhebian	这边这边	
+口语	haodewotingdaole	好的我听到了	
+口语	xinhaobuhao	信号不好	
+口语	zhebiantingbuqing	这边听不清	
+口语	nidashengdian	你大声点	
+口语	kaimiantishuo	开免提说	
+口语	gualeguale	挂了挂了	
+口语	huitougeinihuidianhua	回头给你回电话	
+口语	dianhuazhanxian	电话占线	
+口语	faweixinshuo	发微信说	
+口语	wohuigexiaoxi	我回个消息	
+口语	shoujimeixinhaole	手机没信号了	
+口语	wangluobuwending	网络不稳定	
+口语	chonggedian	充个电	
+口语	chongdianqizaina	充电器在哪	
+口语	kuaimeidianlexiangua	快没电了先挂	
+口语	dianchongmanle	电充满了	
+口语	zhishengershidedian	只剩二十的电	
+口语	shengdianyong	省点用	
+口语	liangdutiaoandian	亮度调暗点	
+口语	pingmutailiangle	屏幕太亮了	
+口语	zitaixiaokanbujian	字太小看不见	
+口语	fangdayidian	放大一点	
+口语	jietugeiwo	截图给我	
+口语	baocunyixia	保存一下	
+口语	fayuantu	发原图	
+口语	yasuobaofalai	压缩包发来	
+口语	chuandaowangpan	传到网盘	
+口语	wangpanlianjiefawo	网盘链接发我	
+口语	wenjianfangnagewenjianjia	文件放哪个文件夹	
+口语	wozhaobudaole	我找不到了	
+口语	souyixiaguanjianci	搜一下关键词	
+口语	shurufazenmeqie	输入法怎么切	
+口语	zhongwendabuchulai	中文打不出来	
+口语	qiehuizhongwen	切回中文	
+口语	quanpinhejianpin	全拼和简拼	
+口语	jianpinkuaixie	简拼快些	
+口语	diyigejiudui	第一个就对	
+口语	fandaodierye	翻到第二页	
+口语	jiahaodabuchu	加号打不出	
+口语	biaodianzaina	标点在哪	
+口语	dagewenhao	打个问号	
+口语	douhaofenhao	逗号分号	
+口语	konggehuanhang	空格换行	
+口语	shanchuzhehang	删除这行	
+口语	quanxuanfuzhi	全选复制	
+口语	zhantiedaozhe	粘贴到这	
+口语	chexiaoyibu	撤销一步	
+口语	baocunlemeiyou	保存了没有	
+口语	biewanglecun	别忘了存	
+口语	diannaosijile	电脑死机了	
+口语	chongqishishi	重启试试	
+口语	guanjizaikai	关机再开	
+口语	xitonggengxinle	系统更新了	
+口语	banbentaijiu	版本太旧	
+口语	shengjidaozuixin	升级到最新	
+口语	xiagebuding	下个补丁	
+口语	zhuanggeruanjian	装个软件	
+口语	xiezaidiaoba	卸载掉吧	
+口语	zhanneicuntaiduo	占内存太多	
+口语	kadebuxing	卡得不行	
+口语	guandiaohoutai	关掉后台	
+口语	zhegegongnengmeiyongguo	这个功能没用过	
+口语	zenmekaizhege	怎么开这个	
+口语	shezhilizhaozhao	设置里找找	
+口语	tongyongshezhi	通用设置	
+口语	gaojixuanxiang	高级选项	
+口语	morenjiuhao	默认就好	
+口语	buyonggaile	不用改了	
+口语	zheyangjiutinghao	这样就挺好	
+口语	zenmedouxing	怎么都行	
+口语	nidingba	你定吧	
+口语	wotingnide	我听你的	
+口语	jiuannishuode	就按你说的	
+口语	wodouxing	我都行	
+口语	bietaiwanle	别太晚了	
+口语	zaodianxiezheba	早点歇着吧	
+口语	wananle	晚安了	
+口语	mingzaojian	明早见	
+口语	shuilema	睡了吗	
+口语	haimeishuizhe	还没睡着	
+口语	zuolegemeng	做了个梦	
+口语	mengjiannile	梦见你了	
+口语	xinglemeiyou	醒了没有	
+口语	qichuangla	起床啦	
+口语	chizaofanle	吃早饭了	
+口语	zhongfanzuohaole	中饭做好了	
+口语	wanfanzaiwaimianchi	晚饭在外面吃	
+口语	dinggecanguan	订个餐馆	
+口语	kaojindiande	靠近点的	
+口语	youtingcheweima	有停车位吗	
+口语	haiyoubaojianma	还有包间吗	
+口语	kaochuangdezuowei	靠窗的座位	
+口语	caidannalai	菜单拿来	
+口语	laiwanmian	来碗面	
+口语	bufanglajiao	不放辣椒	
+口语	shaofangdianyan	少放点盐	
+口语	jiawanfan	加碗饭	
+口语	zailaipingshui	再来瓶水	
+口语	fuwuyuanjiezhang	服务员结账	
+口语	nihaowomaidan	你好我买单	
+口语	saomahaishixianjin	扫码还是现金	
+口语	zhaonilingqian	找你零钱	
+口语	buyongzhaole	不用找了	
+口语	fuwubucuo	服务不错	
+口语	xiacihailai	下次还来	
+口语	geihaoping	给好评	
+口语	diangewuxing	点个五星	
+口语	fenxianggeipengyou	分享给朋友	
+口语	zhegetuijiangeini	这个推荐给你	
+口语	zhejiabucuo	这家不错	
+口语	mingtianzailai	明天再来	
+口语	najiushuohaole	那就说好了	
+口语	zanlialagoushuoding	咱俩拉钩说定	
+口语	laodifangbujianbusan	老地方不见不散	
+口语	najiuxianzheyangba	那就先这样吧	
+口语	wohuixiangnide	我会想你的	
+口语	lushangliushen	路上留神	
+口语	duoduobaozhong	多多保重	
+口语	changlianxia	常联系啊	
+口语	guonianzaiju	过年再聚	
+口语	niandijian	年底见	
+口语	nijintianhenjingshen	你今天很精神	
+口语	fagongzilema	发工资了吗	
+口语	kuaidifangmenweile	快递放门卫了	
+口语	yaoshiyouzhaobudaole	钥匙又找不到了	
+口语	dengpaogaihuanle	灯泡该换了	
+口语	shuiguanloule	水管漏了	
+# ---------- 书面（65）：新闻/公文/正式表达 ----------
+书面	jiaotongjichusheshibuduanwanshan	交通基础设施不断完善	
+书面	jingjifazhanxunsu	经济发展迅速	
+书面	kejigaibianshenghuo	科技改变生活	
+书面	baohuhuanjingrenrenyouze	保护环境人人有责	
+书面	jiaoyushiguojiadegenben	教育是国家的根本	
+书面	rengongzhinengjishu	人工智能技术	
+书面	quanqiuhuadailaidejiyu	全球化带来的机遇	
+书面	diaochabaogaoxianshi	调查报告显示	
+书面	juyouzhongyaoyiyi	具有重要意义	
+书面	cujinshehuigongping	促进社会公平	
+书面	tigaorenminshenghuoshuiping	提高人民生活水平	
+书面	jiaqiangguojihezuo	加强国际合作	
+书面	tuidonggaigekaifang	推动改革开放	
+书面	shixiankechixufazhan	实现可持续发展	
+书面	shenruguanchejingshen	深入贯彻精神	
+书面	guangdaqunzhongdeliyi	广大群众的利益	
+书面	genjutongjishuju	根据统计数据	
+书面	youguanbumenbiaoshi	有关部门表示	
+书面	zhuanjiarenwei	专家认为	
+书面	zuixinyanjiufaxianbiaoming	最新研究发现表明	
+书面	suizheshidaidefazhan	随着时代的发展	
+书面	zaixindeqidianshang	在新的起点上	
+书面	weihushehuizhixu	维护社会秩序	
+书面	hongyangchuantongwenhua	弘扬传统文化	
+书面	zengqiangzongheguoli	增强综合国力	
+书面	wanshanfalvtixi	完善法律体系	
+书面	shenhuatizhigaige	深化体制改革	
+书面	kuodaduiwaikaifang	扩大对外开放	
+书面	jiakuaichanyeshengji	加快产业升级	
+书面	yinglaixindetiaozhan	迎来新的挑战	
+书面	kejichuangxinshifazhandedongli	科技创新是发展的动力	
+书面	chengxinshilizushehuidegenben	诚信是立足社会的根本	
+书面	yifabanshifangnengquxinyumin	依法办事方能取信于民	
+书面	qingshaonianjiaoyuguanhuguojiaweilai	青少年教育关乎国家未来	
+书面	shengtaiwenmingjiansherenzhongdaoyuan	生态文明建设任重道远	
+书面	shujuanquanxuyaoquanminzhongshi	数据安全需要全民重视	
+书面	xiangcunzhenxingzhanlvechengxiaoxianzhu	乡村振兴战略成效显著	
+书面	gonggongziyuanyingdanghelipeizhi	公共资源应当合理配置	
+书面	chuantongwenhuahuanfaxindehuoli	传统文化焕发新的活力	
+书面	zhongxiaoqiyemianlinzhuanxingyali	中小企业面临转型压力	
+书面	chengshizhilixuyaojingxigongfu	城市治理需要精细功夫	
+书面	jiaotongyongduwentiriyituchu	交通拥堵问题日益突出	
+书面	yiliaoziyuanfenbubingbujunheng	医疗资源分布并不均衡	
+书面	lvsefazhanlinianshenrurenxin	绿色发展理念深入人心	
+书面	shuzishidaidailaishenkebiange	数字时代带来深刻变革	
+书面	xiangcunjiaoshiduiwujidaijiaqiang	乡村教师队伍亟待加强	
+书面	xinwenzhenshixingshihangyedixian	新闻真实性是行业底线	
+书面	kaogufajueyoulezhongdafaxian	考古发掘有了重大发现	
+书面	zhiyuanfuwuwennuanzhengzuochengshi	志愿服务温暖整座城市	
+书面	dongjigongnuantiqianyizhouqidong	冬季供暖提前一周启动	
+书面	laojiuxiaoqugaizaoquanmianpukai	老旧小区改造全面铺开	
+书面	rengongzhinengfuzhujiaoxuerijianpuji	人工智能辅助教学日渐普及	
+书面	lvsechuxingchengweishiminshouxuan	绿色出行成为市民首选	
+书面	lishijiequbaohutishangricheng	历史街区保护提上日程	
+书面	quanminjianshenhuodongguangfankaizhan	全民健身活动广泛开展	
+书面	chengshigengxinxiangmujiakuaituijin	城市更新项目加快推进	
+书面	senlinfugailvwenbutisheng	森林覆盖率稳步提升	
+书面	qingnianrencaiyinjinzhengceluodi	青年人才引进政策落地	
+书面	shequyanglaofuwubuduanwanshan	社区养老服务不断完善	
+书面	shichangzhixudedaoyouxiaoweihu	市场秩序得到有效维护	
+书面	xiaoyuananquanyanliandingqijuxing	校园安全演练定期举行	
+书面	guidaojiaotongwangluojixuyanshen	轨道交通网络继续延伸	
+书面	zhizaoyeshengjibufamingxianjiakuai	制造业升级步伐明显加快	
+书面	wenhuayichanbaohuchengguofengshuo	文化遗产保护成果丰硕	
+书面	yingjiwuzichubeichongzukekao	应急物资储备充足可靠	
+# ---------- 网络（40）：网络流行语/社区用语 ----------
+网络	zhegetaihaoxiaole	这个太好笑了	
+网络	zhetiaopinglunxiaosiwole	这条评论笑死我了	
+网络	zhenshiwuyule	真是无语了	
+网络	zhegefanganhengeili	这个方案很给力	
+网络	taikengle	太坑了	
+网络	zhecaozuozhenshijuele	这操作真是绝了	
+网络	pofangle	破防了	
+网络	buxiangnulizhixiangtangping	不想努力只想躺平	
+网络	zhehangyeyetaineijuanle	这行业也太内卷了	
+网络	shekongderentingduo	社恐的人挺多	
+网络	gangcaizhendehaoshesi	刚才真的好社死	
+网络	geinianligehaodongxi	给你安利个好东西	
+网络	jintianyeyaojiayouchongya	今天也要加油冲鸭	
+网络	shiguozhihoushizhenxiang	试过之后是真香	
+网络	xiabanqianjidedaka	下班前记得打卡	
+网络	beipengyouzhongcaole	被朋友种草了	
+网络	zhongyulaibacaole	终于来拔草了	
+网络	zhejiadianchenglewanghongdian	这家店成了网红店	
+网络	jinwankaigezhibo	今晚开个直播	
+网络	tadaihuonenglihenqiang	他带货能力很强	
+网络	tafensizhangdehenkuai	他粉丝涨得很快	
+网络	zuijinzaizhuixinju	最近在追新剧	
+网络	geizhetiaoshipindiangezan	给这条视频点个赞	
+网络	pinglunqulihenrenao	评论区里很热闹	
+网络	zheshiyoushangresoule	这事又上热搜了	
+网络	aiyawoqu	哎呀我去	
+网络	haojiahuopaodezhenkuai	好家伙跑得真快	
+网络	wobengbuzhule	我绷不住了	
+网络	wanmingbaile	玩明白了	
+网络	youyishuoyiqueshibucuo	有一说一确实不错	
+网络	bushiwochui	不是我吹	
+网络	zheboxuedaole	这波学到了	
+网络	zheciwenleba	这次稳了吧	
+网络	taijuanle	太卷了	
+网络	baipiaodaole	白嫖到了	
+网络	zhegegengwodong	这个梗我懂	
+网络	qiongdechitu	穷得吃土	
+网络	weidaozhenshijuejuezi	味道真是绝绝子	
+网络	lengzhishizengjiale	冷知识增加了	
+网络	taishangtoule	太上头了	
+# ---------- 多音字（70）：高频发错音陷阱 ----------
+多音字	womenchongxinkaishi	我们重新开始	重 chóng 而非 zhòng
+多音字	zhegehenzhongyao	这个很重要	重 zhòng 而非 chóng
+多音字	haizizhangdale	孩子长大了	长 zhǎng 而非 cháng
+多音字	woquyinhang	我去银行	行 háng 而非 xíng
+多音字	zhegehangyehenhao	这个行业很好	行 háng
+多音字	zhejianduoshaoqianya	这件多少钱呀	少 shǎo 而非 shào
+多音字	wojuedehenlei	我觉得很累	觉 jué 而非 jiào
+多音字	woxiangshuijiao	我想睡觉	觉 jiào 而非 jué
+多音字	tahenhaoxue	他很好学	好 hào 而非 hǎo
+多音字	womenhenkuaile	我们很快乐	乐 lè 而非 yuè
+多音字	woxihuantingyinyue	我喜欢听音乐	乐 yuè 而非 lè
+多音字	tamendoushihaoren	他们都是好人	都 dōu 而非 dū
+多音字	zhejianhenpianyi	这件很便宜	便 pián 而非 biàn
+多音字	niweishenmebushuo	你为什么不说	为 wèi 而非 wéi
+多音字	wodemudishixuexi	我的目的是学习	的 dì 而非 de
+多音字	dajiadubiezhaoji	大家都别着急	着 zháo 而非 zhe
+多音字	wokanzhedianshi	我看着电视	着 zhe 而非 zháo
+多音字	womendejianglai	我们的将来	将 jiāng 而非 jiàng
+多音字	wozaiganhuo	我在干活	干 gàn 而非 gān
+多音字	jieguohenhao	结果很好	结 jié/jiē 歧义
+多音字	woyoujige	我有几个	几 jǐ 而非 jī
+多音字	tadejuesehenzhongyao	他的角色很重要	角 jué 而非 jiǎo
+多音字	wohennanguo	我很难过	难 nán 而非 nàn
+多音字	woxihuanshuxue	我喜欢数学	数 shù 而非 shǔ
+多音字	jihuaxuyaotiaozhengyixia	计划需要调整一下	调 tiáo 而非 diào
+多音字	tahaimeihuilai	他还没回来	还 hái 而非 huán
+多音字	wobashuhuangeini	我把书还给你	还 huán 而非 hái
+多音字	zhepiantudihenfeiwo	这片土地很肥沃	地 dì 而非 de
+多音字	zheshidequeshizhende	这事的确是真的	的 dí 而非 de
+多音字	tacangzaiwuli	他藏在屋里	藏 cáng 而非 zàng
+多音字	woxiangquxizang	我想去西藏	藏 zàng 而非 cáng
+多音字	chabuduojiudele	差不多就得了	差 chà 而非 chāi
+多音字	tayouquchuchaile	他又去出差了	差 chāi 而非 chà
+多音字	chaozhemenkoukan	朝着门口看	朝 cháo 而非 zhāo
+多音字	zhaoyangquzaidongbian	朝阳区在东边	朝 zhāo 而非 cháo
+多音字	zidanfeidehenkuai	子弹飞得很快	弹 dàn 而非 tán
+多音字	tatanqinhenhaoting	他弹琴很好听	弹 tán 而非 dàn
+多音字	nideizhuyianquan	你得注意安全	得 děi 而非 dé
+多音字	zhegeezuojuguofenle	这个恶作剧过分了	恶 è 而非 wù
+多音字	gongjimingxianbuzu	供给明显不足	给 jǐ 而非 gěi
+多音字	womenhehaole	我们和好了	和 hé 而非 huó
+多音字	huomianzuojiaozichi	和面做饺子吃	和 huó 而非 hé
+多音字	fanhuadejiedaohenmei	繁华的街道很美	华 huá 而非 huà
+多音字	jihuayixia	计划一下	划 huà 而非 huá
+多音字	huachuanguojiang	划船过江	划 huá 而非 huà
+多音字	kuaijisuohenmang	会计所很忙	会 kuài 而非 huì
+多音字	baxiedaijihao	把鞋带系好	系 jì 而非 xì
+多音字	shijuanfaxialaile	试卷发下来了	卷 juàn 而非 juǎn
+多音字	juanqilaifanghao	卷起来放好	卷 juǎn 而非 juàn
+多音字	zhegeguanqiahenyan	这个关卡很严	卡 qiǎ 而非 kǎ
+多音字	fangjiankongzhema	房间空着吗	空 kòng 而非 kōng
+多音字	tiankongtebielan	天空特别蓝	空 kōng 而非 kòng
+多音字	xiaolvtigaole	效率提高了	率 lǜ 而非 shuài
+多音字	tashuailingduiwuqianjin	他率领队伍前进	率 shuài 而非 lǜ
+多音字	shuimoguoxigai	水没过膝盖	没 mò 而非 méi
+多音字	tamofangdehenxiang	他模仿得很像	模 mó 而非 mú
+多音字	zhemuyangbianlebushao	这模样变了不少	模 mú 而非 mó
+多音字	zainanyijingguoqu	灾难已经过去	难 nàn 而非 nán
+多音字	bianpaoshengxiangqilai	鞭炮声响起来	炮 pào 而非 bāo
+多音字	zhejianzhenpiaoliang	这件真漂亮	漂 piào 而非 piāo
+多音字	wushijishu	五是奇数	奇 jī 而非 qí
+多音字	tadexiangfahenqite	他的想法很奇特	奇 qí 而非 jī
+多音字	mianqiangdayingle	勉强答应了	强 qiǎng 而非 qiáng
+多音字	qingjialaizuokele	亲家来做客了	亲 qìng 而非 qīn
+多音字	daoluhenquzhe	道路很曲折	曲 qū 而非 qǔ
+多音字	zheshougehenhaoting	这首歌很好听	曲 qǔ 而非 qū
+多音字	jiaotongdusehenyanzhong	交通堵塞很严重	塞 sè 而非 sāi
+多音字	fanhousansanbu	饭后散散步	散 sàn 而非 sǎn
+多音字	tashenghuohenlansan	他生活很懒散	散 sǎn 而非 sàn
+多音字	jishishachele	及时刹车了	刹 shā 而非 chà
+# ---------- 长句（25）：8+ 音节整句解码压力测试 ----------
+长句	wojintianwanshangyaohepengyouchifan	我今天晚上要和朋友吃饭	
+长句	mingtianxiawuquyouyong	明天下午去游泳	
+长句	womenzuotianyiqiqulegongyuan	我们昨天一起去了公园	
+长句	zhegezhoumowodasuanzaijiakanshu	这个周末我打算在家看书	
+长句	wodeshoujikuaimeidianle	我的手机快没电了	
+长句	nengbunengbangwoyixiamang	能不能帮我一下忙	
+长句	woxiwangnimentiantiandoukaixin	我希望你们天天都开心	
+长句	jintiandegongzuotaiduolegenbenzuobuwan	今天的工作太多了根本做不完	
+长句	woyaohaohaoxuexikaoshanghaodaxue	我要好好学习考上好大学	
+长句	zhejianshiqingwoyaozaikaolvkaolv	这件事情我要再考虑考虑	lü 写作 lv
+长句	qingnibamenguanshang	请你把门关上	
+长句	womenyijingdenglehenjiule	我们已经等了很久了	
+长句	ruguomingtianxiayujiubuqule	如果明天下雨就不去了	
+长句	tashuotamingtianhuilai	他说他明天会来	
+长句	zhebenshuwokanguoliangbian	这本书我看过两遍	
+长句	woxianggennishuojianshiqing	我想跟你说件事情	
+长句	xianzaidenianqingrenyalihenda	现在的年轻人压力很大	
+长句	wojuedezhegewentihenyanzhong	我觉得这个问题很严重	
+长句	womenyinggaizaodianshuijiao	我们应该早点睡觉	
+长句	jideduochishuiguoduoyundong	记得多吃水果多运动	
+长句	woxianggennimenfenxiangyigegushi	我想跟你们分享一个故事	
+长句	zaiguoyigexiaoshijiuyaochufale	再过一个小时就要出发了	
+长句	tashuoxiawuyidinghuizhaoni	他说下午一定会找你	
+长句	zhejianshiwomenxuyaozaixiangyixiang	这件事我们需要再想一想	
+长句	woshangcizaizheliyudaoguotayihui	我上次在这里遇到过他一回	

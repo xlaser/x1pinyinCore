@@ -1,0 +1,21 @@
+# 同音歧义 / 上下文证据评测集（holdout）
+# 单独运行；note 分类含义同 tune 集头部说明。
+# 与 tune 的上下文不重复（换场景词），用来检查「只在学过的语境生效」的泛化边界。
+chu-fa	机场|广播	mashangchufa	马上出发	context-evidence-strong
+chu-fa	航班|即将	mashangchufa	马上出发	coverage-gap
+chu-fa	队员|集合	mashangchufa	马上出发	coverage-gap
+chu-fa	老板|宣布	mashangchufa	马上处罚	no-evidence-default
+chu-fa	罚单|开出	mashangchufa	马上处罚	no-evidence-default
+chu-fa	领导|要求	mashangchufa	马上处罚	no-evidence-default
+chu-fa	想法|瞬间	mashangchufa	马上触发	coverage-gap
+chu-fa	警报|响起	mashangchufa	马上触发	coverage-gap
+chu-fa	-	mashangchufa	马上处罚	baseline-only
+chufa-word	机场|广播	chufa	出发	context-evidence-strong
+chufa-word	航班|即将	chufa	出发	coverage-gap
+chufa-word	老板|宣布	chufa	处罚	no-evidence-default
+chufa-word	罚单|开出	chufa	处罚	no-evidence-default
+chufa-word	想法|瞬间	chufa	触发	coverage-gap
+anjian	机场|排队	anjian	安检	context-evidence-strong
+anjian	警察|调查	anjian	案件	baseline-only
+shihou	老人|需要	shihou	侍候	coverage-gap
+yishi	没有|安全	yishi	意识	baseline-only
