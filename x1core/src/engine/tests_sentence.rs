@@ -1436,3 +1436,144 @@ fn test_secondary_reading_edge_filter_protects_cold_start() {
         greens2
     );
 }
+
+/// 尾语气词输入的 green_memo lift 字数口径（quanliyifua 案例：
+/// 选「全力以赴啊」多次无法扭转首位——裸尾 a 不入 valid_syl（4 段），lift 字数
+/// 守卫 5≠4 恒 false，学习永远无法提升；首位恒为碎拼「权力衣服啊」）。
+/// 构造式 DB：权力/衣服/啊 vs 全力以赴 同音竞争，复现 DP 碎拼险胜 + lift 失效。
+#[test]
+fn test_tail_particle_green_memo_lift_char_count() {
+    use crate::storage::{Storage, X1DictWord};
+    let tmp = crate::test_tmp::dir().join(format!(
+        "x1pinyin_qlqf_{}_{}.db",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    {
+        let mut s = Storage::open(&tmp).unwrap();
+        s.import_x1dict_batch(&[
+            X1DictWord {
+                simplified: "权力".into(),
+                pinyin: "quan li".into(),
+                freq: 2624,
+                ..Default::default()
+            },
+            X1DictWord {
+                simplified: "衣服".into(),
+                pinyin: "yi fu".into(),
+                freq: 2600,
+                ..Default::default()
+            },
+            X1DictWord {
+                simplified: "全力以赴".into(),
+                pinyin: "quan li yi fu".into(),
+                freq: 1185,
+                ..Default::default()
+            },
+            X1DictWord {
+                simplified: "啊".into(),
+                pinyin: "a".into(),
+                freq: 2600,
+                ..Default::default()
+            },
+        ])
+        .unwrap();
+    }
+    let tmp_str = tmp.to_str().expect("路径转 str").to_string();
+    let mut engine = Engine::new_with_db(&tmp_str).expect("构造 DB");
+    let _ = std::fs::remove_file(&tmp);
+
+    // 模拟用户选择「全力以赴啊」两次（breakdown 累计仍输给碎拼 = lift 是唯一
+    // 翻盘通道，正是该案例场景）。
+    engine.commit("quanliyifua", "全力以赴啊", Some("quan li yi fu a"), false);
+    engine.commit("quanliyifua", "全力以赴啊", Some("quan li yi fu a"), false);
+
+    let cands = engine.process("quanliyifua");
+    let first_sentence = cands
+        .iter()
+        .find(|c| c.is_sentence)
+        .map(|c| c.text.as_ref())
+        .expect("应有整句候选");
+    assert_eq!(
+        first_sentence, "全力以赴啊",
+        "选过两次后，记忆整句应经 green_memo lift 回到首位（尾语气词字数口径）：实际首句 {first_sentence:?}"
+    );
+    // 叠字回归（连带修复）：lift 条目拼音已含尾音节 a，不得被尾部
+    // 补字再叠一个「啊」（修复前产出「全力以赴啊啊」6 字 6 音节怪句）。
+    assert!(
+        cands.iter().all(|c| c.text.as_ref() != "全力以赴啊啊"),
+        "lift 条目不得被尾部补字叠加语气词：{:?}",
+        cands
+            .iter()
+            .filter(|c| c.is_sentence)
+            .map(|c| c.text.as_ref())
+            .collect::<Vec<_>>()
+    );
+}
+
+/// 尾语气词双路合并按分裁决（quanliyifua 根因修正守护）：
+/// 主路单段整词（word_count<2）被丢后只剩碎拼，碎拼句补语气词**占据位**；
+/// 第二路（含尾音节全消费 DP）高分句被 push 末尾——顺序由路径来源而非分数
+/// 决定（词频拉满 9999 都不翻转的实证根因）。修法 = 合并后按 sentence_score
+/// 降序稳定排序。本测试断言**冷启动**（零学习数据）首位 = 整词路径。
+#[test]
+fn test_tail_particle_dual_path_merge_scored() {
+    use crate::storage::{Storage, X1DictWord};
+    let tmp = crate::test_tmp::dir().join(format!(
+        "x1pinyin_dual_{}_{}.db",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    {
+        let mut s = Storage::open(&tmp).unwrap();
+        s.import_x1dict_batch(&[
+            X1DictWord {
+                simplified: "权力".into(),
+                pinyin: "quan li".into(),
+                freq: 2624,
+                ..Default::default()
+            },
+            X1DictWord {
+                simplified: "衣服".into(),
+                pinyin: "yi fu".into(),
+                freq: 2600,
+                ..Default::default()
+            },
+            X1DictWord {
+                simplified: "全力以赴".into(),
+                pinyin: "quan li yi fu".into(),
+                freq: 1185,
+                ..Default::default()
+            },
+            X1DictWord {
+                simplified: "啊".into(),
+                pinyin: "a".into(),
+                freq: 2600,
+                ..Default::default()
+            },
+        ])
+        .unwrap();
+    }
+    let tmp_str = tmp.to_str().expect("路径转 str").to_string();
+    let engine = Engine::new_with_db(&tmp_str).expect("构造 DB");
+    let _ = std::fs::remove_file(&tmp);
+
+    // 冷启动：无任何学习数据，整词路径「全力以赴啊」凭 DP 分（+14 vs 碎拼 -14）
+    // 应直接首位——不再依赖用户学习翻盘。
+    let cands = engine.process("quanliyifua");
+    let first_sentence = cands
+        .iter()
+        .find(|c| c.is_sentence)
+        .map(|c| c.text.as_ref())
+        .expect("应有整句候选");
+    assert_eq!(
+        first_sentence, "全力以赴啊",
+        "双路合并按分裁决：冷启动整词路径应首位（实际 {first_sentence:?}）"
+    );
+}

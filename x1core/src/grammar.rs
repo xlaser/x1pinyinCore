@@ -1302,19 +1302,40 @@ impl crate::engine::Engine {
     /// 绿词语法模板分（上下文让位版）：路径内部已有强词对证据
     ///（用户 bigram ≥3）时只保留 1/4 权重，避免局部句法模板压过
     /// 长程/右文证据。只排序，不生成文本。
+    ///
+    /// 三档证据门（quanliyifua 案例衍生）：
+    /// ① 强证据（context 非空或路径内任一词对 bigram ≥3）→ raw/4：词元证据
+    ///    在场，模板退居辅助（现状）；
+    /// ② 有边际证据（任一词对 bigram ≥1）→ raw 全量：词性序列 + 词元关联
+    ///    双重佐证（现状）；
+    /// ③ **零关联**（所有相邻词对 bigram=0 且无 context）→ raw/4：模板命中
+    ///    只证明「词性序列像中文」（名词接名词在自然语料极常见——主谓宾结构
+    ///    的碎片），不证明「这两个词有搭配关系」。「权力|衣服」类碰巧同音的
+    ///    碎词拼接拿全量模板分 = 语法层给碎拼背书，整类压制。
+    /// 判据用 [`FreqModel::word_bigram_count`]（用户+种子+等价类三层），与
+    /// DP 的 bigram 证据同源，不引新表。
     pub(crate) fn grammar_pattern_delta(&self, words: &[String]) -> i32 {
         let raw = self.grammar.pattern_delta(words);
         if raw <= 0 {
             return 0;
         }
-        let strong_context = !self.context.is_empty()
-            || words
-                .windows(2)
-                .any(|w| self.freq.word_bigram_count(&w[0], &w[1]) >= 3);
-        if strong_context {
+        let best_link = words
+            .windows(2)
+            .map(|w| self.freq.word_bigram_count(&w[0], &w[1]))
+            .max()
+            .unwrap_or(0);
+        let has_context = !self.context.is_empty();
+        if !pattern_evidence_ab::enabled() {
+            // A/B 关闭态 = 旧两档行为（复现「A 之前」，评测对照用）
+            let strong_context = has_context || best_link >= 3;
+            return if strong_context { raw / 4 } else { raw };
+        }
+        if has_context || best_link >= 3 {
             raw / 4
-        } else {
+        } else if best_link >= 1 {
             raw
+        } else {
+            raw / 4
         }
     }
 
@@ -1720,6 +1741,65 @@ mod word_ctx_tests {
         assert_eq!(
             m.word_ctx_variant(&["我".into(), "在".into(), "去".into()]),
             Some((1, "再".to_string()))
+        );
+    }
+}
+
+// ── A/B 对照开关（「模板分需关联佐证」策略）────────────────
+// 与 sentence.rs 的 backward_ab/longrange_ab 同款：线程局部（cargo test 并行
+// 安全），测试构建可关闭复现「A 之前」的两档行为，生产恒开。
+#[cfg(test)]
+pub(crate) mod pattern_evidence_ab {
+    use std::cell::Cell;
+    thread_local! {
+        static ENABLED: Cell<bool> = const { Cell::new(true) };
+    }
+    pub(crate) fn enabled() -> bool {
+        ENABLED.with(|c| c.get())
+    }
+    pub(crate) fn set(on: bool) {
+        ENABLED.with(|c| c.set(on));
+    }
+}
+#[cfg(not(test))]
+pub(crate) mod pattern_evidence_ab {
+    #[inline]
+    pub(crate) fn enabled() -> bool {
+        true
+    }
+}
+
+/// 测试钩子：切换模板证据门开关（A/B 对照）。生产构建无此函数。
+#[cfg(test)]
+pub(crate) fn set_pattern_evidence_for_test(on: bool) {
+    pattern_evidence_ab::set(on);
+}
+
+#[cfg(test)]
+mod pattern_evidence_tests {
+    use super::*;
+
+    /// 零关联碎拼的模板分压制（核心守护，quanliyifua 案例）：
+    /// 种子副本上「权力|衣服|啊」——词对 bigram 全 0（种子无此搭配）、名词+
+    /// 名词+语气词命中高频模板（raw=3）——三档门下应得 raw/4=0；关闭 A/B
+    /// （旧两档）时全量 3。同一 Engine 两个状态，只动开关。
+    #[test]
+    fn zero_link_pattern_score_gated() {
+        let db = crate::engine::tests_query::seed_copy("pattern_gate");
+        let engine = crate::engine::Engine::new_with_db(&db).expect("seed db");
+        let _ = std::fs::remove_file(&db);
+        let words: Vec<String> = ["权力", "衣服", "啊"].map(String::from).to_vec();
+
+        // 旧两档（A/B 关）：零关联落在「无强证据」档 → 全量
+        set_pattern_evidence_for_test(false);
+        let legacy = engine.grammar_pattern_delta(&words);
+        // 开（默认）：零关联档 → raw/4
+        set_pattern_evidence_for_test(true);
+        let gated = engine.grammar_pattern_delta(&words);
+        // 幂等恢复（防污染其它测试线程视图——thread_local 各线程独立，同线程恢复）
+        assert!(
+            gated * 4 <= legacy,
+            "零关联碎拼模板分应被压制：legacy={legacy} gated={gated}"
         );
     }
 }

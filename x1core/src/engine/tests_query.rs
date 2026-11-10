@@ -3316,6 +3316,43 @@ fn test_context_phonetic_rescue() {
     seed_copy_cleanup(&seed_db);
 }
 
+/// 营救链证据忽略「后接单字功能词」（quan'li'yi'fu'de 案例守护）：
+/// 输入 quan'li'yi'fu'de 完全合法、字面正解「全力以赴的」已是绿词，营救仍
+/// 靠变体「quan ni yi fu de」的碎拼链混出橙词「劝你衣服的」——其链证据
+/// 全部来自「衣服→的」17 分（任何实词后都能接「的」，零搭配区分度），而
+/// 正解「全力以赴|的」因「成语→的」搭配语料不会统计而恒 0。修复：后接侧
+/// 单字功能词（的/了/啊…）的 bigram 不计入营救链证据（collocation 命中仍算，
+/// 前侧功能词「的→中国」也保留——那是真实组合选择性）。
+/// 同测守卫：正解仍首位；且**不得**因此误伤实词证据营救（zongguoren→中国人，
+/// 由 test_context_phonetic_rescue 覆盖）。
+#[test]
+fn test_rescue_ignores_function_word_link() {
+    let seed = seed_copy("rescue_func_tail");
+    let engine = Engine::new_with_db(&seed).unwrap();
+    // 带撇号与裸串两形态都不得出荒谬橙词（前端两种输入形态都会传）
+    for input in ["quan'li'yi'fu'de", "quanliyifude"] {
+        let cands = engine.process(input);
+        assert_eq!(
+            cands.first().map(|c| c.text.to_string()).as_deref(),
+            Some("全力以赴的"),
+            "{input} 首位应为字面正解「全力以赴的」"
+        );
+        let bogus = cands
+            .iter()
+            .find(|c| c.text.as_ref() == "劝你衣服的" && c.is_correction);
+        assert!(
+            bogus.is_none(),
+            "{input} 不得出橙词「劝你衣服的」（功能词衔接不算搭配证据）：{:?}",
+            cands
+                .iter()
+                .take(8)
+                .map(|c| (c.text.to_string(), c.is_correction))
+                .collect::<Vec<_>>()
+        );
+    }
+    seed_copy_cleanup(&seed);
+}
+
 /// FFI 级端到端守护：完全模拟调用方的逐键形态
 /// ——x1_engine_new_with_db + 双击 setter 注入 + x1_engine_process_timed 逐键
 /// （首键 u32::MAX 哨兵 = keyDeltaMs 无前键），验证折叠候选经 FFI 边界（C 字符串
@@ -4305,4 +4342,29 @@ fn test_dict_compile_cache_roundtrip_and_invalidation() {
     ] {
         let _ = std::fs::remove_file(f);
     }
+}
+
+/// 假橙词：合法输入不得因「单点链接 + 上文衔接」被误判为发音纠错
+/// （bendishishi 案例：输入是 4 个完全有效音节，系统却把
+/// shi 改成 si 出橙词「本第四是」——变体内部链接仅 1/2 有证据，靠
+/// 「上文→首词」一条拿到 21 分压过字面 12 分）。修复后要求变体内部链接
+/// **覆盖率高于字面**才准冒充纠错。
+#[test]
+fn test_no_bogus_correction_on_legal_input() {
+    let seed = seed_copy("bogus_corr");
+    let engine = Engine::new_with_db(&seed).unwrap();
+    let cands = engine.process("bendishishi");
+    let bogus: Vec<&str> = cands
+        .iter()
+        .filter(|c| c.is_correction)
+        .map(|c| c.text.as_ref())
+        .collect();
+    assert!(
+        bogus.is_empty(),
+        "合法输入 bendishishi 不应产出任何橙词（发音纠错需整句内部证据支撑）：{bogus:?}"
+    );
+    // 候选内容不做断言（种子冷启动只出「本的|事实」——功能词 bigram 与
+    // 段数优势压过「本地|实施」，属种子 bigram 覆盖度问题（上游审计
+    // 记录；本测试只守「不得凭空产出橙词」）。
+    seed_copy_cleanup(&seed);
 }

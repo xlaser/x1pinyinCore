@@ -211,11 +211,16 @@ pub unsafe extern "C" fn x1_engine_syllable_prefix_len(
         .unwrap_or(0)
 }
 
-/// 候选级消费字节数（简拼/混合声母 token 语义）。
+/// 候选级消费字节数（统一口径：简拼 + 全拼子前缀）。
 ///
 /// `zhgrm`→中国人民=5、中国人=4、在=1；`zhmz`→中华民族=4、中华=2；
-/// `sh`→是=2；`s'h`→你好=3。返回 0 = 非简拼形态/无法对齐
-///（调用方回退 syllable_count/prefix_len）。
+/// `sh`→是=2；`s'h`→你好=3；`duandian`→毒案=4（留 dian）、短笛=6（留 an）。
+/// 返回 0 = 无法判定（调用方回退 syllable_count/prefix_len）。
+///
+/// 此前只走简拼专用口径，全拼输入的子前缀候选（duandian + 毒案 du|an）
+/// 返回 0 → 前端旧逻辑「字数 2 == 音节数 2」判全消费，选中后 8 个字母
+/// 全部消失。现改走 `candidate_consumed_len_unified`，与 `consumed_lens`
+/// （引擎内选词提交）同源规则。
 ///
 /// # Safety
 /// `ptr` 必须是有效引擎指针；`input`/`pinyin` 必须是有效 UTF-8 C 字符串
@@ -250,9 +255,52 @@ pub unsafe extern "C" fn x1_engine_candidate_consumed_len(
             sentence_score: 0,
         };
         engine
-            .jianpin_candidate_consumed_len(input_str, &c)
+            .candidate_consumed_len_unified(input_str, &c)
             .unwrap_or(0)
     })
+}
+
+/// 预上屏显示切分**跟随焦点候选读音**（候选窗翻页时实时重绘）。
+///
+/// 与 [`x1_engine_segment_buffer`] 同一显示口径，但允许传入当前焦点候选的
+/// 拼音：候选拼音是输入真前缀时，已吃部分按候选音节拆、剩余部分按选举切分
+/// （`duandian` + 毒案 `du an` → `du'an'dian`），让「看起来吃多少」与
+/// 「选中后实际消费多少」自洽。非前缀/空拼音回退选举切分，调用方可按
+/// 返回串与当前显示比较决定是否重绘。
+///
+/// # Safety
+/// `ptr` 必须是有效引擎指针；`input`/`pinyin` 必须是有效 UTF-8 C 字符串
+#[no_mangle]
+pub unsafe extern "C" fn x1_engine_segment_buffer_for_pinyin(
+    ptr: *const X1Engine,
+    input: *const c_char,
+    pinyin: *const c_char,
+) -> *mut c_char {
+    if ptr.is_null() || input.is_null() {
+        return core::ptr::null_mut();
+    }
+    let engine = &(*ptr).inner;
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let s = c_str_to_str(input)?;
+        let py = if pinyin.is_null() {
+            ""
+        } else {
+            c_str_to_str(pinyin).unwrap_or("")
+        };
+        let segs = engine.syllable_segmentation_for_candidate(s, py);
+        // 0 或 1 个音节：返回原始 input（单音节不加分隔符）
+        if segs.len() <= 1 {
+            return Some(s.to_string());
+        }
+        Some(segs.join("'"))
+    }));
+    match result {
+        Ok(Some(joined)) => match CString::new(joined) {
+            Ok(cstr) => cstr.into_raw(),
+            Err(_) => core::ptr::null_mut(),
+        },
+        _ => core::ptr::null_mut(),
+    }
 }
 
 /// 返回 buffer 用 `'` 分隔的音节切分字符串（用于预输入态显示，仿微信输入法）。

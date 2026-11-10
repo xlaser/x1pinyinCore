@@ -266,6 +266,150 @@ fn test_reading_preference_symmetry_and_none_on_equal_evidence() {
     seed_copy_cleanup(&db);
 }
 
+/// 预上屏显示跟随**焦点候选**的读音切分。
+///
+/// 场景：duandian 的候选里混有子前缀词（毒案 du|an 只吃 duan 4 字母、
+/// 短笛 duan|di 只吃 duandi 6 字母）。选举切分显示 duan'dian 让人以为
+/// 整个输入都归这个候选；把焦点移到它时，预上屏应显示「已吃/未吃」边界，
+/// 与选中后的实际消费自洽。
+///
+/// 规则：仅当候选拼音是输入**真前缀**时接管（其余候选回退选举切分，
+/// 避免候选拼音与输入不对齐时乱拆）；候选拼音 == 输入时用候选音节序列。
+#[test]
+fn test_segmentation_follows_focused_candidate() {
+    let (db, engine) = seed_copy_engine("seg_focus_candidate");
+
+    // 子前缀候选：已吃部分按候选读音拆，剩余部分回退选举切分
+    assert_eq!(
+        engine
+            .syllable_segmentation_for_candidate("duandian", "du an")
+            .join("'"),
+        "du'an'dian",
+        "毒案 du|an 只吃 duan，剩余 dian 独立成段"
+    );
+    assert_eq!(
+        engine
+            .syllable_segmentation_for_candidate("duandian", "duan di")
+            .join("'"),
+        "duan'di'an",
+        "短笛 duan|di 吃 duandi，剩余 an 独立成段"
+    );
+    // 全覆盖候选：与选举切分一致（视觉无跳变）
+    assert_eq!(
+        engine
+            .syllable_segmentation_for_candidate("duandian", "duan dian")
+            .join("'"),
+        "duan'dian",
+        "断点覆盖整条输入，显示与选举一致"
+    );
+    // 非真前缀候选（拼音与输入不对齐）→ 回退选举切分，不接管
+    assert_eq!(
+        engine
+            .syllable_segmentation_for_candidate("duandian", "zhong guo")
+            .join("'"),
+        engine.syllable_segmentation("duandian").join("'"),
+        "非前缀候选回退选举切分"
+    );
+    // 空拼音/空输入 → 回退
+    assert_eq!(
+        engine
+            .syllable_segmentation_for_candidate("duandian", "")
+            .join("'"),
+        engine.syllable_segmentation("duandian").join("'"),
+        "空候选拼音回退选举切分"
+    );
+
+    seed_copy_cleanup(&db);
+}
+
+/// 简拼整词、绿词等既有显示优先级不被焦点候选接管破坏。
+#[test]
+fn test_segmentation_focus_keeps_existing_priorities() {
+    let (db, engine) = seed_copy_engine("seg_focus_priority");
+
+    // ssef 简拼整词：整词显示 s's'e'f（既有 override）
+    engine.process("ssef");
+    assert_eq!(
+        engine.syllable_segmentation("ssef").join("'"),
+        "s's'e'f",
+        "简拼整词显示保持逐字母"
+    );
+    // 对它应用焦点候选（拼音 s se f）也不得破坏整词形态之外的既有覆盖语义
+    let focused = engine.syllable_segmentation_for_candidate("ssef", "s se f");
+    assert_eq!(
+        focused.join("'"),
+        "s'se'f",
+        "s se f 覆盖整条输入时按候选音节拆"
+    );
+
+    seed_copy_cleanup(&db);
+}
+
+/// 单候选统一消费口径覆盖子前缀形态。
+///
+/// 病灶：duandian 输入下候选中混入子切分词「毒案」(du an)、「短笛」(duan di)；
+/// 选中后**消费了全部 8 个字母**。根因：前端提交路径只调
+/// `jianpin_candidate_consumed_len`，它的门禁要求「输入是简拼/混合声母」——
+/// duandian 不满足 → 返回 0 → 前端退回旧逻辑「字数 < 音节数」，
+/// 毒案 2 字 vs duandian 2 音节 → 判全消费。实际「毒案」的 du|an 只覆盖
+/// 前 4 字母，应留 "dian" 继续组词。
+///
+/// 修复：新增与 `consumed_lens` 同口径的单候选入口，覆盖
+/// ①输入 ⊂ 候选拼音 ②候选拼音 ⊂ 输入 ③简拼/混合 ④纠错 ⑤简拼整词，
+/// 无法判定才返回 None 让前端退回旧逻辑。
+#[test]
+fn test_candidate_consumed_len_covers_sub_prefix() {
+    let (db, engine) = seed_copy_engine("consumed_unified");
+
+    let cands = engine.process("duandian");
+    let find = |t: &str| -> Option<usize> {
+        cands
+            .iter()
+            .position(|c| c.text.as_ref() == t)
+            .and_then(|i| engine.candidate_consumed_len_unified("duandian", &cands[i]))
+    };
+    // 子前缀候选：只吃自己读音覆盖的字母，剩余拼音留作继续组词
+    assert_eq!(
+        find("毒案"),
+        Some(4),
+        "毒案=du an 应消费 duan 4 字节留 dian"
+    );
+    assert_eq!(
+        find("短笛"),
+        Some(6),
+        "短笛=duan di 应消费 duandi 6 字节留 an"
+    );
+    // 完整词仍全消费
+    assert_eq!(find("断点"), Some(8), "断点=duan dian 全消费 8");
+    assert_eq!(find("断电"), Some(8), "断电=duan dian 全消费 8");
+
+    // 既有回归锚（同族判例）：jisuan + 急速 只吃 jisu 4 留 an
+    let c4 = engine.process("jisuan");
+    let fast = c4.iter().find(|c| c.text.as_ref() == "急速");
+    assert_eq!(
+        fast.and_then(|c| engine.candidate_consumed_len_unified("jisuan", c)),
+        Some(4),
+        "jisuan + 急速 应消费 4 留 an"
+    );
+    // 简拼/混合形态的既有路径不变：zhonggr→中国 由前端旧逻辑 + syllable_prefix_len
+    // 处理（本方法返回 None 即「不接管」，与改动前 FFI 返回 0 等价）
+    let c2 = engine.process("zhonggr");
+    let cn = c2.iter().find(|c| c.text.as_ref() == "中国");
+    assert_eq!(
+        cn.and_then(|c| engine.candidate_consumed_len_unified("zhonggr", c)),
+        None,
+        "zhonggr 不由统一口径接管（返 None，前端走 syllable_prefix_len 旧路径）"
+    );
+    // 无法对齐时返回 None（前端退回自组词旧逻辑）
+    assert_eq!(
+        engine.candidate_consumed_len_unified("", &cands[0]),
+        None,
+        "空输入应返回 None"
+    );
+
+    seed_copy_cleanup(&db);
+}
+
 /// consumed_lens 规则③（bendana 案例）：备选切分的词级候选
 /// （笨蛋 = ben dan ⊂ bendana，橙词「词+零声母语气词」模式）必须按自身
 /// 读音消费 6 字节、留 "a" 继续组词——不得被选举切分边界（ben+da=5）截短
@@ -596,5 +740,81 @@ fn test_grammar_zai_qu_on_seed() {
     assert_eq!(top1(&engine, "wozaiqu"), "我再去");
     assert_eq!(top1(&engine, "wozaijia"), "我在家");
     assert_eq!(top1(&engine, "quguo"), "去过");
+    seed_copy_cleanup(&db);
+}
+
+/// 简拼串豁免中位游离首字母惩罚（quxiaolzggnma 案例，裸输入形态）。
+///
+/// 病灶：连续打 quxiaolzggn → 切分 qu'xiao'l'z'g'g'n（首选「取消了这个功能」
+/// 正常），追加 ma → quxiaolzggnma 切分崩成 qu'xi'ao'l'z'g'g'n'ma，首选错成
+/// 「去西澳了这个功能吗」。根因：中位游离首字母惩罚（zhenbena 案例引入）
+/// 只看「前后曾有完整音节」，把 l/z/g/g/n 这些**互为邻居的简拼首字母**判成
+/// 碎片化，penalty_count=5 → 正确切分得分被压到 1，错误切分 qu|xi|ao|... 以
+/// 2 分抢走选举。
+///
+/// 修复：紧邻位置也是「非音节单字母」时视为简拼串，豁免惩罚；孤立单字母
+/// （zhen|b|e|na 的 b，右邻居 e 是有效音节）惩罚照旧。
+#[test]
+fn test_initial_run_exempts_medial_penalty() {
+    let db = seed_copy("initial_run_exempt");
+    let mut engine = Engine::new_with_db(&db).expect("open seed copy");
+
+    // ① 裸输入追加 ma 后切分必须保持 qu|xiao（不得重拆成 qu|xi|ao）
+    let seg = engine.syllable_segmentation("quxiaolzggnma").join("|");
+    assert!(
+        seg.starts_with("qu|xiao|"),
+        "裸输入追加 ma 后切分须保持 qu|xiao，实际: {}",
+        seg
+    );
+
+    // ② 追加前后「取消」都必须存活为候选（不得被错误路径挤出）
+    for input in ["quxiaolzggn", "quxiaolzggnma"] {
+        let cands = engine.process(input);
+        assert!(
+            cands.iter().take(5).any(|c| c.text.starts_with("取消")),
+            "{} 前 5 候选中须有取消路径，实际: {:?}",
+            input,
+            cands
+                .iter()
+                .take(5)
+                .map(|c| c.text.as_ref())
+                .collect::<Vec<_>>()
+        );
+    }
+
+    // ③ 用户真实场景（学过「这个」「功能」）下首选必须是完整正确整句
+    engine.commit("z'g", "这个", None, false);
+    engine.commit("g'n", "功能", None, false);
+    engine.commit("z'g", "这个", None, false);
+    engine.commit("g'n", "功能", None, false);
+    let cands = engine.process("quxiaolzggnma");
+    assert_eq!(
+        cands.first().map(|c| c.text.as_ref()),
+        Some("取消了这个功能吗"),
+        "学过 这个/功能 后首选应为 取消了这个功能吗，实际: {:?}",
+        cands
+            .iter()
+            .take(4)
+            .map(|c| c.text.as_ref())
+            .collect::<Vec<_>>()
+    );
+
+    // ④ 孤立中位单字母（zhen|b|e|na）的惩罚仍生效：不得因豁免破坏语气词整句
+    let zhen = engine.process("zhenbena");
+    assert!(
+        zhen.iter().any(|c| c.is_sentence),
+        "zhenbena 仍应有语气词整句绿词（孤立 b 不在简拼串内）"
+    );
+
+    // ⑤ 显式分隔符输入同样受益（用户手动切分时也走同一打分口径）
+    let seg_explicit = engine
+        .syllable_segmentation("qu'xiao'l'z'g'g'n'ma")
+        .join("|");
+    assert!(
+        seg_explicit.starts_with("qu|xiao|"),
+        "显式分隔符输入切分须保持 qu|xiao，实际: {}",
+        seg_explicit
+    );
+
     seed_copy_cleanup(&db);
 }

@@ -335,7 +335,17 @@ impl crate::engine::Engine {
         // 音节（a/e/o 本身有效不适用本规则）。与跨 token 重建惩罚互补：
         // 重建规则治「拼得回音节」的碎链（le|n|g），本规则治「拼不回但
         // 位置暴露」的碎字母（b|e 拼不成 be）。
+        //
+        // 简拼串豁免（quxiaolzggnma 案例，显式分隔符同享）：
+        // 相邻位置若也是「非音节单字母」（合法简拼首字母），该单字母属于
+        // 用户输入的简拼串，不是碎片化——qu|xiao|l|z|g|g|n|ma 的 l/z/g/g/n
+        // 互为邻居，是「这个功能」这类简拼；旧判据只看「前后曾有完整音节」
+        // 把它们全罚掉（penalty 5 → 得分 1），错误切分 qu|xi|ao|... 以 2 分
+        // 抢走选举。zhen|b|e|na 的 b 右邻居 e 是**有效音节**（零声母），不构成
+        // 简拼串，惩罚照旧生效。
         {
+            let is_initial_token =
+                |s: &&str| s.len() == 1 && !crate::pinyin::is_valid_syllable_pub(s);
             let has_full_before = |idx: usize| {
                 syllables[..idx]
                     .iter()
@@ -347,11 +357,16 @@ impl crate::engine::Engine {
                     .any(|t| t.len() >= 2 && crate::pinyin::is_valid_syllable_pub(t))
             };
             for (i, s) in syllables.iter().enumerate() {
-                if s.len() == 1
-                    && !crate::pinyin::is_valid_syllable_pub(s)
-                    && has_full_before(i)
-                    && has_full_after(i)
-                {
+                if !is_initial_token(s) || !has_full_before(i) || !has_full_after(i) {
+                    continue;
+                }
+                // 简拼串判定：紧邻位置也是非音节单字母 → 属于简拼串，不罚
+                let joined_with_neighbor = i
+                    .checked_sub(1)
+                    .map(|p| is_initial_token(&syllables[p]))
+                    .unwrap_or(false)
+                    || syllables.get(i + 1).map(is_initial_token).unwrap_or(false);
+                if !joined_with_neighbor {
                     penalty_count += 1;
                 }
             }
@@ -777,6 +792,19 @@ impl crate::engine::Engine {
     /// GAP 是句级分支变体须超出字面解读的余量，防弱翻转。
     pub(crate) const CONTEXT_RESCUE_MIN_LINK: u32 = 3;
     pub(crate) const CONTEXT_RESCUE_GAP: u32 = 3;
+    /// 营救链证据的「后接侧功能词」排除集（quan'li'yi'fu'de 案例的
+    /// 橙词「劝你衣服的」）：单字结构助词/语气词作为**后接词**时，与任何
+    /// 实词组合都天然高频（任何词后都能接的/了/啊），语料 bigram 有值但
+    /// **零搭配区分度**——被营救链证据当强证据，碎拼变体靠「衣服→的」17 分
+    /// 凑过门槛 3+3，压过字面正解（正解「全力以赴→的」这种搭配语料根本
+    /// 不会统计，链证据恒 0，越正经越吃亏）。功能词在**前**侧（的→中国 32）
+    /// 是真实的组合选择性证据，保留。只挡 bigram；collocation 命中是词库
+    /// 权威搭配，仍计满分。
+    /// 守护：test_rescue_ignores_function_word_link（tests_query.rs）。
+    pub(crate) const LINK_FUNC_TAIL_WORDS: &[char] = &[
+        '的', '地', '得', '了', '着', '过', '啊', '呀', '吧', '吗', '呢', '嘛', '哦', '啦', '咯',
+        '喽', '哇', '嗯', '噢',
+    ];
     // 双击故障判定阈值已改为引擎可配字段 double_fault_threshold_ms
     ///（默认 100，偏好设置滑块 30..1000，set_double_fault_threshold_ms 钳制），
     /// ——见 mod.rs 字段文档与 process_timed。

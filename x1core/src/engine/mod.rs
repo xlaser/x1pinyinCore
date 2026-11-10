@@ -2982,6 +2982,17 @@ impl Engine {
                             sentences.push(s);
                         }
                     }
+                    // ── 双路合并按分裁决（quanliyifua 根因修正）──
+                    // 第二路（含尾音节全消费 DP）句子此前 push 到主路句之后——
+                    // 顺序由「路径来源」决定而非分数：主路单段整词（word_count<2）
+                    // 被丢弃后只剩碎拼，碎拼句补上语气词占据首位；第二路高分句
+                    //（如「全力以赴啊」+14 vs「权力衣服啊」-14）沉在后面——词频
+                    // 拉满 9999 都不翻转的结构性原因。修法 = 合并后按 sentence_score
+                    // 降序**稳定**排序（同分保主路在前，现状惯性）：与「切分选举
+                    // =提案、绿词 DP=裁决」的多切分仲裁同一哲学，分数说了算。
+                    // 只作用于尾语气词双路场景（tail_is_particle 才有第二路），
+                    // 无 partial tail 的常规输入零路径到此，行为零变化。
+                    sentences.sort_by_key(|c| std::cmp::Reverse(c.sentence_score));
                 }
             }
 
@@ -3231,7 +3242,16 @@ impl Engine {
             // DP 最优句自身词组链段数（记忆相对质量门的基准；无句不降级）。
             let best_sentence_spans = sentences.first().and_then(|c| self.sentence_chain_spans(c));
             if let Some(entries) = self.green_memo.get(input) {
-                let full_char_count = valid_syl.len();
+                // 字数守卫口径含尾语气词（quanliyifua 案例：选
+                // 「全力以赴啊」多次无法扭转首位）：裸尾单字母零声母音节（a/e/o，
+                // tail_is_particle）不入 valid_syl（收集循环按 ≥2 长度入表，撇号
+                // 显式分隔才走 apos_single）——「quan li yi fu + a」的 valid_syl
+                // 只有 4 段，而绿词记忆是 5 字（含啊），旧守卫 5≠4 恒 false →
+                // green_memo lift 永不触发，学习再多也无法翻盘（首位恒为 DP 拼的
+                // 「权力衣服啊」）。2026-09-01 修过撇号形态（lai'a 的 apos_single
+                // 入表），本处是裸尾语气词同型残留——计数补上尾语气词音节。
+                // （zhenbena→真笨啊 类「词+语气词」输入同批修复。）
+                let full_char_count = valid_syl.len() + usize::from(tail_is_particle);
                 let mut sorted: Vec<&(String, u32, Option<String>)> = entries
                     .iter()
                     .filter(|(_, f, _)| *f >= 1500) // 首次组装 user_freq=2000，门槛 1500 让它通过
@@ -3263,10 +3283,30 @@ impl Engine {
                     // 比「当前 DP 最优句」更差（多字词段更少）= 一个高频词拼出的
                     // 怪句，别抢首位；但**保留可达**（降到末尾，用户仍可翻到）。
                     // 对齐失败（多音/历史条目）不做判断，保持原提升行为（首次即记忆语义）。
-                    let worse = match (self.memo_span_count(gt, &memo_syls), best_sentence_spans) {
-                        (Some(m), Some(b)) => m < b,
+                    // 成语段豁免（quanliyifua 案例）：「全力以赴啊」拆 [全力以赴][啊]
+                    // ——多字词段仅 1（全力以赴），vs 碎拼「权力衣服啊」2 个多字词段；
+                    // 段数少但含 4 字成语整词段，是高置信结构不是怪句。质量门本防
+                    // 「单个 2 字高频词拼出」（首钢诶里的首钢），含 ≥3 字长词段
+                    // （成语/固定搭配）的条目不适用段数比较——否则用户对成语的
+                    // 学习永远翻不了盘。
+                    let words = self.split_text_anchored(gt, &memo_syls);
+                    let rebuilt: String = words.iter().map(|(w, _)| w.as_str()).collect();
+                    // 读音对不齐（空划分/重建不等）→ 不做判断（None，保持提升）
+                    let memo_spans: Option<u32> = if words.is_empty() || rebuilt != gt.as_str() {
+                        None
+                    } else {
+                        Some(words.iter().filter(|(w, _)| w.chars().count() >= 2).count() as u32)
+                    };
+                    let memo_long_seg = words.iter().any(|(w, _)| w.chars().count() >= 3);
+                    let worse = match (memo_spans, best_sentence_spans) {
+                        (Some(m), Some(b)) => m < b && !memo_long_seg,
                         _ => false,
                     };
+                    if std::env::var_os("X1_DEBUG_MEMO_LIFT").is_some() {
+                        eprintln!(
+                            "[memo-lift] gt={gt} spans={memo_spans:?} best={best_sentence_spans:?} long_seg={memo_long_seg} worse={worse}"
+                        );
+                    }
                     let at = if worse { sentences.len() } else { 0 };
                     if at == 0 {
                         memo_lifted.push(gt.clone());
@@ -3280,12 +3320,10 @@ impl Engine {
                         sentences.insert(at.min(sentences.len()), item);
                     } else {
                         sentences.insert(
-                            at,
+                            at.min(sentences.len()),
                             Candidate {
                                 text: gt.as_str().into(),
                                 base_freq: *gf,
-                                // 学习时真实读音 > 文本反推 > 当选切分（
-                                // 三级回退；解析已在质量门前完成 = resolved_py）
                                 pinyin: resolved_py.clone().into(),
                                 is_primary: true,
                                 is_correction: false,
@@ -3295,6 +3333,47 @@ impl Engine {
                                 is_english: false,
                                 sentence_score: 0,
                             },
+                        );
+                    }
+                }
+                // 同拼音碎拼清理（bendishishi 案例）：学过「本地实施」后，DP 主路
+                // 同拼音碎拼「本得实施」仍以第二位共存——分词 本得|实施，「本得」
+                // 是 OOV 拼凑（词性只能"推测"），两条读音完全相同却显示两行）。读音相同 =
+                // 用户听不出区别，留两条只制造噪音。规则：**用户学过的条目优先**（lift 条目
+                // 保留），同拼音、文本不同的其他绿词移除；学习条目的词段质量
+                // 须不劣于被清条目（有效词段数 = 词库整体可查的 ≥2 字段），
+                // 防误删更优读法。未学习场景（memo_lifted 空）零影响。
+                if !memo_lifted.is_empty() {
+                    let lifted_set: std::collections::HashSet<&str> =
+                        memo_lifted.iter().map(|s| s.as_str()).collect();
+                    let quality = |text: &str| -> usize {
+                        let ws = self.split_text_anchored(text, &valid_syl);
+                        ws.iter()
+                            .filter(|(w, _)| {
+                                w.chars().count() >= 2 && self.dict.freq_for_text(w).is_some()
+                            })
+                            .count()
+                    };
+                    let kept: Vec<(String, usize)> = sentences
+                        .iter()
+                        .filter(|c| lifted_set.contains(c.text.as_ref()))
+                        .map(|c| (c.pinyin.to_string(), quality(c.text.as_ref())))
+                        .collect();
+                    let before_len = sentences.len();
+                    sentences.retain(|c| {
+                        if lifted_set.contains(c.text.as_ref()) {
+                            return true; // 学习条目恒保留
+                        }
+                        let py = c.pinyin.to_string();
+                        let q = quality(c.text.as_ref());
+                        !kept.iter().any(|(kpy, kq)| *kpy == py && *kq >= q)
+                    });
+                    if std::env::var_os("X1_DEBUG_MEMO_LIFT").is_some() {
+                        eprintln!(
+                            "[memo-dup] lifted={:?} 清理 {} → {} 条",
+                            memo_lifted,
+                            before_len,
+                            sentences.len()
                         );
                     }
                 }
@@ -3361,7 +3440,25 @@ impl Engine {
             for (sent_idx, mut sentence) in sentences.into_iter().enumerate() {
                 // 末尾不完整音节补全：用首字母匹配字拼到整句末尾。
                 // 语气词读法共存句（拼音已含尾音节）不参与补字——再补会叠字。
-                if has_partial_tail && !particle_green_texts.contains(sentence.text.as_ref()) {
+                // 内容判据兜底（quanliyifua 案例）：lift 插入的 green_memo
+                // 条目（pinyin "quan li yi fu a" 已含尾音节）不在 particle_green_texts
+                // 登记集（只有第二路 DP 产出的句登记）→ 黑名单式判定漏网，被再补
+                // 一个「啊」→「全力以赴啊啊」叠字。句拼音的音节段里已有尾段 = 已
+                // 覆盖，恒跳过（段级比对：tail "a" 只匹配真正的 a 音节段，"ba" 段
+                // 不误伤；主路句 pinyin 不含尾段，照旧补字）。
+                let tail_all: String = best_syllables[valid_count..]
+                    .iter()
+                    .flat_map(|s| s.chars())
+                    .collect();
+                let pinyin_has_tail = !tail_all.is_empty()
+                    && sentence
+                        .pinyin
+                        .split_whitespace()
+                        .any(|seg| seg == tail_all);
+                if has_partial_tail
+                    && !pinyin_has_tail
+                    && !particle_green_texts.contains(sentence.text.as_ref())
+                {
                     let tail: String = best_syllables[valid_count..]
                         .iter()
                         .flat_map(|s| s.chars())
@@ -3671,6 +3768,43 @@ impl Engine {
                     insert_at = insert_at.max(pos + 1);
                     continue;
                 }
+                // 同拼音碎拼清理（bendishishi 案例）：学过「本地实施」后，DP 主路
+                // 同拼音碎拼「本得实施」以第二位共存——分词 本得|实施，「本得」是
+                // OOV 拼凑（词性只能"推测"）。读音完全相同 = 用户听不出区别，留两条
+                // 只制造噪音；用户明确选过这个文本，学习条目优先。规则：同拼音、
+                // 文本不同的绿词，若学习条目词段质量（词库整体可查的 ≥2 字段数）
+                // 不劣于它，移除该碎拼条目。未学习场景零影响。
+                {
+                    let quality = |text: &str| -> usize {
+                        let ws = self.split_text_anchored(text, &best_syllables);
+                        ws.iter()
+                            .filter(|(w, _)| {
+                                w.chars().count() >= 2 && self.dict.freq_for_text(w).is_some()
+                            })
+                            .count()
+                    };
+                    let memo_q = quality(gt);
+                    let mut removed: Vec<String> = Vec::new();
+                    all_candidates.retain(|c| {
+                        if !c.is_sentence || c.text.as_ref() == gt.as_str() {
+                            return true;
+                        }
+                        if c.pinyin.as_ref() != resolved_py.as_str() {
+                            return true;
+                        }
+                        if memo_q >= quality(c.text.as_ref()) {
+                            removed.push(c.text.to_string());
+                            return false;
+                        }
+                        true
+                    });
+                    if std::env::var_os("X1_DEBUG_MEMO_LIFT").is_some() && !removed.is_empty() {
+                        eprintln!(
+                            "[memo-dup] gt={} q={} 同拼音碎拼清理={:?}",
+                            gt, memo_q, removed
+                        );
+                    }
+                }
                 // 缺席条目：插到 insert_at（强度序位；0 = 列表最前——
                 // 语义：process_inner 末尾只 truncate 不重排，push 会把召回
                 // 压到第一页外）；插完 +1 让后续更弱条目落其后。质量门降级条目
@@ -3760,6 +3894,44 @@ impl Engine {
                     // 缺席条目锚定插入位。
                     insert_at = insert_at.max(pos + 1);
                     continue;
+                }
+                // 同拼音碎拼清理（bendishishi 案例：学过
+                // 「本地实施」后，DP 主路同拼音碎拼「本得实施」以第二位共存
+                // ——分词 本得|实施，「本得」是 OOV 拼凑（词性只能"推测"）。
+                // 读音完全相同 = 用户听不出区别，留两条只制造噪音；用户明确
+                // 选过该文本，学习条目优先。规则与 green_memo 命中分支同款：
+                // 学习条目词段质量（词库整体可查的 ≥2 字段数）不劣于被清条目
+                // 即移除。未学习场景零影响。
+                {
+                    let quality = |text: &str| -> usize {
+                        let ws = self.split_text_anchored(text, &best_syllables);
+                        ws.iter()
+                            .filter(|(w, _)| {
+                                w.chars().count() >= 2 && self.dict.freq_for_text(w).is_some()
+                            })
+                            .count()
+                    };
+                    let memo_q = quality(&gt);
+                    let mut removed: Vec<String> = Vec::new();
+                    all_candidates.retain(|c| {
+                        if !c.is_sentence || c.text.as_ref() == gt.as_str() {
+                            return true;
+                        }
+                        if c.pinyin.as_ref() != recovered_py.as_str() {
+                            return true;
+                        }
+                        if memo_q >= quality(c.text.as_ref()) {
+                            removed.push(c.text.to_string());
+                            return false;
+                        }
+                        true
+                    });
+                    if std::env::var_os("X1_DEBUG_MEMO_LIFT").is_some() && !removed.is_empty() {
+                        eprintln!(
+                            "[memo-dup-recover] gt={} q={} 同拼音碎拼清理={:?}",
+                            gt, memo_q, removed
+                        );
+                    }
                 }
                 let at = if recovered_worse {
                     all_candidates.len()
@@ -4308,6 +4480,12 @@ impl Engine {
                             })
                             .unwrap_or(false);
                         if ctx_strong || !literal_has_exact_word {
+                            if std::env::var_os("X1_DEBUG_RESCUE").is_some() {
+                                eprintln!(
+                                    "[rescue-词级] text={} py={} n={} ctx_strong={} literal_has_exact={}",
+                                    w.text, w.pinyin, n, ctx_strong, literal_has_exact_word
+                                );
+                            }
                             let mut c = w;
                             c.is_correction = true;
                             rescued.push(c);
@@ -4334,6 +4512,9 @@ impl Engine {
                         continue;
                     }
                     let var_ev = self.chain_evidence(&var_words);
+                    // 内部链（覆盖率口径，见函数注释）
+                    let (var_nz, var_links, var_internal) =
+                        self.chain_evidence_internal(&var_words);
                     // 字面链证据：与变体同位置的词序列对比（用当前最优字面句）
                     let lit_ev = candidates
                         .iter()
@@ -4348,11 +4529,38 @@ impl Engine {
                         })
                         .max()
                         .unwrap_or(0);
-                    // 门槛：变体链证据达标 且 显著超过字面（GAP 防止弱翻转）
+                    // 字面内部链覆盖率（取最优：覆盖率最高者）
+                    let (lit_nz, lit_links, _lit_internal) = candidates
+                        .iter()
+                        .filter(|c| c.is_sentence && c.text.chars().count() == n)
+                        .map(|c| {
+                            let ws = self.split_text_anchored(&c.text, best_syllables);
+                            self.chain_evidence_internal(&ws)
+                        })
+                        .max_by_key(|(nz, links, _)| (*nz * 100 / (*links).max(1), *nz))
+                        .unwrap_or((0, 0, 0));
+                    // 覆盖率比较（整数交叉相乘避免浮点）：变体覆盖率须严格高于
+                    // 字面（var_nz/var_links > lit_nz/lit_links）。字面 0/0（无整句
+                    // 候选）时退化为「变体内部须至少一条非零」，保持旧可达性。
+                    let coverage_better = if lit_links == 0 {
+                        var_nz > 0
+                    } else {
+                        var_nz * lit_links > lit_nz * var_links.max(1)
+                    };
+                    // 门槛（三重）：链证据达标 + 显著超字面（GAP）
+                    // + **内部链接覆盖率优于字面**（单点碰巧不构成整句证据）。
                     if var_ev >= Self::CONTEXT_RESCUE_MIN_LINK
                         && var_ev >= lit_ev + Self::CONTEXT_RESCUE_GAP
+                        && var_internal >= Self::CONTEXT_RESCUE_MIN_LINK
+                        && coverage_better
                     {
                         let mut c = var_best;
+                        if std::env::var_os("X1_DEBUG_RESCUE").is_some() {
+                            eprintln!(
+                                "[rescue-句级] text={} var_ev={} lit_ev={} var_cov={}/{} lit_cov={}/{} joined={}",
+                                c.text, var_ev, lit_ev, var_nz, var_links, lit_nz, lit_links, joined
+                            );
+                        }
                         c.is_sentence = false; // 橙色纠错身份（猜测），非绿词
                         c.is_correction = true;
                         rescued.push(c);
@@ -4382,11 +4590,51 @@ impl Engine {
         total
     }
 
+    /// 句子内部链证据及其覆盖率（bendishishi 假橙词
+    /// 「本第四是」）：返回 (非零链接数, 链接总数, 总证据分)。
+    ///
+    /// **为什么看覆盖率而不只看总分**：碎拼变体典型形态 = 大部分相邻词对毫无
+    /// 关联、只有一两对碰巧有语料（「A 和 B 莫名组合，但 B 和 C 有关联，
+    /// 导致 A+B+C 这种怪异句子呈现」）。实例：变体「本|第四|是」内部 2 条链接
+    /// 只有「第四→是」9 分（覆盖 50%），字面正解「本地|实施」1 条链接有用户
+    /// bigram 4 分（覆盖 100%）——总分 9>4 但整句读法是假的。覆盖率把「单点
+    /// 碰巧」和「整句成立」分开：变体覆盖率必须**高于**字面，才有资格冒充纠错。
+    fn chain_evidence_internal(&self, words: &[(String, String)]) -> (usize, usize, u32) {
+        if words.len() < 2 {
+            return (0, 0, 0);
+        }
+        let links = words.len() - 1;
+        let mut nonzero = 0usize;
+        let mut total = 0u32;
+        for i in 0..links {
+            let ev = self.link_evidence(&words[i].0, &words[i + 1].0, &words[i + 1].1);
+            if ev > 0 {
+                nonzero += 1;
+            }
+            total += ev;
+        }
+        (nonzero, links, total)
+    }
+
     /// 单条搭配证据：collocation 命中（词库权威，硬规则）计 LINK 满格；
     /// 否则 bigram count（用户表优先 → 种子回退，equiv 泛化语义同查询侧）。
     fn link_evidence(&self, prev: &str, text: &str, pinyin: &str) -> u32 {
         if self.dict.collocation_freq(prev, text, pinyin).is_some() {
             return Self::CONTEXT_RESCUE_MIN_LINK * 4;
+        }
+        // 后接单字功能词不计 bigram（quan'li'yi'fu'de 案例
+        // 橙词「劝你衣服的」）：任何实词后都能接「的/了/啊」，这类 bigram
+        // 天然普遍但零搭配区分度；被当营救证据后，碎拼变体靠「衣服→的」17
+        // 分过门槛（3+3），而字面正解「全力以赴|的」因搭配语料不会统计
+        // 「成语→的」而链证据恒 0——越是正经整词+功能词，越输给碎拼。
+        // 功能词在前侧（的→中国 32）是真实组合证据，保留。
+        if text.chars().count() == 1
+            && text
+                .chars()
+                .next()
+                .is_some_and(|c| Self::LINK_FUNC_TAIL_WORDS.contains(&c))
+        {
+            return 0;
         }
         self.freq.word_bigram_count(prev, text)
     }
@@ -5359,6 +5607,63 @@ impl Engine {
         Self::candidate_consumed_prefix(input, c)
     }
 
+    /// 单候选的消费字节数（统一口径，duandian→「毒案」全消费案例）。
+    ///
+    /// 与 [`Self::consumed_lens`] 的选词提交同源规则，供前端提交路径使用
+    /// （mac Swift 经 FFI `x1_engine_candidate_consumed_len` 调用）：
+    /// ① 候选拼音包含输入 → 全消费（`duan`+断点 之外的前缀扩展词）；
+    /// ② 输入包含候选拼音 → 消费候选拼音长度（**本 bug 主路径**：
+    ///    `duandian` + 毒案(du an) → 4，留 `dian` 继续组词）；
+    /// ③ 简拼/混合声母候选 → 逐声母对齐；
+    /// ④ 纠错候选 → 全消费（解释整条错串）；
+    /// ⑤ 简拼整词（每字母一字）→ 全消费。
+    ///
+    /// `None` = 无法判定，调用方退回既有 `字数 vs 音节数` 自组词逻辑
+    /// （双拼键序、拼音字段异常等场景）。
+    pub(crate) fn candidate_consumed_len_unified(
+        &self,
+        input: &str,
+        c: &Candidate,
+    ) -> Option<usize> {
+        if input.is_empty() || c.pinyin.is_empty() {
+            return None;
+        }
+        let compact: String = c
+            .pinyin
+            .chars()
+            .filter(|ch| *ch != ' ' && *ch != '\'')
+            .collect();
+        if compact.is_empty() {
+            return None;
+        }
+        // ① 候选拼音包含输入（前缀扩展词）：整条输入都被解释
+        if compact.starts_with(input) {
+            return Some(input.len());
+        }
+        // ② 输入包含候选拼音：只消费候选读音覆盖的部分（duandian + 毒案 → 4）
+        if input.starts_with(compact.as_str()) {
+            return Some(compact.len());
+        }
+        // ③ 简拼/混合声母
+        if let Some(n) = self.jianpin_candidate_consumed_len(input, c) {
+            return Some(n);
+        }
+        // ④ 纠错候选解释整条错串
+        if c.is_correction {
+            return Some(input.len());
+        }
+        // ⑤ 简拼整词：候选各音节首字母拼接 == 输入
+        let initials: String = c
+            .pinyin
+            .split_whitespace()
+            .filter_map(|s| s.chars().next())
+            .collect();
+        if initials.len() == input.len() && initials.eq_ignore_ascii_case(input) {
+            return Some(input.len());
+        }
+        None
+    }
+
     /// 计算输入的拼音音节数
     ///
     /// 用于自组词：知道 buffer 有多少个音节，才能决定选字后吃掉几个音节。
@@ -5416,6 +5721,55 @@ impl Engine {
     ///
     /// Swift 端用 `'` join 后显示：`wen'min`、`z'g'r'm`。
     /// 单音节时不加分隔符（`xian` 而非 `xian`），避免干扰。
+    /// 预上屏显示跟随**焦点候选**读音的切分（候选窗翻页时实时重绘）。
+    ///
+    /// 场景：`duandian` 的候选里混有子前缀词——毒案 `du|an` 只吃 `duan`
+    /// 4 字母、短笛 `duan|di` 只吃 `duandi` 6 字母。选举切分显示
+    /// `duan'dian` 会让人以为整条输入都归该候选；焦点移到它时显示应改为
+    /// `du'an'dian`（已吃部分按候选读音拆 + 剩余部分按选举切分），与选中后
+    /// 的实际消费自洽。
+    ///
+    /// 接管范围（宁窄勿宽）：
+    /// - 候选拼音（去空格/撇号）是输入**真前缀**才接管，且必须非空；
+    /// - 候选拼音 == 输入 → 直接用候选音节序列；
+    /// - 其余（拼音与输入不对齐、空拼音、候选是前缀扩展的超集）→ 回退
+    ///   [`Self::syllable_segmentation`]，保持既有首选覆盖/选举语义。
+    pub fn syllable_segmentation_for_candidate(
+        &self,
+        input: &str,
+        cand_pinyin: &str,
+    ) -> Vec<String> {
+        let fallback = || self.syllable_segmentation(input);
+        if input.is_empty() || cand_pinyin.is_empty() {
+            return fallback();
+        }
+        let compact: String = cand_pinyin
+            .chars()
+            .filter(|c| *c != ' ' && *c != '\'')
+            .collect();
+        if compact.is_empty() || !input.starts_with(compact.as_str()) {
+            return fallback();
+        }
+        let syls: Vec<String> = cand_pinyin
+            .split_whitespace()
+            .map(|s| s.to_string())
+            .collect();
+        if syls.is_empty() {
+            return fallback();
+        }
+        if compact.len() == input.len() {
+            // 覆盖整条输入：候选读音即显示切分
+            return syls;
+        }
+        // 子前缀：已吃部分按候选音节，剩余部分交选举切分
+        let mut out = syls;
+        let rest = &input[compact.len()..];
+        if !rest.is_empty() {
+            out.extend(self.syllable_segmentation(rest));
+        }
+        out
+    }
+
     pub fn syllable_segmentation(&self, input: &str) -> Vec<String> {
         if input.is_empty() {
             return Vec::new();

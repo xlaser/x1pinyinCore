@@ -711,3 +711,52 @@ fn test_wohuanlegeshouji_recovers_after_learn() {
         first
     );
 }
+
+/// 同拼音碎拼绿词清理（bendishishi 案例：学过「本地实施」后，DP 主路
+/// 同拼音碎拼「本得实施」以第二位共存——分词 本得|实施，「本得」是 OOV
+/// 拼凑，读音与学习条目完全相同，用户听不出区别却多一行噪音）。
+/// 两条通道都要守：
+/// ① 同会话 green_memo 命中；② 重启后 input_mappings 持久兜底。
+#[test]
+fn test_same_pinyin_spurious_green_removed() {
+    let db = super::tests_query::seed_copy("dup_green");
+    {
+        let mut engine = super::Engine::new_with_db(&db).expect("seed db");
+        engine.commit("bendishishi", "本地实施", Some("ben di shi shi"), true);
+        // ① 同会话（green_memo 命中）
+        let cands = engine.process("bendishishi");
+        let sentences: Vec<&str> = cands
+            .iter()
+            .filter(|c| c.is_sentence)
+            .map(|c| c.text.as_ref())
+            .collect();
+        assert!(
+            sentences.contains(&"本地实施"),
+            "学习条目应在候选：{sentences:?}"
+        );
+        assert!(
+            !sentences.contains(&"本得实施"),
+            "同拼音碎拼绿词应被清（读音相同、词段质量更差）：{sentences:?}"
+        );
+        engine.flush().expect("flush");
+    }
+    // ② 重启后（green_memo 空 → input_mappings 持久兜底通道）
+    {
+        let engine = super::Engine::new_with_db(&db).expect("reopen");
+        let cands = engine.process("bendishishi");
+        let sentences: Vec<&str> = cands
+            .iter()
+            .filter(|c| c.is_sentence)
+            .map(|c| c.text.as_ref())
+            .collect();
+        assert!(
+            sentences.contains(&"本地实施"),
+            "重启后学习条目仍应召回：{sentences:?}"
+        );
+        assert!(
+            !sentences.contains(&"本得实施"),
+            "重启后兜底通道同拼音碎拼也应被清：{sentences:?}"
+        );
+    }
+    let _ = std::fs::remove_file(&db);
+}
