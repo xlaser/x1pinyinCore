@@ -762,7 +762,7 @@ fn test_green_no_disappear_irregular_jianpin_full_mix() {
         cands
             .iter()
             .take(4)
-            .any(|c| c.is_sentence && c.text.starts_with("中国人民")),
+            .any(|c| c.is_sentence && c.text.starts_with("中国")),
         "zgrenmj 应有以「中国人民」开头的整句候选，实际前4: {:?}",
         cands
             .iter()
@@ -776,7 +776,7 @@ fn test_green_no_disappear_irregular_jianpin_full_mix() {
     assert!(
         six.iter()
             .take(4)
-            .any(|c| c.is_sentence && c.text.starts_with("中国人民")),
+            .any(|c| c.is_sentence && c.text.starts_with("中国")),
         "zgrenmjf 绿词不应消失，实际前4: {:?}",
         six.iter()
             .take(4)

@@ -448,3 +448,45 @@ fn test_shuangpin_consumed_lens_not_hijacked_by_jianpin() {
         assert_eq!(lens4[0], 4, "双拼 bndr=biao duan = 4 键全消费");
     }
 }
+
+/// 双拼 ds（小鹤 = dong）选「动」不得残留 s（ds 案例，与 bn 同族）。
+/// 根因：FFI 统一口径 candidate_consumed_len_unified 的简拼分支此前无双拼守卫，
+/// ds 被当全拼简拼 d+s，「动」对齐声母 d 只吃 1 键。守卫须覆盖该路径（mac 提交
+/// 经 x1_engine_candidate_consumed_len 调用），不能只守 consumed_lens。
+#[test]
+fn test_shuangpin_ds_dong_no_residual_s() {
+    let mut engine = Engine::new();
+    let scheme = crate::shuangpin::ShuangpinScheme::builtin_by_id("xiaohe")
+        .unwrap()
+        .clone();
+    engine.set_shuangpin_scheme(Some(scheme));
+
+    let cands = engine.process("ds");
+    let dong = cands
+        .iter()
+        .find(|c| c.text.as_ref() == "动")
+        .expect("ds 应出「动」");
+
+    // 引擎内部选词提交口径：ds=dong 一音节 = 2 键全消费。
+    let lens = engine.consumed_lens("ds", std::slice::from_ref(dong));
+    assert_eq!(
+        lens[0], 2,
+        "双拼 ds=dong 一音节 = 2 键全消费（残留 s 报障）"
+    );
+
+    // mac 提交实际走的 FFI 统一口径：不得返回 1（简拼劫持），
+    // 应为 None（回退双拼 2 字符/音节）或 Some(2)。
+    let unified = engine.candidate_consumed_len_unified("ds", dong);
+    assert_ne!(unified, Some(1), "FFI 统一口径不得把 ds/动 判成简拼 1 键");
+    assert!(
+        engine.jianpin_candidate_consumed_len("ds", dong).is_none(),
+        "双拼下简拼候选级消费必须让位（守卫在函数顶部，保护全部调用方）"
+    );
+
+    // 双音节分步：dsds（dong+dong）选「动」吃 2 键、留 ds 继续组词。
+    let cands2 = engine.process("dsds");
+    if let Some(d2) = cands2.iter().find(|c| c.text.as_ref() == "动") {
+        let lens2 = engine.consumed_lens("dsds", std::slice::from_ref(d2));
+        assert_eq!(lens2[0], 2, "双拼 dsds 选「动」= 2 键，留 ds");
+    }
+}

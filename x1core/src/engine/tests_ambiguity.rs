@@ -49,21 +49,29 @@ fn test_no_blind_homophone_green_injection() {
 fn test_context_evidence_flips_only_in_learned_context() {
     let (db, mut engine) = seed_engine("ambig_ctx_scoped");
 
-    engine.context_push_for_test("灵感");
+    // 期望刷新（种子搭配统计更新，灵感→触发 已入冷启动）：
+    // 「灵感」语境默认已是「触发」。机制不变——改用「领导」作学习语境（默认
+    // 「处罚」，学「触发」可真实翻盘），「灵感」作未学语境验作用域隔离。
+    engine.context_push_for_test("领导");
     let before = engine.process("chufa");
-    assert_eq!(before[0].text.as_ref(), "处罚", "学习前应保持词频默认");
+    let default = before[0].text.as_ref().to_string();
+    let target = if default == "触发" {
+        "处罚"
+    } else {
+        "触发"
+    };
     engine.context_clear_for_test();
 
-    // 提交「触发」（chufa 整词）——PinCtx 上下文证据 + 全局 Pin 各记一次。
-    engine.context_push_for_test("灵感");
-    engine.commit("chufa", "触发", Some("chu fa"), true);
+    // 提交目标读法（chufa 整词）——PinCtx 上下文证据 + 全局 Pin 各记一次。
+    engine.context_push_for_test("领导");
+    engine.commit("chufa", target, Some("chu fa"), true);
     engine.context_clear_for_test();
 
-    engine.context_push_for_test("灵感");
+    engine.context_push_for_test("领导");
     let learned = engine.process("chufa");
     assert_eq!(
         learned[0].text.as_ref(),
-        "触发",
+        target,
         "同一语境学一次后应翻盘，实际: {:?}",
         learned
             .iter()
@@ -71,31 +79,31 @@ fn test_context_evidence_flips_only_in_learned_context() {
             .map(|c| c.text.as_ref())
             .collect::<Vec<_>>()
     );
-    let trigger = learned
+    let picked = learned
         .iter()
-        .find(|c| c.text.as_ref() == "触发")
-        .expect("触发 候选存在");
+        .find(|c| c.text.as_ref() == target)
+        .expect("目标候选存在");
     assert!(
-        engine.score_breakdown("chufa", trigger).ctx_homophone_bonus > 0,
+        engine.score_breakdown("chufa", picked).ctx_homophone_bonus > 0,
         "学过的语境应计入上下文同音证据分"
     );
     // 证据本身的作用域：同一词在未学语境为零。
     assert_eq!(
-        engine.pin_ctx_boost("chu fa", "触发", "领导"),
+        engine.pin_ctx_boost("chu fa", target, "灵感"),
         0,
         "上下文证据不得扩散到未学过的语境"
     );
     engine.context_clear_for_test();
 
-    engine.context_push_for_test("领导");
+    engine.context_push_for_test("灵感");
     let other = engine.process("chufa");
-    let trigger_other = other
+    let picked_other = other
         .iter()
-        .find(|c| c.text.as_ref() == "触发")
-        .expect("触发 候选存在");
+        .find(|c| c.text.as_ref() == target)
+        .expect("目标候选存在");
     assert_eq!(
         engine
-            .score_breakdown("chufa", trigger_other)
+            .score_breakdown("chufa", picked_other)
             .ctx_homophone_bonus,
         0,
         "其他语境的上下文证据分必须为 0"
@@ -139,19 +147,27 @@ fn test_sentence_commit_records_context_evidence_for_slot() {
 fn test_commit_learns_bigram_and_flips_next_query() {
     let (db, mut engine) = seed_engine("ambig_dp_learn");
     let before = engine.process("mashangchufa");
-    assert_eq!(before[0].text.as_ref(), "马上处罚", "基线默认");
+    // 期望刷新（种子搭配统计更新，马上→出发 已入冷启动）：
+    // 默认已是「马上出发」。机制不变——改学**非默认**读法「马上处罚」验证翻转。
+    let default = before[0].text.as_ref().to_string();
+    let target = if default == "马上出发" {
+        "马上处罚"
+    } else {
+        "马上出发"
+    };
 
-    engine.commit("mashangchufa", "马上出发", Some("ma shang chu fa"), true);
+    engine.commit("mashangchufa", target, Some("ma shang chu fa"), true);
     engine.context_clear_for_test();
 
+    let tail = target.chars().skip(2).collect::<String>();
     assert!(
-        engine.freq.word_bigram_count("马上", "出发") > 0,
-        "选择后应记录子词 bigram (马上→出发)"
+        engine.freq.word_bigram_count("马上", &tail) > 0,
+        "选择后应记录子词 bigram (马上→{tail})"
     );
     let again = engine.process("mashangchufa");
     assert_eq!(
         again[0].text.as_ref(),
-        "马上出发",
+        target,
         "选过一次后同输入首候选应翻转，实际: {:?}",
         again
             .iter()

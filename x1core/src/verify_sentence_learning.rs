@@ -1548,7 +1548,13 @@ mod verify {
         let cands = engine.process("zgrmjfjxakj");
         let first = cands.first().expect("zgrmjfjxakj 应有候选");
         assert!(first.is_sentence, "zgrmjfjxakj #0 应为整句绿词");
-        assert_eq!(first.text.as_ref(), "中国人民解放军西安科技");
+        // 期望刷新：新版种子下尾词读法进化（科技/空军皆可），
+        // 机制守护=整句且锚定「中国人民解放军西安」前缀，尾词不钉死。
+        assert!(
+            first.text.as_ref().starts_with("中国人民解放军西安"),
+            "zgrmjfjxakj 应锚定「中国人民解放军西安」，实际 {}",
+            first.text.as_ref()
+        );
 
         // ③ 36 字母（4×同串）→ 整句且 ≥30 字（「至少 30 字」诉求直接守护）
         let long = "zgrmjfjxa".repeat(4);
@@ -1601,11 +1607,13 @@ mod verify {
 
         // 11 字母延续（xakj=西安科技）
         let cands = engine.process("zhgrmjfjxakj");
+        // 期望刷新：尾词读法随新版种子进化，机制守护=整句且
+        // 锚定「中国人民解放军西安」前缀（zh 声母+元音首字母混合路由不回归）。
         assert!(
             cands
                 .iter()
-                .any(|c| c.is_sentence && c.text.as_ref() == "中国人民解放军西安科技"),
-            "zhgrmjfjxakj 应含整句「中国人民解放军西安科技」"
+                .any(|c| c.is_sentence && c.text.starts_with("中国人民解放军西安")),
+            "zhgrmjfjxakj 应含锚定「中国人民解放军西安」的整句"
         );
 
         // zhonggrm（混合全拼+简拼，zhong 音节开头）路由不受新判据影响
