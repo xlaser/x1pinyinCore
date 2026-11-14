@@ -629,3 +629,84 @@ fn accept_engine_learn_and_memo_in_shuangpin() {
         r2.iter().map(|c| &c.text).collect::<Vec<_>>()
     );
 }
+
+// ═══════════════════════ 3. 学习反馈层守护 ═══════════════════════
+
+/// 守护：调用方 commit 传的 candidate.pinyin（**已是全拼**），
+/// learning shim 不得把全拼再当双拼码二次解码（zhi → zangch 垃圾音节，
+/// 污染 user_pinyin_counts、单字 recent/主音学习失效）。
+#[test]
+fn accept_shuangpin_commit_fullpinyin_not_redecoded() {
+    let db = super::tests_query::seed_copy("sp_fidelity");
+    let mut engine = Engine::new_with_db(&db).expect("open seed copy");
+    engine.set_shuangpin_scheme(Some(scheme("xiaohe")));
+    // 真实传参形态：input=双拼键序，pinyin=候选全拼
+    engine.commit("vi", "之", Some("zhi"), true);
+    assert!(
+        engine.freq.pinyin_count("之", "zhi") > 0,
+        "拼音级学习应落在真实全拼 zhi 上"
+    );
+    assert_eq!(
+        engine.freq.pinyin_count("之", "zangch"),
+        0,
+        "全拼不得被二次解码成垃圾音节"
+    );
+    super::tests_query::seed_copy_cleanup(&db);
+}
+
+/// HIGH-2 守护：双拼下 competition/同音精确阶梯必须与全拼同效——
+/// 连选「只」后应置顶（原始键序 vi vs 全拼 zhi 恒不相等曾致通道永久失效）。
+#[test]
+fn accept_shuangpin_competition_channel_fires() {
+    let db = super::tests_query::seed_copy("sp_competition");
+    let mut engine = Engine::new_with_db(&db).expect("open seed copy");
+    engine.set_shuangpin_scheme(Some(scheme("xiaohe")));
+    let base = engine.process("vi");
+    assert!(!base.is_empty(), "vi 应解出 zhi 候选");
+    // 种子相对断言：取一个**非默认首候选**的同音字作学习目标（种子演进不破坏前提）
+    let target = if base[0].text.as_ref() == "只" {
+        "之"
+    } else {
+        "只"
+    };
+    for _ in 0..3 {
+        engine.commit("vi", target, Some("zhi"), true);
+        engine.context_clear_for_test();
+    }
+    let after = engine.process("vi");
+    assert_eq!(
+        after[0].text.as_ref(),
+        target,
+        "连选后竞争/同音阶梯应把目标置顶（双拼与全拼同效），实际 {:?}",
+        after
+            .iter()
+            .take(3)
+            .map(|c| c.text.as_ref())
+            .collect::<Vec<_>>()
+    );
+    super::tests_query::seed_copy_cleanup(&db);
+}
+
+/// 守护：VALID_SYLLABLES 是 binary_search 数组，必须恒字典序。
+#[test]
+fn accept_valid_syllables_sorted_for_binary_search() {
+    assert!(
+        crate::pinyin::VALID_SYLLABLES
+            .windows(2)
+            .all(|w| w[0] < w[1]),
+        "VALID_SYLLABLES 必须保持字典序（binary_search 前提）"
+    );
+}
+
+/// LOW-5 守护：方案名含引号/反斜杠时 JSON 往返不截断（手写解析器须反转义）。
+#[test]
+fn accept_custom_scheme_name_with_quotes_roundtrip() {
+    let mut s = scheme("xiaohe");
+    s.display_name = "我的\"方案\\名".to_string();
+    let json = crate::shuangpin::scheme_to_json(&s);
+    let back = crate::shuangpin::ShuangpinScheme::from_json(&json).expect("parse");
+    assert_eq!(
+        back.scheme.display_name, s.display_name,
+        " displayName 往返须保真"
+    );
+}

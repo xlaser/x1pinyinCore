@@ -86,14 +86,24 @@ impl crate::engine::Engine {
             }
             return;
         }
-        // 双拼展开：双拼模式下传入的 pinyin 是双拼编码，
-        // 必须 expand 成全拼再记学习，否则学习数据被污染（与全拼用户不互通）。
-        // scheme=None 时 no-op：decode_to_pinyin_string 不调用，pinyin_owned 持原值副本。
+        // 双拼展开：双拼模式下传入的 pinyin 可能是双拼编码，
+        // 须 expand 成全拼再记学习，否则学习数据被污染（与全拼用户不互通）。
+        // 但调用方现传的候选 pinyin 多为**已展开的全拼**，再当双拼码解码会产
+        // 垃圾音节（zhi → zangch）污染 user_pinyin_counts。门控：已是合法全拼
+        // 音节序列 → 原样保留；否则才尝试解码。scheme=None 时 no-op。
         // commit / commit_with_solidify 都走本函数，统一在此展开。
+        // 守护 accept_shuangpin_commit_fullpinyin_not_redecoded。
         let pinyin_owned: Option<String> = if let Some(scheme) = &self.shuangpin {
             pinyin.map(|p| {
-                crate::shuangpin::decode_to_pinyin_string(scheme, p)
-                    .unwrap_or_else(|| p.to_string())
+                let looks_full = !p.is_empty()
+                    && p.split_whitespace()
+                        .all(crate::pinyin::is_valid_syllable_pub);
+                if looks_full {
+                    p.to_string()
+                } else {
+                    crate::shuangpin::decode_to_pinyin_string(scheme, p)
+                        .unwrap_or_else(|| p.to_string())
+                }
             })
         } else {
             pinyin.map(|p| p.to_string())

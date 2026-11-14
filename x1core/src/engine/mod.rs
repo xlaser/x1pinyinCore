@@ -5598,6 +5598,16 @@ impl Engine {
         input: &str,
         c: &Candidate,
     ) -> Option<usize> {
+        // 双拼守卫（小鹤 ds 选「动」上屏后残留 s，与 bn→「表」残留 n
+        // 同族）：双拼键序可能恰好构成全拼简拼形态
+        // （ds = d+s 两声母），若走简拼逐声母对齐，「动」只吃 d=1 键、s 残留。
+        // 双拼下键序分组唯一权威是 syllable_prefix_lens 的双拼分支（2 字符/
+        // 音节），简拼/混合声母语义一律不适用；/q 临时全拼时 buffer 已是全拼，照旧。
+        // 守卫放在本函数顶部，保护全部调用方（consumed_lens 与 FFI 统一口径
+        // candidate_consumed_len_unified），避免再漏某一条消费路径。
+        if self.shuangpin.is_some() && !self.force_fullpinyin {
+            return None;
+        }
         if !(crate::pinyin::is_jianpin(input) || Self::is_hybrid_shengmu_input(input)) {
             return None;
         }

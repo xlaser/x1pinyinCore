@@ -939,7 +939,26 @@ impl crate::engine::Engine {
         } else {
             c.pinyin.trim().to_string()
         };
-        let input_chars: Vec<char> = input.chars().filter(|c| *c != '\'').collect();
+        // 双拼下 input 是原始键序（vi），与候选全拼（zhi）恒不相等 →
+        // is_precise 恒 false，竞争/同音精确阶梯永久失效（双拼单字「越用越准」
+        // 相对全拼根本性失灵）。精确判定改用解码后全拼（与 mod.rs 的
+        // !force_fullpinyin 展开同口径，/q 临时全拼不受影响）；解码失败
+        // （混合简拼等）回退原始键序，保持现状。
+        // 守护 accept_shuangpin_competition_channel_fires。
+        let precise_input: String = if !self.force_fullpinyin {
+            if let Some(scheme) = &self.shuangpin {
+                crate::shuangpin::decode_to_pinyin_string(scheme, &input.replace('\'', ""))
+                    .unwrap_or_else(|| input.to_string())
+            } else {
+                input.to_string()
+            }
+        } else {
+            input.to_string()
+        };
+        let input_chars: Vec<char> = precise_input
+            .chars()
+            .filter(|c| *c != '\'' && *c != ' ')
+            .collect();
         let pin_chars: Vec<char> = pin_key.replace(' ', "").chars().collect();
         let is_precise = pin_chars == input_chars;
         // 上下文同音证据：绝对分 bonus（正增量才计入）。

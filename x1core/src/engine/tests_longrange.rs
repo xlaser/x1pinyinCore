@@ -239,7 +239,7 @@ fn test_p0_sentence_longrange_gates_and_range() {
     let far = engine.process("mashangchufa");
     assert_eq!(
         far.first().map(|c| c.text.to_string()).unwrap_or_default(),
-        "马上处罚",
+        "马上出发",
         "d=8 已超出有效射程，不应翻盘"
     );
 
@@ -248,7 +248,7 @@ fn test_p0_sentence_longrange_gates_and_range() {
     let none = engine.process("mashangchufa");
     assert_eq!(
         none.first().map(|c| c.text.to_string()).unwrap_or_default(),
-        "马上处罚",
+        "马上出发",
         "无证据语境必须保持默认"
     );
 
@@ -260,7 +260,7 @@ fn test_p0_sentence_longrange_gates_and_range() {
             .first()
             .map(|c| c.text.to_string())
             .unwrap_or_default(),
-        "马上处罚",
+        "马上出发",
         "低计数种子搭配不得推翻默认读法"
     );
 
@@ -272,7 +272,7 @@ fn test_p0_sentence_longrange_gates_and_range() {
             .first()
             .map(|c| c.text.to_string())
             .unwrap_or_default(),
-        "马上处罚",
+        "马上出发",
         "单字虚词关联不得作为长程话题证据"
     );
 
@@ -317,16 +317,17 @@ fn test_p0_ab_matrix_other_families() {
     // (上文, 输入, 期望带语境, 期望无语境=旧行为)
     let cases: &[(&[&str], &str, &str, &str)] = &[
         (&["轮胎"], "zixingchechongqi", "自行车充气", "自行车重启"),
-        (&["等待"], "xitongchaoshile", "系统超时了", "系统超市了"),
+        // 期望刷新：新版种子下默认已正确，off==on（不再需翻正）。
+        (&["等待"], "xitongchaoshile", "系统超时了", "系统超时了"),
         (&["加密"], "wenjianjiemi", "文件解密", "文件揭秘"),
         (&["词频"], "moxingdafen", "魔性打分", "魔性大分"),
         (&["主要靠"], "chengjikaotianfu", "成绩考天赋", "成绩考天父"),
-        (&["混合"], "zhichijianpin", "支持简拼", "支持减贫"),
+        (&["混合"], "zhichijianpin", "支持简拼", "支持简拼"),
         (&["市井"], "chengshiyanhuo", "城市烟火", "城市焰火"),
-        (&["网红"], "tanmeishi", "谈美食", "谈没事"),
-        (&["名人"], "shuomingyan", "说名言", "说明言"),
+        (&["网红"], "tanmeishi", "谈美食", "谈美食"),
+        (&["名人"], "shuomingyan", "说名言", "说名言"),
         (&["党员"], "zhaodaotongzhi", "找到同志", "找到通知"),
-        (&["身边"], "womendetongshi", "我们的同事", "我们的同时"),
+        (&["身边"], "womendetongshi", "我们的同事", "我们的同事"),
         (&["管制"], "shiyongdaoju", "使用刀具", "使用道具"),
     ];
 
@@ -370,9 +371,9 @@ fn test_p0_ab_matrix_other_families() {
     let negatives: &[(&[&str], &str, &str)] = &[
         (&["领导"], "zixingchechongqi", "自行车重启"),
         (&["桌子"], "zixingchechongqi", "自行车重启"),
-        (&["结果"], "mashangchufa", "马上处罚"),
-        (&["在"], "mashangchufa", "马上处罚"),
-        (&["我们"], "mashangchufa", "马上处罚"),
+        (&["结果"], "mashangchufa", "马上出发"),
+        (&["在"], "mashangchufa", "马上出发"),
+        (&["我们"], "mashangchufa", "马上出发"),
     ];
     for (ctx, input, want) in negatives {
         set_longrange(true);

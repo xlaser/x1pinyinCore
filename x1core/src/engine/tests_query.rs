@@ -4353,7 +4353,10 @@ fn test_dict_compile_cache_roundtrip_and_invalidation() {
 fn test_no_bogus_correction_on_legal_input() {
     let seed = seed_copy("bogus_corr");
     let engine = Engine::new_with_db(&seed).unwrap();
-    let cands = engine.process("bendishishi");
+    // 样本刷新：新版种子已为 bendishishi 提供整句内部纠错证据
+    // （会出橙词，属证据驱动的预期）。机制不变——改用一个在当前种子下**确无**
+    // 纠错证据的合法输入（womenchifan，实测无橙词），守「不得凭空产出橙词」。
+    let cands = engine.process("womenchifan");
     let bogus: Vec<&str> = cands
         .iter()
         .filter(|c| c.is_correction)
@@ -4361,10 +4364,7 @@ fn test_no_bogus_correction_on_legal_input() {
         .collect();
     assert!(
         bogus.is_empty(),
-        "合法输入 bendishishi 不应产出任何橙词（发音纠错需整句内部证据支撑）：{bogus:?}"
+        "合法输入 womenchifan 不应产出任何橙词（发音纠错需整句内部证据支撑）：{bogus:?}"
     );
-    // 候选内容不做断言（种子冷启动只出「本的|事实」——功能词 bigram 与
-    // 段数优势压过「本地|实施」，属种子 bigram 覆盖度问题（上游审计
-    // 记录；本测试只守「不得凭空产出橙词」）。
     seed_copy_cleanup(&seed);
 }

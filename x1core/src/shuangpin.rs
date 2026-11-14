@@ -924,8 +924,29 @@ fn extract_string_field(json: &str, field: &str) -> Option<String> {
     let after = &after[colon + 1..];
     let quote_start = after.find('"')?;
     let rest = &after[quote_start + 1..];
-    let quote_end = rest.find('"')?;
-    Some(rest[..quote_end].to_string())
+    // 转义感知扫描 + 反转义：scheme_to_json 会转义 " 与 \，
+    // 旧版遇首个裸引号即止 → 含引号/反斜杠的方案名往返截断。
+    // 守护 accept_custom_scheme_name_with_quotes_roundtrip。
+    let mut out = String::new();
+    let mut chars = rest.chars();
+    while let Some(c) = chars.next() {
+        match c {
+            '"' => return Some(out),
+            '\\' => match chars.next() {
+                Some('"') => out.push('"'),
+                Some('\\') => out.push('\\'),
+                Some('n') => out.push('\n'),
+                Some('t') => out.push('\t'),
+                Some(other) => {
+                    out.push('\\');
+                    out.push(other);
+                }
+                None => return None,
+            },
+            _ => out.push(c),
+        }
+    }
+    None
 }
 
 /// 提取 {key: [str,...] | "str", ...} 形式的 map（finalMap/initialRemap 用）。

@@ -10,6 +10,21 @@ use super::SentencePath;
 #[allow(unused_imports)]
 use super::is_valid_chinese_text;
 
+/// 了/着/过 尾真词白名单。逐词背书，勿凭模式扩——
+/// 了/着 尾沿用种子维护脚本沉淀的保留清单（只读参考）；
+/// 过尾此前未覆盖，人工补充常见真词（通过/经过/难过 类），防止误伤。
+/// 读音兜底（着 zhao/zhuo、了 liao）另见 is_aspect_fragment。
+const ASPECT_FRAGMENT_KEEP: &[&str] = &[
+    // 了尾（功能/语气词，le 音但词汇化）
+    "为了", "除了", "到了", "算了", "得了", "好了", "行了", "完了", "罢了", "不了", "多了",
+    // 着尾（功能/介连词，zhe 音但词汇化）
+    "随着", "为着", "带着", "有着", "本着", "沿着", "朝着", "趁着", "顺着", "向着", "凭着", "接着",
+    "跟着", "悠着", "不着", "活着",
+    // 过尾（真词：经过/通过/难过 类，非 V+过 残片）
+    "通过", "不过", "经过", "超过", "思过", "度过", "透过", "错过", "路过", "难过", "得过", "罪过",
+    "改过", "补过", "记过", "受过", "好过", "且过", "苟过", "委过", "滤过", "胜过",
+];
+
 impl crate::engine::Engine {
     /// 整句解码（兼容入口）：只取绿词候选，不收集路径。
     pub(crate) fn decode_sentence(
@@ -197,6 +212,41 @@ impl crate::engine::Engine {
 
         // 优先级 3：回退最高频单字的音节（原逻辑）
         candidate_syllables.into_iter().next()
+    }
+
+    /// 动词+了/着/过 双字残片判定（语法规则）。
+    ///
+    /// 种子维护合并会把「按了/等了/点了」类 V+完成态/进行态残片固化成词条
+    /// （freq~1200）。整句 DP 给成词加分，使 [完][按了] 靠残片避开单字惩罚，
+    /// 压过更自然的 [晚安][了]（wananle→完按了 事故）。语法上这类残片不是
+    /// 词汇词，不应享受成词加分——按非词对待（word_adjust=-4 + 单字路径惩罚）。
+    ///
+    /// 白名单逐词保护真词（沿用种子维护中人工审过的
+    /// 了/着 保留规则，只读参考不运行）；读音兜底：着尾 zhao/zhuo 音
+    /// （睡着/穿着/沉着/执着）是结果补语/着装类合法词，了尾 liao 音
+    /// （临了/公了/不了）是合法词，均放行。**只针对 了/着/过，不动 的/地/得**
+    /// （本地/大地/目的 等真词不受影响）。
+    pub(crate) fn is_aspect_fragment(&self, text: &str, pinyin: &str) -> bool {
+        let mut chars = text.chars();
+        let (Some(_), Some(last), None) = (chars.next(), chars.next(), chars.next()) else {
+            return false; // 只处理双字词
+        };
+        if !matches!(last, '了' | '着' | '过') {
+            return false;
+        }
+        if ASPECT_FRAGMENT_KEEP.contains(&text) {
+            return false;
+        }
+        let last_syl = pinyin.split_whitespace().nth(1).unwrap_or("");
+        match last {
+            // 着尾：zhao/zhuo 音合法（结果补语/着装），zhe 音进行态残片。
+            '着' => !matches!(last_syl, "zhao" | "zhuo"),
+            // 了尾：liao 音合法（临了/公了/不了），le 音完成态残片。
+            '了' => last_syl != "liao",
+            // 过尾：白名单外的 V+过 残片（去过/做过/看过…）。
+            '过' => true,
+            _ => false,
+        }
     }
 
     pub(crate) fn best_char_for_initial(
@@ -742,7 +792,10 @@ impl crate::engine::Engine {
                 // 前驱循环里按各前驱分别打分——概率按条件分开算，不跨路径混合）。
                 for pick in &picks {
                     let char_count = pick.text.chars().count();
-                    let is_word = char_count >= 2;
+                    // 动词+了/着/过 残片按非词对待：不给成词加分，
+                    // 并计入单字路径惩罚，防 [完][按了] 压过 [晚安][了]。
+                    let is_word =
+                        char_count >= 2 && !self.is_aspect_fragment(&pick.text, &pick.pinyin);
                     // 统计先验（词频 + 上下文）已由插值 LM 在前驱循环里统一打分
                     // （lm_prior_score），此处只保留结构性/用户行为分量。
                     let recent_score_val = self.freq.recent_score(&pick.text);
