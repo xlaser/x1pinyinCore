@@ -774,10 +774,7 @@ pub fn is_jianpin(input: &str) -> bool {
             need_prefix_test = true;
         }
     }
-    if need_prefix_test && (is_pinyin_prefix(&chars) || has_embedded_full_syllable(&chars)) {
-        return false;
-    }
-    true
+    !need_prefix_test || !(is_pinyin_prefix(&chars) || has_embedded_full_syllable(&chars))
 }
 
 /// 判断 `chars` 是否为「某个全拼音节序列的前缀」（含末音节半截态）。
