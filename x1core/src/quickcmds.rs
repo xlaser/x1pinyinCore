@@ -6,6 +6,7 @@
 //!
 //! 命令语义：
 //!   `/upper<数字>`   → 双候选：中文小写（一千三百六十）+ 财务大写（壹仟叁佰陆拾）
+//!   `/calc<算式>`    → 快捷计算器：结果 + 「算式=结果」双候选
 //!   `/emoj[拼音]`    → Emoji 候选（拼音前缀过滤；空关键字 = 常用精选）
 //!     规模偏好 emojiScale（common/full，默认 common）由服务端 config 总线
 //!     注入 Engine::emoji_full —— 常用 = 表中 common 标记条目；全量 = 全表。
@@ -21,6 +22,9 @@ pub fn dispatch(input: &str, emoji_full: bool) -> Option<Vec<Candidate>> {
     let key = input.strip_prefix('/')?;
     if let Some(num) = key.strip_prefix("upper") {
         return upper_candidates(num);
+    }
+    if let Some(expr) = key.strip_prefix("calc") {
+        return calc_candidates(expr);
     }
     if let Some(kw) = key.strip_prefix("emoj") {
         return Some(emoj_candidates(kw, emoji_full));
@@ -224,6 +228,247 @@ fn rmb_amount(int_digits: &str, frac_part: &str) -> Option<String> {
 }
 
 // ---------------------------------------------------------------------------
+// /calc：快捷计算器（独立交互模式 /calc 进入）
+// ---------------------------------------------------------------------------
+
+/// 递归下降求值器（零依赖纯函数，零网络）。
+/// 文法（优先级从低到高）：expr := term (+|- term)*；term := unary (*|/ unary)*；
+/// unary := (-|+)? power；power := atom (^ unary)?（右结合，允许 2^-3）；
+/// atom := number | '(' expr ')'。语义对齐数学惯例：-2^2 = -(2^2) = -4。
+struct CalcParser<'a> {
+    s: &'a [u8],
+    pos: usize,
+}
+
+impl<'a> CalcParser<'a> {
+    fn skip_ws(&mut self) {
+        while self.pos < self.s.len() && self.s[self.pos] == b' ' {
+            self.pos += 1;
+        }
+    }
+    fn peek(&mut self) -> Option<u8> {
+        self.skip_ws();
+        self.s.get(self.pos).copied()
+    }
+    fn expr(&mut self) -> Option<f64> {
+        let mut v = self.term()?;
+        loop {
+            match self.peek() {
+                Some(b'+') => {
+                    self.pos += 1;
+                    v += self.term()?;
+                }
+                Some(b'-') => {
+                    self.pos += 1;
+                    v -= self.term()?;
+                }
+                _ => return Some(v),
+            }
+        }
+    }
+    fn term(&mut self) -> Option<f64> {
+        let mut v = self.unary()?;
+        loop {
+            match self.peek() {
+                Some(b'*') => {
+                    self.pos += 1;
+                    v *= self.unary()?;
+                }
+                Some(b'/') => {
+                    self.pos += 1;
+                    // 除零 → ±inf / NaN，由 calc_eval 的 is_finite 统一拒绝
+                    v /= self.unary()?;
+                }
+                _ => return Some(v),
+            }
+        }
+    }
+    fn unary(&mut self) -> Option<f64> {
+        match self.peek() {
+            Some(b'-') => {
+                self.pos += 1;
+                Some(-self.unary()?)
+            }
+            // 不容忍一元正号（"1++2" 拒绝而非静默算成 3——计算器对畸形输入
+            // 严格拒绝，用户在算式行看得见、改得掉）
+            _ => self.power(),
+        }
+    }
+    fn power(&mut self) -> Option<f64> {
+        let base = self.atom()?;
+        if self.peek() == Some(b'^') {
+            self.pos += 1;
+            let e = self.unary()?; // 右结合：2^3^2 = 2^(3^2) = 512
+            Some(base.powf(e))
+        } else {
+            Some(base)
+        }
+    }
+    fn atom(&mut self) -> Option<f64> {
+        match self.peek()? {
+            b'(' => {
+                self.pos += 1;
+                let v = self.expr()?;
+                if self.peek() == Some(b')') {
+                    self.pos += 1;
+                    Some(v)
+                } else {
+                    None // 括号不闭合
+                }
+            }
+            c if c.is_ascii_digit() || c == b'.' => self.number(),
+            _ => None,
+        }
+    }
+    fn number(&mut self) -> Option<f64> {
+        self.skip_ws();
+        let start = self.pos;
+        let mut seen_dot = false;
+        while let Some(&c) = self.s.get(self.pos) {
+            if c.is_ascii_digit() {
+                self.pos += 1;
+            } else if c == b'.' && !seen_dot {
+                seen_dot = true;
+                self.pos += 1;
+            } else {
+                break;
+            }
+        }
+        // 裸点 "." 非法（"1." 合法 = 1，f64 解析容忍；".5" = 0.5 同）
+        if self.s[start..self.pos].iter().all(|&c| c == b'.') {
+            return None;
+        }
+        std::str::from_utf8(&self.s[start..self.pos])
+            .ok()?
+            .parse::<f64>()
+            .ok()
+    }
+}
+
+/// 算式求值入口：非法/除零/溢出/尾部残留 → None。
+fn calc_eval(expr: &str) -> Option<f64> {
+    let mut p = CalcParser {
+        s: expr.as_bytes(),
+        pos: 0,
+    };
+    let v = p.expr()?;
+    p.skip_ws();
+    if p.pos != expr.len() {
+        return None; // 尾部残留（如 "1+2)"、"1.2.3" 的第二个点段）
+    }
+    if !v.is_finite() {
+        return None;
+    }
+    Some(v)
+}
+
+/// 结果格式化：12 位有效数字圆整清浮点噪声（0.1+0.2 → 0.3、
+/// 123*123.1 → 15141.3），整数值（|v| < 1e15）精确直出不受圆整影响。
+///
+/// 圆整必须走**十进制字符串**（`{:.11e}` = 12 位有效数字的科学计数法，
+/// 再转普通计数法）——旧实现 `(v*10^k).round()/10^k` 的乘除往返本身带
+/// f64 表示误差，会把噪声重新引回来（实测 123*123.1 出
+/// 15141.299999999999——scale 10^7 乘积的 ulp≈3e-5 吞掉 1e-5 量级噪声，
+/// round 不动、除回又落回噪声值）。字符串路径无二次舍入，噪声恒清。
+fn fmt_calc_num(v: f64) -> String {
+    if v == 0.0 {
+        return "0".to_string();
+    }
+    // 整数精确直出（f64 整数精确域 |v| < 2^53 ≈ 9e15）：大整数不被 12 位
+    // 有效数字圆整截断（123456789012345 保持原值）
+    if v == v.trunc() && v.abs() < 1e15 {
+        return format!("{}", v as i64);
+    }
+    // {:.11e} = 1 位整数 + 11 位小数 = 12 位有效数字（IEEE 正确舍入）
+    let sci = format!("{:.11e}", v);
+    let (mantissa, exp) = sci.split_once('e').expect("scientific format");
+    let exp: i32 = exp.parse().expect("exponent");
+    let neg = mantissa.starts_with('-');
+    let digits: String = mantissa.chars().filter(|c| c.is_ascii_digit()).collect();
+    // 小数点原在首位数字后，右移 exp 位
+    let point = 1 + exp;
+    // 极端量级保留科学计数法（防几百字符十进制串撑爆候选窗；旧实现固定
+    // 12 位小数会把 1e-20 截成 0，科学计数法既正确又紧凑）
+    if !(-12..=16).contains(&point) {
+        let m = mantissa.trim_end_matches('0').trim_end_matches('.');
+        return format!("{}e{}", m, exp);
+    }
+    let mut s = if point <= 0 {
+        format!("0.{}{}", "0".repeat((-point) as usize), digits)
+    } else if (point as usize) >= digits.len() {
+        format!("{}{}", digits, "0".repeat(point as usize - digits.len()))
+    } else {
+        format!(
+            "{}.{}",
+            &digits[..point as usize],
+            &digits[point as usize..]
+        )
+    };
+    if s.contains('.') {
+        while s.ends_with('0') {
+            s.pop();
+        }
+        if s.ends_with('.') {
+            s.pop();
+        }
+    }
+    if neg {
+        s.insert(0, '-');
+    }
+    s
+}
+
+/// /calc 候选生成：候选 1 = 结果；候选 2 = 「算式=结果」（留痕粘贴用）。
+/// 约束：算式 ≤64 字符、字符集 数字 . + - * / ^ ( ) 与空格（空格忽略）；
+/// 非法/除零/溢出 → None（DLL 交互模式继续显示算式、不出结果候选）。
+fn calc_candidates(expr: &str) -> Option<Vec<Candidate>> {
+    if expr.is_empty() || expr.len() > 64 {
+        return None; // 裸 "/calc"（DLL 交互模式已拦截）与超长防御
+    }
+    let v = calc_eval(expr)?;
+    let result = fmt_calc_num(v);
+    // 裸数字（无运算符）只出结果候选：
+    // "345=345" 类自指等式候选是垃圾（数字输入中间态每键都出，提交还会
+    // 把垃圾刷进历史）。有运算符才出「算式=结果」双候选。
+    let shortcut = |s: &str| Candidate {
+        text: s.into(),
+        base_freq: 10000,
+        pinyin: String::new().into(),
+        is_primary: true,
+        is_correction: false,
+        is_sentence: false,
+        is_guess: false,
+        is_shortcut: true,
+        is_english: false,
+        sentence_score: 0,
+    };
+    if !expr
+        .bytes()
+        .any(|b| matches!(b, b'+' | b'-' | b'*' | b'/' | b'^'))
+    {
+        return Some(vec![shortcut(&result)]);
+    }
+    let eq = format!("{}={}", expr.replace(' ', ""), result);
+    Some(
+        [result, eq]
+            .iter()
+            .map(|s| Candidate {
+                text: s.as_str().into(),
+                base_freq: 10000,
+                pinyin: String::new().into(),
+                is_primary: true,
+                is_correction: false,
+                is_sentence: false,
+                is_guess: false,
+                is_shortcut: true,
+                is_english: false,
+                sentence_score: 0,
+            })
+            .collect(),
+    )
+}
+
+// ---------------------------------------------------------------------------
 // /emoj：Emoji 表（common = 常用精选；common=false 之外的条目 = 全量补充）
 // ---------------------------------------------------------------------------
 
@@ -375,5 +620,113 @@ mod tests {
         let full = dispatch("/emoj", true).unwrap().len();
         let common = dispatch("/emoj", false).unwrap().len();
         assert!(full >= common);
+    }
+
+    #[test]
+    fn test_calc_basic() {
+        // 优先级 + 双候选形态
+        let c = dispatch("/calc1+2*3", false).unwrap();
+        assert_eq!(&*c[0].text, "7");
+        assert_eq!(&*c[1].text, "1+2*3=7");
+        assert!(c[0].is_shortcut);
+        // 裸数字（无运算符）只出结果单候选（
+        // "345=345" 自指等式候选是垃圾，且提交会刷进历史）
+        let bare = dispatch("/calc345", false).unwrap();
+        assert_eq!(bare.len(), 1, "裸数字不得出等式候选");
+        assert_eq!(&*bare[0].text, "345");
+        let bare2 = dispatch("/calc3465.465", false).unwrap();
+        assert_eq!(bare2.len(), 1);
+        assert_eq!(&*bare2[0].text, "3465.465");
+        assert_eq!(&*dispatch("/calc(1+2)*3", false).unwrap()[0].text, "9");
+        assert_eq!(&*dispatch("/calc10-2-3", false).unwrap()[0].text, "5");
+        assert_eq!(&*dispatch("/calc10/4", false).unwrap()[0].text, "2.5");
+        // 幂：右结合 + 一元负号穿透（-2^2 = -4 数学惯例）
+        assert_eq!(&*dispatch("/calc2^10", false).unwrap()[0].text, "1024");
+        assert_eq!(&*dispatch("/calc2^3^2", false).unwrap()[0].text, "512");
+        assert_eq!(&*dispatch("/calc-2^2", false).unwrap()[0].text, "-4");
+        assert_eq!(&*dispatch("/calc2^-3", false).unwrap()[0].text, "0.125");
+        // 一元正负号
+        assert_eq!(&*dispatch("/calc-5+10", false).unwrap()[0].text, "5");
+        assert_eq!(&*dispatch("/calc2*-3", false).unwrap()[0].text, "-6");
+        // 空格容忍（等式候选剥空格）
+        let c = dispatch("/calc 1 + 2 ", false).unwrap();
+        assert_eq!(&*c[0].text, "3");
+        assert_eq!(&*c[1].text, "1+2=3");
+        // 嵌套括号 + 小数
+        assert_eq!(&*dispatch("/calc((1+1)*2.5)", false).unwrap()[0].text, "5");
+    }
+
+    #[test]
+    fn test_calc_float_cleanup() {
+        // 12 位有效数字清理浮点噪声
+        assert_eq!(&*dispatch("/calc0.1+0.2", false).unwrap()[0].text, "0.3");
+        assert_eq!(
+            &*dispatch("/calc1/3", false).unwrap()[0].text,
+            "0.333333333333"
+        );
+        // 整数结果出整数（0.5*4 的 f64 恰为 2）
+        assert_eq!(&*dispatch("/calc0.5*4", false).unwrap()[0].text, "2");
+        assert_eq!(&*dispatch("/calc3*0.3", false).unwrap()[0].text, "0.9");
+        assert_eq!(&*dispatch("/calc0", false).unwrap()[0].text, "0");
+        // 123*123.1 旧乘除往返
+        // 圆整把噪声引回（scale 10^7 乘积 ulp 吞噪声）。字符串路径恒清。
+        assert_eq!(
+            &*dispatch("/calc123*123.1", false).unwrap()[0].text,
+            "15141.3"
+        );
+        assert_eq!(
+            &*dispatch("/calc123.1*123", false).unwrap()[0].text,
+            "15141.3"
+        );
+        assert_eq!(
+            &*dispatch("/calc-123*123.1", false).unwrap()[0].text,
+            "-15141.3"
+        );
+        assert_eq!(&*dispatch("/calc1.1*1.1", false).unwrap()[0].text, "1.21");
+        assert_eq!(&*dispatch("/calc0.1*0.2", false).unwrap()[0].text, "0.02");
+        assert_eq!(
+            &*dispatch("/calc10/3", false).unwrap()[0].text,
+            "3.33333333333"
+        );
+        // 极小数不走固定 12 位小数（旧实现 {:.12} 把 3e-7 截成 0）
+        assert_eq!(
+            &*dispatch("/calc0.0000001*3", false).unwrap()[0].text,
+            "0.0000003"
+        );
+        // 大整数精确直出（f64 整数精确域内不被 12 位有效数字截断）
+        assert_eq!(
+            &*dispatch("/calc123456789012345", false).unwrap()[0].text,
+            "123456789012345"
+        );
+        assert_eq!(
+            &*dispatch("/calc999999999999999", false).unwrap()[0].text,
+            "999999999999999"
+        );
+        // 「算式=结果」留痕候选同口径
+        assert_eq!(
+            &*dispatch("/calc123*123.1", false).unwrap()[1].text,
+            "123*123.1=15141.3"
+        );
+        // 极端量级走科学计数法（不截成 0、不出几百字符长串）
+        assert_eq!(&*dispatch("/calc1/10^20", false).unwrap()[0].text, "1e-20");
+        assert_eq!(
+            &*dispatch("/calc10^20*1.5", false).unwrap()[0].text,
+            "1.5e20"
+        );
+    }
+
+    #[test]
+    fn test_calc_invalid() {
+        assert!(dispatch("/calc", false).is_none()); // 裸命令
+        assert!(dispatch("/calc1/0", false).is_none()); // 除零
+        assert!(dispatch("/calc0/0", false).is_none()); // NaN
+        assert!(dispatch("/calc1++2", false).is_none()); // 连续运算符
+        assert!(dispatch("/calc(1+2", false).is_none()); // 括号不闭合
+        assert!(dispatch("/calc1+2)", false).is_none()); // 尾部残留
+        assert!(dispatch("/calc1.2.3", false).is_none()); // 多点
+        assert!(dispatch("/calc.", false).is_none()); // 裸点
+        assert!(dispatch("/calcabc", false).is_none()); // 非算式
+        assert!(dispatch("/calc10%", false).is_none()); // % 不在 v1 字符集
+        assert!(dispatch("/cal", false).is_none()); // 前缀不完整
     }
 }

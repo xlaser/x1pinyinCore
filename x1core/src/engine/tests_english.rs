@@ -321,6 +321,42 @@ fn test_english_complete_exact_first() {
     assert!(e2.english_complete("cat", 9).is_empty());
 }
 
+/// 中文模式大写词会话查词闸（跟随 smartWordZh 开关）：
+/// english_complete_zh 挂 smartWordZh，与英文模式 english_complete（smartWordEn）
+/// 相互独立；iPhone 类小写开头词大小写不敏感命中。
+#[test]
+fn test_english_complete_zh_gate() {
+    let mut e = en_engine();
+    // 英文模式关、中文模式开 → zh 路径出词，en 路径仍空（双闸独立）
+    e.set_smart_word_en_enabled(false);
+    e.set_smart_word_zh_enabled(true);
+    assert!(
+        e.english_complete("cat", 9).is_empty(),
+        "en 闸关则英文模式补全空"
+    );
+    let zh = e.english_complete_zh("cat", 9);
+    assert!(!zh.is_empty() && zh[0].0 == "cat", "zh 闸开则中文会话出词");
+    // iPhone：小写前缀大小写不敏感命中规范词形（种子词表 iphone→iPhone）
+    let ip = e.english_complete_zh("iphone", 9);
+    assert!(
+        ip.iter().any(|(w, _)| w == "iPhone"),
+        "iphone 前缀须命中 iPhone"
+    );
+    let ip_prefix = e.english_complete_zh("iph", 9);
+    assert!(
+        ip_prefix.iter().any(|(w, _)| w == "iPhone"),
+        "iph 前缀须命中 iPhone"
+    );
+    // 中文闸关 → zh 路径空（英文模式闸不受影响）
+    e.set_smart_word_zh_enabled(false);
+    assert!(
+        e.english_complete_zh("cat", 9).is_empty(),
+        "zh 闸关则中文会话补全空"
+    );
+    e.set_smart_word_en_enabled(true);
+    assert!(!e.english_complete("cat", 9).is_empty(), "en 闸独立维持");
+}
+
 #[test]
 fn test_placement_rule_direct() {
     // 直接验证排位规则（构造式候选列表，与 DB 状态无关；

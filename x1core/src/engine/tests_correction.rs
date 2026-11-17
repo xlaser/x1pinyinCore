@@ -1361,13 +1361,18 @@ fn test_penalized_segmentation_rescue_green_word() {
         cands.first().map(|c| (&c.text, c.is_sentence))
     );
 
-    // duan 保护：当选 [duan] 有产出（段），营救不介入
+    // duan 保护：当选 [duan] 有产出，营救不介入。断言机制不钉字（
+    // 种子相对化：段/端同音 duan，谁居首随种子频值浮动——守护「首候选是完整
+    // 音节 duan 的词、非营救拼凑」即够，具体字与种子排序解耦）
     let cands = engine.process("duan");
+    let first = cands.first().expect("duan 应有候选");
+    let compact: String = first.pinyin.chars().filter(|c| *c != ' ').collect();
     assert_eq!(
-        cands.first().map(|c| c.text.as_ref()),
-        Some("段"),
-        "duan 完整音节保护不得被营救路径破坏"
+        compact, "duan",
+        "duan 完整音节保护不得被营救路径破坏（首候选 {} 拼音 {compact}）",
+        first.text
     );
+    assert!(!first.is_correction, "duan 首候选不得是纠错营救形态");
 
     super::tests_query::seed_copy_cleanup(&seed);
 }

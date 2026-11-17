@@ -124,21 +124,7 @@ pub unsafe extern "C" fn x1_engine_english_complete(
         None => return core::ptr::null_mut(),
     };
     let json = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        let words = engine.english_complete(prefix_str, limit);
-        let mut out = String::from("[");
-        for (i, (w, f)) in words.iter().enumerate() {
-            if i > 0 {
-                out.push(',');
-            }
-            out.push_str("{\"text\":\"");
-            out.push_str(w);
-            out.push_str("\",\"freq\":");
-            // u32 恒无转义/格式歧义，直接拼接（与服务端 json 组装同款）
-            out.push_str(&f.to_string());
-            out.push('}');
-        }
-        out.push(']');
-        out
+        english_complete_json(&engine.english_complete(prefix_str, limit))
     })) {
         Ok(j) => j,
         Err(e) => {
@@ -150,6 +136,61 @@ pub unsafe extern "C" fn x1_engine_english_complete(
         Ok(cstr) => cstr.into_raw(),
         Err(_) => core::ptr::null_mut(),
     }
+}
+
+/// 中文模式大写词会话前缀补全查询（List/LoRa/iPhone 混合大小写直输）。
+/// 与 `x1_engine_english_complete` 同形，
+/// 闸换 `smartWordZh`（中文模式英文注入同闸，默认开）——**不放宽原英文闸**
+/// （zh 字段分闸同款语义，守护
+/// test_english_complete_zh_gate）。返回 JSON 形状/释放契约同上。
+///
+/// # Safety
+/// `ptr` 必须是有效引擎指针；`prefix` 必须是有效 UTF-8 C 字符串
+#[no_mangle]
+pub unsafe extern "C" fn x1_engine_english_complete_zh(
+    ptr: *mut X1Engine,
+    prefix: *const c_char,
+    limit: usize,
+) -> *mut c_char {
+    if ptr.is_null() || prefix.is_null() {
+        return core::ptr::null_mut();
+    }
+    let engine = &(*ptr).inner;
+    let prefix_str = match c_str_to_str(prefix) {
+        Some(s) => s,
+        None => return core::ptr::null_mut(),
+    };
+    let json = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        english_complete_json(&engine.english_complete_zh(prefix_str, limit))
+    })) {
+        Ok(j) => j,
+        Err(e) => {
+            log_panic("english_complete_zh", &*e);
+            return core::ptr::null_mut();
+        }
+    };
+    match CString::new(json) {
+        Ok(cstr) => cstr.into_raw(),
+        Err(_) => core::ptr::null_mut(),
+    }
+}
+
+/// 英文补全结果 → JSON 数组（两闸 FFI 共用；词表词恒 ASCII 字母无转义需求，
+/// u32 恒无格式歧义，直接拼接——与服务端 json 组装同款）。
+fn english_complete_json(words: &[(String, u32)]) -> String {
+    let mut out = String::from("[");
+    for (i, (w, f)) in words.iter().enumerate() {
+        if i > 0 {
+            out.push(',');
+        }
+        out.push_str("{\"text\":\"");
+        out.push_str(w);
+        out.push_str("\",\"freq\":");
+        out.push_str(&f.to_string());
+        out.push('}');
+    }
+    out.push(']');
+    out
 }
 
 /// 判断输入是否为完整拼音
@@ -584,6 +625,31 @@ mod english_complete_tests {
             .to_string_lossy()
             .into_owned();
         assert_eq!(s, "[]", "内置模式（无 DB）英文补全恒空：{s}");
+        unsafe { crate::ffi::x1_string_free(out) };
+    }
+
+    /// zh 闸 FFI 同形守护：null 守卫 + 无 DB 空数组。
+    /// 双闸独立性由 engine 层 test_english_complete_zh_gate 守护。
+    #[test]
+    fn english_complete_zh_ffi_guards_and_empty_shape() {
+        unsafe {
+            assert!(
+                x1_engine_english_complete_zh(core::ptr::null_mut(), core::ptr::null(), 9)
+                    .is_null()
+            );
+        }
+        let mut engine = X1Engine {
+            inner: crate::engine::Engine::new(),
+        };
+        let prefix = CString::new("iPh").unwrap();
+        let out = unsafe {
+            x1_engine_english_complete_zh(&mut engine as *mut X1Engine, prefix.as_ptr(), 9)
+        };
+        assert!(!out.is_null(), "内置模式应返回空数组 JSON 而非 null");
+        let s = unsafe { core::ffi::CStr::from_ptr(out) }
+            .to_string_lossy()
+            .into_owned();
+        assert_eq!(s, "[]", "内置模式（无 DB）zh 补全恒空：{s}");
         unsafe { crate::ffi::x1_string_free(out) };
     }
 }

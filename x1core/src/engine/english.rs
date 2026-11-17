@@ -105,6 +105,21 @@ impl Engine {
         if !self.smart_word_en_enabled {
             return Vec::new();
         }
+        self.english_complete_inner(prefix, limit)
+    }
+
+    /// 中文模式「大写触发英文词会话」查词（跟随
+    /// smartWordZh，与中文模式英文注入同闸，默认开 → 打 iPhone 即出词）。
+    /// 与 [`english_complete`] 共用查询体，仅门控开关不同——英文模式补全
+    /// （smartWordEn）契约保持不变（守护 test_smart_word_en_defaults_off）。
+    pub fn english_complete_zh(&self, prefix: &str, limit: usize) -> Vec<(String, u32)> {
+        if !self.smart_word_zh_enabled {
+            return Vec::new();
+        }
+        self.english_complete_inner(prefix, limit)
+    }
+
+    fn english_complete_inner(&self, prefix: &str, limit: usize) -> Vec<(String, u32)> {
         let mut out: Vec<(String, u32)> = Vec::with_capacity(limit);
         if let Some((word, freq)) = self.english_lookup_exact(prefix) {
             out.push((word, freq));

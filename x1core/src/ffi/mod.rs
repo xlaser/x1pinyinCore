@@ -27,6 +27,8 @@ use crate::engine::Engine;
 pub(crate) mod config;
 mod dict_admin;
 mod learning;
+/// 自定义短语管理 FFI（增删改查与导入导出，供词库管理器来源页调用）。
+mod phrases;
 pub(crate) mod query;
 /// 双库分离 FFI（引导链 + open_split，失败回退合并模式）。
 mod split;

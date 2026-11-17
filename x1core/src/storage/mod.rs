@@ -476,6 +476,16 @@ CREATE TABLE IF NOT EXISTS user_words (
                 PRIMARY KEY (input, slot)
             );
 
+            -- 自定义短语：触发码（按键序列，归一小写）→ 短语文本
+            -- （中文/英文/符号）。无词频；一码多条按 id（添加顺序）排。trigger
+            -- 非唯一（允许多条），索引加速引擎启动加载与匹配。
+            CREATE TABLE IF NOT EXISTS user_phrases (
+                id      INTEGER PRIMARY KEY AUTOINCREMENT,
+                trigger TEXT NOT NULL,
+                text    TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_user_phrases_trigger ON user_phrases(trigger);
+
             -- 竞争频率（「退化」通道）：
             -- 同音层(1)/组词层(2)/整句层(3) 三层竞争的分子（selects）与分母（total）。
             -- 权重由相对频率 selects/total 驱动（归一、有界、无时间参数）——
@@ -894,6 +904,8 @@ CREATE TABLE IF NOT EXISTS user_words (
 pub(crate) mod dict_cache;
 /// 词性/语法资产侧表（PFR 挖掘；种子分发，独立于 x1dict_words）。
 mod grammar;
+/// 自定义短语（触发码→短语文本，无词频；CRUD + 导入导出解析）。
+pub mod phrases;
 /// DB 结构版本验证（自定义数据目录配套；只进部署期引导链）。
 pub mod schema;
 pub mod split;

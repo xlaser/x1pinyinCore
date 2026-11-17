@@ -32,6 +32,7 @@ pub const USER_EXPECTED_TABLES: &[&str] = &[
     "user_counts",
     "user_blacklist",
     "user_pins",
+    "user_phrases",
     "user_english_counts",
     "competition",
     "competition_totals",

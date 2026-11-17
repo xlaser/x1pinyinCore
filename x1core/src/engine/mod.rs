@@ -103,6 +103,8 @@ mod tests_guess; // 紫词
 #[cfg(test)]
 mod tests_longrange; // 长程关联距离/干扰/边界实测
 #[cfg(test)]
+mod tests_phrases; // 自定义短语：触发码→短语，首位注入/一码多条/学习隔离
+#[cfg(test)]
 mod tests_pins;
 /// 平台无关性守护（引擎与平台差异完全无关）：
 /// 源码级扫描 engine/*.rs（不含 tests_*.rs）断言无平台分支/平台路径。
@@ -593,6 +595,10 @@ pub struct Engine {
     /// 学习、pin 是显式钉死——pin 在候选组装最后一步注入，压过一切提升）。
     /// 详见 pins.rs 头注。
     pub(crate) pins: HashMap<String, pins::PinSlots>,
+    /// 自定义短语：归一触发码 → 短语文本列表（添加顺序，一码
+    /// 多条）。持久化 user_phrases 表；process 命中精确触发码即置顶注入
+    /// （is_shortcut 蓝），上屏不参与学习（commit_internal 短语守卫）。无词频。
+    pub(crate) phrases: HashMap<String, Vec<String>>,
     /// 自适应 bigram cap 缓存（recompute_modulators 周期更新，热路径只读）。
     /// 冷启动 = BIGRAM_CAP_BASE，后台 60s 重算后随 max_user_bigram 对数增长。
     pub(crate) dyn_cap_cache: u32,
@@ -737,6 +743,7 @@ impl Engine {
             display_reading_override: std::cell::RefCell::new(None),
             green_memo: HashMap::new(),
             pins: HashMap::new(),
+            phrases: HashMap::new(),
             dyn_cap_cache: Self::BIGRAM_CAP_BASE,
             green_accept: GreenAcceptStats::default(),
             shuangpin: None,
@@ -1075,6 +1082,22 @@ impl Engine {
             }
         };
 
+        // 自定义短语：归一触发码 → 文本列表（id 升序 = 添加顺序，
+        // 一码多条保持先后）。老库缺表 → 空（CREATE IF NOT EXISTS 已幂等补建）。
+        let phrases: HashMap<String, Vec<String>> = match storage.load_phrases() {
+            Ok(rows) => {
+                let mut m: HashMap<String, Vec<String>> = HashMap::new();
+                for (_id, trigger, text) in rows {
+                    m.entry(trigger).or_default().push(text);
+                }
+                m
+            }
+            Err(_) => {
+                storage_load_incomplete = true;
+                Default::default()
+            }
+        };
+
         // 词性/语法侧表（老库缺表 → 空模型，零行为变化）。
         let grammar = crate::grammar::GrammarModel::load(&storage).unwrap_or_default();
 
@@ -1144,6 +1167,7 @@ impl Engine {
             display_reading_override: std::cell::RefCell::new(None),
             green_memo,
             pins,
+            phrases,
             dyn_cap_cache: Self::BIGRAM_CAP_BASE,
             green_accept: GreenAcceptStats::default(),
             shuangpin: None,
@@ -1683,6 +1707,10 @@ impl Engine {
         // 单音节拆分识别（偏好开关）：yuan→「预案」类两段拆分词
         // 按设置位插入。最后注入——所有正常排序完成后才定点，不受打分影响。
         self.inject_ambig_split_candidate(input, &mut cands);
+        // 自定义短语：精确触发码命中即置顶（最后注入，压过一切
+        // 排序/其他注入，保证第一候选位）。含英文/符号短语在此注入天然绕过
+        // 上方 ASCII 过滤（与英文候选注入同理）。
+        self.inject_phrase_candidates(input, &mut cands);
         // 预编辑显示跟随首选全覆盖绿词的读音切分（详见 display_reading_override
         // 字段注释）：候选全部定稿后记录，syllable_segmentation 对同 input 采用。
         //
@@ -3987,6 +4015,58 @@ impl Engine {
         self.apply_pins(input, &mut all_candidates);
 
         all_candidates
+    }
+
+    /// 自定义短语注入：精确触发码（归一：小写 + 去 ' 与空格）
+    /// 命中 → 短语文本按添加顺序插到候选最前（第一候选位）。一码多条全注入；
+    /// 与已有候选同文本去重。pinyin 恒空 → consumed_lens 全消费（选中整串上屏
+    /// 清空输入）；is_shortcut 蓝标记；base_freq=0（无词频，位置由注入决定）。
+    fn inject_phrase_candidates(&self, input: &str, cands: &mut Vec<Candidate>) {
+        if self.phrases.is_empty() {
+            return;
+        }
+        let key = crate::storage::phrases::normalize_phrase_key(input);
+        if key.is_empty() {
+            return;
+        }
+        let Some(texts) = self.phrases.get(&key) else {
+            return;
+        };
+        let mut at = 0usize;
+        for text in texts {
+            if cands.iter().any(|c| &*c.text == text.as_str()) {
+                continue; // 同文本去重
+            }
+            cands.insert(
+                at,
+                Candidate {
+                    text: text.as_str().into(),
+                    base_freq: 0,
+                    pinyin: String::new().into(),
+                    is_primary: true,
+                    is_correction: false,
+                    is_sentence: false,
+                    is_guess: false,
+                    is_shortcut: true,
+                    is_english: false,
+                    sentence_score: 0,
+                },
+            );
+            at += 1;
+        }
+    }
+
+    /// (归一输入, 文本) 是否为已定义自定义短语——commit 学习隔离用
+    /// （短语上屏不进 freq/input_mappings/user_words/green_memo，无词频）。
+    pub(crate) fn is_user_phrase(&self, input: &str, text: &str) -> bool {
+        if self.phrases.is_empty() {
+            return false;
+        }
+        let key = crate::storage::phrases::normalize_phrase_key(input);
+        self.phrases
+            .get(&key)
+            .map(|v| v.iter().any(|t| t == text))
+            .unwrap_or(false)
     }
 
     /// 智能单词识别·中文模式：纯字母输入命中英文词表时注入英文

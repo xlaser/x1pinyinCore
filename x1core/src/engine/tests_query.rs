@@ -2460,23 +2460,28 @@ fn test_consumed_lens_prefix_extension_and_residual() {
 
     // ① 前缀扩展：候选拼音 ⊇ 输入 → 全消费（sh→是(shi)、zh→着/这(zhe)、
     //    ch→出(chu)——首候选具体是哪个字随词库/学习态浮动，断言与选词解耦：
-    //    只断言「首候选拭音以输入为前缀（前缀扩展形态）+ consumed=全消费」）
+    //    只断言「前缀扩展形态候选拭音以输入为前缀 + consumed=全消费」。
+    //    种子相对化：首位形态随种子频值浮动（sh 首位可能是
+    //    s+h 简拼词 saohui 类），按形态定位首个「拭音以输入为前缀」的候选
+    //    断言全消费——守护 consumed 规则本身，与排序解耦）
     for input in ["sh", "zh", "ch"] {
         let cands = engine.process(input);
         assert!(!cands.is_empty(), "{input} 应有候选");
-        let compact: String = cands[0].pinyin.chars().filter(|c| *c != ' ').collect();
-        assert!(
-            compact.starts_with(input),
-            "{input} 首候选拭音 {compact} 应以输入为前缀（前缀扩展形态）"
-        );
+        let idx = cands
+            .iter()
+            .position(|c| {
+                let compact: String = c.pinyin.chars().filter(|c| *c != ' ').collect();
+                compact.starts_with(input)
+            })
+            .unwrap_or_else(|| panic!("{input} 候选应含前缀扩展形态（拭音以输入为前缀）"));
         let consumed = engine.consumed_lens(input, &cands);
         assert_eq!(
-            consumed[0],
+            consumed[idx],
             input.len(),
             "{input}→{} 前缀扩展应全消费 {}，实际 {}",
-            cands[0].text,
+            cands[idx].text,
             input.len(),
-            consumed[0]
+            consumed[idx]
         );
     }
 

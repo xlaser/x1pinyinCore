@@ -18,6 +18,7 @@ pub(crate) const USER_TABLES: &[&str] = &[
     "user_counts",
     "user_blacklist",
     "user_pins",
+    "user_phrases",
 ];
 
 /// 属于用户侧的 db_meta 键（迁移时从旧库带走；种子侧键留在 dict.db）。

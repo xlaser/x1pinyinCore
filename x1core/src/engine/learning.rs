@@ -64,6 +64,21 @@ impl crate::engine::Engine {
         force_solidify: bool,
         is_correction: bool,
     ) {
+        // 自定义短语：显式定义的短语上屏**词频/造词/绿词记忆/竞争/拼音计数
+        // 仍全隔离**（短语是显式绑定不是学习词汇），但**关联通道视短语为
+        // opaque 整词 token**：推进上下文栈 + 双向 user bigram/trigram（与普通
+        // 词同执行体 advance_context_stack）——短语上屏后下文衔接不断链、
+        // 反复「短语+下一词」积累关联加分（个性化进化；只写 user 表不碰种子
+        // collocation 资产）。不做短语内部拆词关联（短语可英文/符号/任意串，
+        // 拆词无定义；opaque 整串对中文短语同样由 user bigram 按整串对学习，
+        // 机制统一）。
+        if self.is_user_phrase(input, text) {
+            if advance_context {
+                self.advance_context_stack(text, None, false);
+                self.dirty = true; // bigram/trigram 落盘随 flush
+            }
+            return;
+        }
         // 智能单词识别：英文单词上屏不做中文学习——
         // 含 ASCII 字母的 text 一律跳过 freq/input_mappings/user_words/green_memo/
         // 搭配上下文，防污染中文排序与 Ranker 训练数据。
@@ -435,10 +450,24 @@ impl crate::engine::Engine {
         self.dirty = true;
 
         // 推进 bigram 上下文栈（仅普通提交；自组词分步传 false）。
-        // 先用栈顶（最近 1 个上屏词）记录共现 (prev, text)，再把 text 压入栈。
-        // 栈保留最近 CONTEXT_HISTORY_SIZE 个上屏词：bigram 只看 (最近1词, 当前词)，
-        // trigram 额外看倒数第二个词。
         if advance_context {
+            self.advance_context_stack(text, pinyin, sentence_split_commit);
+        }
+    }
+
+    /// 上下文栈推进 + 跨词 n-gram 记录单源（普通提交与自定义短语关联通道
+    /// 共用）。先用栈顶（最近 1 个上屏词）记录共现 (prev, text)，再把 text
+    /// 压入栈。栈保留最近 CONTEXT_HISTORY_SIZE 个上屏词：bigram 只看
+    /// (最近1词, 当前词)，trigram 额外看倒数第二个词。
+    /// `sentence_split_commit`=整句拆词提交（跳过本处 bigram/trigram，防
+    /// (末子词→整词) 伪搭配）；短语通道恒 false（opaque 整词即真实 token）。
+    fn advance_context_stack(
+        &mut self,
+        text: &str,
+        pinyin: Option<&str>,
+        sentence_split_commit: bool,
+    ) {
+        {
             // 每次普通提交先清空可撤销快照；只有真正记录 n-gram 时才重建
             // （纠错撤销：前端提交后立即退格可回滚本次跨词学习）。
             self.last_commit_ngrams = None;

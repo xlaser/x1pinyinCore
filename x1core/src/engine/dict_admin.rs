@@ -569,6 +569,14 @@ impl crate::engine::Engine {
             self.english_delta.clear();
             self.input_mappings = storage.load_input_mappings()?;
             self.input_mappings_by_text = Self::build_mapping_index(&self.input_mappings);
+            // 自定义短语同步重载：管理器增删改/导入改库后以 DB
+            // 为准（id 升序 = 添加顺序，一码多条保持先后）。
+            self.phrases.clear();
+            if let Ok(rows) = storage.load_phrases() {
+                for (_id, trigger, text) in rows {
+                    self.phrases.entry(trigger).or_default().push(text);
+                }
+            }
             // 黑名单同步重载：词库管理器删除词时 remove() 直写
             // user_blacklist——运行中服务的 removed_texts 不知道，reload 后
             // 整句解码/绿词仍可能把词拼回来。以 DB 为准重载（启动加载同源，
@@ -582,6 +590,117 @@ impl crate::engine::Engine {
             self.dirty = false;
         }
         Ok(())
+    }
+
+    // ---------------- 自定义短语（词库管理器直连 DB） ----------------
+    // 管理器低频 CRUD 直写 user_phrases 表，写成功即 refresh_phrases_memory
+    // 重建内存短语表（mac 进程内引擎免 reload 即时生效；win 服务侧 notify_reload
+    // 全量重载同口径重建，两条路径不冲突）。list/export 直读 DB（恒新鲜，不依赖
+    // 本进程内存态）；上屏学习隔离见 learning.rs commit_internal 短语守卫。
+
+    /// 全部短语（id, 触发码, 文本；id 升序 = 添加顺序）。
+    pub fn list_phrases(&self) -> Vec<(i64, String, String)> {
+        self.storage
+            .as_ref()
+            .map(|s| s.load_phrases().unwrap_or_default())
+            .unwrap_or_default()
+    }
+
+    /// 短语总数。
+    pub fn phrase_count(&self) -> usize {
+        self.storage
+            .as_ref()
+            .map(|s| s.phrase_count().unwrap_or(0))
+            .unwrap_or(0)
+    }
+
+    /// 新增一条短语（触发码归一存储）。
+    pub fn add_phrase(&mut self, trigger: &str, text: &str) -> bool {
+        let ok = match self.storage.as_mut() {
+            Some(s) => s.insert_phrase(trigger, text).is_ok(),
+            None => false,
+        };
+        if ok {
+            self.refresh_phrases_memory();
+        }
+        ok
+    }
+
+    /// 按 id 更新短语。
+    pub fn update_phrase(&mut self, id: i64, trigger: &str, text: &str) -> bool {
+        let ok = match self.storage.as_mut() {
+            Some(s) => s.update_phrase(id, trigger, text).is_ok(),
+            None => false,
+        };
+        if ok {
+            self.refresh_phrases_memory();
+        }
+        ok
+    }
+
+    /// 批量删除短语（按 id）。
+    pub fn delete_phrases(&mut self, ids: &[i64]) -> bool {
+        let ok = match self.storage.as_mut() {
+            Some(s) => s.delete_phrases(ids).is_ok(),
+            None => false,
+        };
+        if ok {
+            self.refresh_phrases_memory();
+        }
+        ok
+    }
+
+    /// 导入短语（纯文本，短语在前触发码在后，空格/逗号分隔；见
+    /// storage::phrases::parse_phrase_line）。replace=true 先清空。返回导入条数。
+    pub fn import_phrases(&mut self, content: &str, replace: bool) -> usize {
+        let n = {
+            let Some(s) = self.storage.as_mut() else {
+                return 0;
+            };
+            if replace {
+                let _ = s.clear_phrases();
+            }
+            let mut n = 0;
+            for line in content.lines() {
+                if let Some((text, trigger)) = crate::storage::phrases::parse_phrase_line(line) {
+                    if s.insert_phrase(&trigger, &text).is_ok() {
+                        n += 1;
+                    }
+                }
+            }
+            n
+        };
+        if n > 0 || replace {
+            self.refresh_phrases_memory();
+        }
+        n
+    }
+
+    /// 导出短语（每行 `短语,触发码`，UTF-8）。
+    pub fn export_phrases(&self) -> String {
+        let mut out = String::new();
+        for (_id, trigger, text) in self.list_phrases() {
+            out.push_str(&crate::storage::phrases::format_phrase_line(
+                &text, &trigger,
+            ));
+            out.push('\n');
+        }
+        out
+    }
+
+    /// 以 DB 为准重建内存短语表（CRUD 写成功后即时调用）。只动 phrases 一张
+    /// 表——不重建 Trie、不清 pending（区别于 reload_user_state 全量重载），
+    /// 进程内引擎（mac FFI）改短语零副作用即时生效。DB 触发码已归一存储，
+    /// id 升序 = 添加顺序（一码多条保持先后，与启动加载同口径）。
+    pub(crate) fn refresh_phrases_memory(&mut self) {
+        self.phrases.clear();
+        if let Some(storage) = &self.storage {
+            if let Ok(rows) = storage.load_phrases() {
+                for (_id, trigger, text) in rows {
+                    self.phrases.entry(trigger).or_default().push(text);
+                }
+            }
+        }
     }
 
     /// 内存状态是否已脏（需要 flush）
